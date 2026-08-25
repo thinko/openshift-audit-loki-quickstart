@@ -7,11 +7,11 @@ CHART := $(ROOT)/helm/audit-loki
 PYTHON ?= python3
 
 .PHONY: help deploy destroy test test-attribution enable-console-plugin \
-	helm-lint helm-template secret lint
+	helm-lint helm-template secret azure-storage lint
 
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*##"; printf "\nTargets:\n"} /^[a-zA-Z0-9_.-]+:.*##/ { printf "  %-24s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
-	@printf "\nDeploy requires AZURE_STORAGE_ACCOUNT_NAME and AZURE_STORAGE_ACCOUNT_KEY.\n\n"
+	@printf "\nDeploy requires Azure Blob env vars (see scripts/create-azure-storage.sh).\n\n"
 
 deploy: ## Install operators, LokiStack, audit forwarder, and console plugin
 	"$(ROOT)/scripts/deploy.sh"
@@ -31,6 +31,7 @@ test: ## Run local validation (pytest, yamllint, shell syntax, helm lint)
 	@bash -n "$(ROOT)/scripts/destroy.sh"
 	@bash -n "$(ROOT)/scripts/test-attribution.sh"
 	@bash -n "$(ROOT)/scripts/enable-console-plugin.sh"
+	@bash -n "$(ROOT)/scripts/create-azure-storage.sh"
 	@if command -v helm >/dev/null 2>&1; then helm lint "$(CHART)"; else echo "helm not on PATH; skip helm lint"; fi
 
 test-attribution: ## Create/delete a ConfigMap and print LogQL to verify user attribution
@@ -47,6 +48,9 @@ helm-template: ## Render the chart with placeholder Azure values (no cluster req
 		--set azure.accountName=exampleaccount \
 		--set azure.accountKey=examplekey \
 		--set azure.container=loki-audit
+
+azure-storage: ## Create a dedicated Azure Blob account and container (AZURE_RESOURCE_GROUP required)
+	"$(ROOT)/scripts/create-azure-storage.sh"
 
 secret: ## Create/update the Azure Blob secret from environment variables
 	@test -n "$${AZURE_STORAGE_ACCOUNT_NAME:-}" || (echo "AZURE_STORAGE_ACCOUNT_NAME is required" >&2; exit 1)

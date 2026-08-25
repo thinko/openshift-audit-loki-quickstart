@@ -54,18 +54,36 @@ Both operators in this repo use `stable-6.5`. Change the channel in `manifests/0
 
 ### Azure Blob
 
-Create a storage account and a dedicated container (example name `loki-audit`). Grant the account key (or configure Entra Workload ID / CCO and switch `credentialMode` to `token-cco`).
+Do not reuse the ARO cluster or image-registry storage accounts. One Loki Blob
+account per **environment type** (sandbox, dev, test, prod) is enough; use a
+**unique container per cluster**. Never share a container across LokiStacks.
+
+```bash
+export AZURE_SUBSCRIPTION_ID='<subscription-guid>'   # optional if az account is already set
+export AZURE_RESOURCE_GROUP='<resource-group>'
+export AZURE_CONTAINER_NAME='loki-audit'             # unique per cluster if the account is shared
+# optional: AZURE_STORAGE_ACCOUNT_NAME, AZURE_STORAGE_ACCOUNT_PREFIX (default lokiblob)
+
+make azure-storage
+set -a && source .env.azure && set +a
+make deploy
+```
+
+`scripts/create-azure-storage.sh` creates a StorageV2 account (`Standard_LRS`,
+TLS 1.2, public blob access off, hierarchical namespace off) in the resource
+group's region and writes gitignored `.env.azure`. It does **not** create the
+OpenShift secret; `make deploy` creates `logging-loki-azure`.
+
+Alternatively set `AZURE_STORAGE_ACCOUNT_NAME`, `AZURE_STORAGE_ACCOUNT_KEY`,
+and `AZURE_CONTAINER_NAME` yourself. For Entra Workload ID / CCO, omit the
+account key and switch LokiStack `credentialMode` to `token-cco`.
 
 Supported `environment` values: `AzureGlobal`, `AzureChinaCloud`, `AzureGermanCloud`, `AzureUSGovernment`.
 
 ## Quickstart (`make deploy`)
 
 ```bash
-export AZURE_STORAGE_ACCOUNT_NAME='<account>'
-export AZURE_STORAGE_ACCOUNT_KEY='<key>'
-export AZURE_CONTAINER_NAME='loki-audit'   # optional
-export AZURE_ENVIRONMENT='AzureGlobal'     # optional
-
+# after make azure-storage, or export the three Azure vars by hand
 make deploy
 ```
 

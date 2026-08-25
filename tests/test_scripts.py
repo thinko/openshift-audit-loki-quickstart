@@ -15,3 +15,11 @@ def test_scripts_use_strict_mode(repo_root: Path):
     for script in (repo_root / "scripts").glob("*.sh"):
         text = script.read_text(encoding="utf-8")
         assert "set -euo pipefail" in text, script.name
+
+
+def test_create_azure_storage_is_anonymized_and_defers_ocp_secret(repo_root: Path):
+    text = (repo_root / "scripts" / "create-azure-storage.sh").read_text(encoding="utf-8")
+    assert "AZURE_RESOURCE_GROUP" in text
+    assert "logging-loki-azure" in text
+    assert "oc create secret" not in text
+    assert "--enable-hierarchical-namespace false" in text
