@@ -1,0 +1,33 @@
+# Generated / local secrets — never commit real Azure keys
+manifests/02-storage-secret.yaml
+secrets/
+.env
+.env.*
+*.pem
+*.key
+!manifests/02-storage-secret.template.yaml
+
+# Python / test
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+.coverage
+htmlcov/
+test-results.xml
+*.pyc
+
+# Helm
+helm/audit-loki/charts/
+*.tgz
+Chart.lock
+
+# Editor / OS
+.DS_Store
+*.swp
+*.swo
+*~
+.onedev/
+
+# Local graphify output
+graphify-out/

@@ -1,0 +1,115 @@
+version: 38
+jobs:
+  - name: Test
+    steps:
+      - type: CheckoutStep
+        name: Checkout
+        cloneCredential:
+          type: DefaultCredential
+        withLfs: false
+        withSubmodules: false
+        condition: ALWAYS
+      - type: CommandStep
+        name: Validate manifests and Helm chart
+        runInContainer: true
+        image: python:3.12-bookworm
+        interpreter:
+          type: ShellInterpreter
+          shell: bash
+        commands: |
+          set -euo pipefail
+          python3 -m pip install --quiet -r requirements-dev.txt
+          curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | VERIFY_CHECKSUM=1 bash
+          python3 -m pytest tests/ -v --tb=short --junitxml=test-results.xml
+          yamllint -c .yamllint.yaml manifests helm/audit-loki/Chart.yaml helm/audit-loki/values.yaml .onedev-buildspec.yml
+          bash -n scripts/common.sh
+          bash -n scripts/deploy.sh
+          bash -n scripts/destroy.sh
+          bash -n scripts/test-attribution.sh
+          bash -n scripts/enable-console-plugin.sh
+          helm lint helm/audit-loki
+          helm template audit-loki helm/audit-loki \
+            --set azure.accountName=exampleaccount \
+            --set azure.accountKey=examplekey \
+            --set azure.container=loki-audit >/dev/null
+        condition: ALWAYS
+    triggers:
+      - type: BranchUpdateTrigger
+        branches: main feature/*
+    retryCondition: never
+    maxRetries: 3
+    retryDelay: 30
+    timeout: 1800
+    jobExecutor: homelab-ocp
+
+  - name: Build & Deploy
+    steps:
+      - type: CheckoutStep
+        name: Checkout
+        cloneCredential:
+          type: DefaultCredential
+        withLfs: false
+        withSubmodules: false
+        condition: ALWAYS
+      - type: CommandStep
+        name: Package Helm chart
+        runInContainer: true
+        image: python:3.12-bookworm
+        interpreter:
+          type: ShellInterpreter
+          shell: bash
+        commands: |
+          set -euo pipefail
+          APP_VERSION=$(tr -d '[:space:]' < VERSION)
+          echo "Packaging audit-loki Helm chart v${APP_VERSION}"
+          curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | VERIFY_CHECKSUM=1 bash
+          mkdir -p dist
+          helm lint helm/audit-loki
+          helm package helm/audit-loki --destination dist --version "${APP_VERSION}" --app-version "${APP_VERSION}"
+          ls -l dist
+          echo "This repository is a GitOps install kit; cluster deploy is performed by consumers with make deploy or helm install."
+        condition: ALWAYS
+    jobDependencies:
+      - jobName: Test
+        requireSuccessful: true
+    triggers:
+      - type: BranchUpdateTrigger
+        branches: main
+    retryCondition: never
+    maxRetries: 3
+    retryDelay: 30
+    timeout: 1800
+    jobExecutor: homelab-ocp
+
+  - name: GitHub Sync
+    steps:
+      - type: CheckoutStep
+        name: Checkout
+        cloneCredential:
+          type: DefaultCredential
+        withLfs: false
+        withSubmodules: false
+        condition: ALWAYS
+      - type: CommandStep
+        name: Push to GitHub
+        runInContainer: false
+        interpreter:
+          type: ShellInterpreter
+          shell: bash
+        commands: |
+          set -euo pipefail
+          export GIT_SSH_COMMAND="ssh -i /home/thinko/.ssh/github_2023-08-23 -o StrictHostKeyChecking=accept-new -o HostKeyAlias=server-pool.github.com"
+          git remote add github git@@server-pool.github.com:thinko/openshift-audit-loki-quickstart.git 2>/dev/null || true
+          git push github main --tags
+        condition: ALWAYS
+    jobDependencies:
+      - jobName: Build & Deploy
+        requireSuccessful: true
+    triggers:
+      - type: BranchUpdateTrigger
+        branches: main
+    retryCondition: never
+    maxRetries: 3
+    retryDelay: 30
+    timeout: 600
+    jobExecutor: homelab-ocp

@@ -1,0 +1,17 @@
+"""Shell scripts must be executable-safe and parse under bash -n."""
+
+import subprocess
+from pathlib import Path
+
+
+def test_scripts_bash_n(repo_root: Path):
+    scripts = sorted((repo_root / "scripts").glob("*.sh"))
+    assert scripts, "expected scripts in scripts/"
+    for script in scripts:
+        subprocess.run(["bash", "-n", str(script)], check=True)
+
+
+def test_scripts_use_strict_mode(repo_root: Path):
+    for script in (repo_root / "scripts").glob("*.sh"):
+        text = script.read_text(encoding="utf-8")
+        assert "set -euo pipefail" in text, script.name

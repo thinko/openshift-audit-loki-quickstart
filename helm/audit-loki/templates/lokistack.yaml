@@ -1,0 +1,30 @@
+apiVersion: loki.grafana.com/v1
+kind: LokiStack
+metadata:
+  name: {{ .Values.lokiStack.name }}
+  namespace: {{ include "audit-loki.lokiNamespace" . }}
+  labels:
+    app.kubernetes.io/component: lokistack
+    {{- include "audit-loki.labels" . | nindent 4 }}
+spec:
+  managementState: Managed
+  size: {{ .Values.lokiStack.size | quote }}
+  storage:
+    schemas:
+      - version: {{ .Values.lokiStack.schema.version }}
+        effectiveDate: {{ .Values.lokiStack.schema.effectiveDate | quote }}
+    secret:
+      name: {{ include "audit-loki.secretName" . }}
+      type: azure
+      credentialMode: {{ .Values.azure.credentialMode }}
+  storageClassName: {{ .Values.lokiStack.storageClassName | quote }}
+  tenants:
+    mode: openshift-logging
+  limits:
+    global:
+      retention:
+        days: {{ .Values.lokiStack.retentionDays }}
+    tenants:
+      audit:
+        retention:
+          days: {{ .Values.lokiStack.auditRetentionDays }}

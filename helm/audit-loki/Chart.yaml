@@ -1,0 +1,24 @@
+apiVersion: v2
+name: audit-loki
+description: Edge-filtered OpenShift audit logs into an Azure-backed LokiStack
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.29.0-0"
+home: https://github.com/thinko/openshift-audit-loki-quickstart
+sources:
+  - https://github.com/thinko/openshift-audit-loki-quickstart
+keywords:
+  - openshift
+  - aro
+  - loki
+  - lokistack
+  - audit
+  - logging
+  - vector
+maintainers:
+  - name: openshift-audit-loki-quickstart authors
+annotations:
+  artifacthub.io/license: Apache-2.0
+  artifacthub.io/operator: "false"
+  artifacthub.io/prerelease: "false"

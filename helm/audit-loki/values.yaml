@@ -1,0 +1,70 @@
+# Default values for audit-loki.
+# Pass Azure credentials via --set, a private values file, or existingSecret.
+# Never commit real account keys to git.
+
+nameOverride: ""
+fullnameOverride: ""
+
+# OLM channels must match between Loki and Cluster Logging Operators.
+# List channels: oc get packagemanifest loki-operator -n openshift-marketplace
+operator:
+  channel: stable-6.5
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  installPlanApproval: Automatic
+  createNamespaces: true
+  createOperatorGroups: true
+  createSubscriptions: true
+
+lokiStack:
+  name: logging-loki
+  namespace: openshift-logging
+  size: 1x.extra-small
+  storageClassName: managed-csi
+  retentionDays: 7
+  auditRetentionDays: 14
+  schema:
+    version: v13
+    effectiveDate: "2024-10-01"
+
+# Object storage for Loki (Azure Blob). Prefer existingSecret in GitOps.
+azure:
+  existingSecret: ""
+  environment: AzureGlobal
+  accountName: ""
+  accountKey: ""
+  container: loki-audit
+  # static | token | token-cco (token-cco is for Entra Workload ID / CCO)
+  credentialMode: static
+
+clusterLogForwarder:
+  name: audit
+  namespace: openshift-logging
+  collectorServiceAccount: logging-collector
+  createRbac: true
+  dataModel: Viaq
+  tls:
+    ca:
+      configMapName: openshift-service-ca.crt
+      key: service-ca.crt
+  auditSources:
+    - kubeAPI
+    - openshiftAPI
+    - ovn
+  drop:
+    verbPattern: '^(get|list|watch)$'
+    usernamePattern: '^system:(node|serviceaccount:kube-system|serviceaccount:openshift-.*)'
+  kubeAPIAudit:
+    omitStages:
+      - RequestReceived
+    dropUsers:
+      - "system:node*"
+      - "system:serviceaccount:kube-system:*"
+      - "system:serviceaccount:openshift-*"
+
+consolePlugin:
+  enabled: false
+  name: logging-view-plugin
+
+# Extra labels applied to all rendered resources.
+labels: {}

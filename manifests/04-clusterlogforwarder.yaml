@@ -1,0 +1,125 @@
+---
+# Collector identity. Bind cluster roles *before* creating the
+# ClusterLogForwarder. Adding an audit input without collect-audit-logs
+# causes the operator to tear down the entire collector DaemonSet.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: logging-collector
+  namespace: openshift-logging
+  labels:
+    app.kubernetes.io/name: clusterlogforwarder
+    app.kubernetes.io/component: collector
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: logging-collector-audit-logs
+  labels:
+    app.kubernetes.io/name: clusterlogforwarder
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: collect-audit-logs
+subjects:
+  - kind: ServiceAccount
+    name: logging-collector
+    namespace: openshift-logging
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: logging-collector-logs-writer
+  labels:
+    app.kubernetes.io/name: clusterlogforwarder
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: logging-collector-logs-writer
+subjects:
+  - kind: ServiceAccount
+    name: logging-collector
+    namespace: openshift-logging
+---
+# OpenShift Logging 6.x (OpenShift 4.14+ / 4.20): observability.openshift.io/v1.
+# The older logging.openshift.io/v1 ClusterLogForwarder API is removed in 6.x.
+#
+# Pipeline: kube/openshift/ovn audit -> edge filters -> in-cluster LokiStack.
+# Filters keep mutating API traffic (create/update/patch/delete) with user
+# attribution and drop routine reads plus platform service-account noise.
+apiVersion: observability.openshift.io/v1
+kind: ClusterLogForwarder
+metadata:
+  name: audit
+  namespace: openshift-logging
+  labels:
+    app.kubernetes.io/name: clusterlogforwarder
+    app.kubernetes.io/part-of: openshift-logging
+spec:
+  managementState: Managed
+  serviceAccount:
+    name: logging-collector
+  inputs:
+    - name: audit-logs
+      type: audit
+      audit:
+        sources:
+          - kubeAPI
+          - openshiftAPI
+          - ovn
+  filters:
+    # kubeAPIAudit understands kube-apiserver JSON natively (wildcards, verbs).
+    # Metadata (not RequestResponse) keeps user/verb/objectRef without bodies
+    # that can contain Secrets or other sensitive payloads.
+    - name: kube-api-audit-policy
+      type: kubeAPIAudit
+      kubeAPIAudit:
+        omitStages:
+          - RequestReceived
+        rules:
+          - level: None
+            verbs:
+              - get
+              - list
+              - watch
+          - level: None
+            users:
+              - "system:node*"
+              - "system:serviceaccount:kube-system:*"
+              - "system:serviceaccount:openshift-*"
+          - level: Metadata
+    # Vector drop filter as a second gate. Tests in one drop[] entry are OR'd;
+    # conditions inside a single test[] are AND'd. Missing fields evaluate false.
+    - name: drop-audit-noise
+      type: drop
+      drop:
+        - test:
+            - field: .verb
+              matches: '^(get|list|watch)$'
+        - test:
+            - field: .user.username
+              matches: '^system:(node|serviceaccount:kube-system|serviceaccount:openshift-.*)'
+  outputs:
+    - name: local-loki
+      type: lokiStack
+      lokiStack:
+        dataModel: Viaq
+        target:
+          name: logging-loki
+          namespace: openshift-logging
+        authentication:
+          token:
+            from: serviceAccount
+      tls:
+        ca:
+          key: service-ca.crt
+          configMapName: openshift-service-ca.crt
+  pipelines:
+    - name: audit-to-loki
+      inputRefs:
+        - audit-logs
+      filterRefs:
+        - kube-api-audit-policy
+        - drop-audit-noise
+      outputRefs:
+        - local-loki

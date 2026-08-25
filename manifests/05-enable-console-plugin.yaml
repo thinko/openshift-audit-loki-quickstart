@@ -1,0 +1,24 @@
+---
+# Reference fragment for consoles.operator.openshift.io/cluster.
+#
+# Do NOT `oc apply -f` this file. A full apply (or a merge patch that
+# replaces spec.plugins) wipes every other console plugin already enabled
+# on the cluster.
+#
+# scripts/deploy.sh and `make enable-console-plugin` append
+# logging-view-plugin only when it is missing.
+#
+# GitOps: add logging-view-plugin to the Console resource your CD tool
+# already owns, then sync. Example list:
+#
+#   spec:
+#     plugins:
+#       - monitoring-plugin
+#       - logging-view-plugin
+apiVersion: operator.openshift.io/v1
+kind: Console
+metadata:
+  name: cluster
+spec:
+  plugins:
+    - logging-view-plugin

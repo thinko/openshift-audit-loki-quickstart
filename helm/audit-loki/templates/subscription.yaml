@@ -1,0 +1,29 @@
+{{- if .Values.operator.createSubscriptions }}
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: loki-operator
+  namespace: openshift-operators-redhat
+  labels:
+    {{- include "audit-loki.labels" . | nindent 4 }}
+spec:
+  channel: {{ .Values.operator.channel | quote }}
+  installPlanApproval: {{ .Values.operator.installPlanApproval }}
+  name: loki-operator
+  source: {{ .Values.operator.source | quote }}
+  sourceNamespace: {{ .Values.operator.sourceNamespace | quote }}
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: cluster-logging
+  namespace: {{ include "audit-loki.lokiNamespace" . }}
+  labels:
+    {{- include "audit-loki.labels" . | nindent 4 }}
+spec:
+  channel: {{ .Values.operator.channel | quote }}
+  installPlanApproval: {{ .Values.operator.installPlanApproval }}
+  name: cluster-logging
+  source: {{ .Values.operator.source | quote }}
+  sourceNamespace: {{ .Values.operator.sourceNamespace | quote }}
+{{- end }}

@@ -1,0 +1,31 @@
+---
+# Loki Operator — install in openshift-operators-redhat (cluster-wide).
+# Channel must match the Red Hat OpenShift Logging Operator channel below.
+# Confirm available channels:
+#   oc get packagemanifest loki-operator -n openshift-marketplace \
+#     -o jsonpath='{range .status.channels[*]}{.name}{"\n"}{end}'
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: loki-operator
+  namespace: openshift-operators-redhat
+spec:
+  channel: stable-6.5
+  installPlanApproval: Automatic
+  name: loki-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+---
+# Red Hat OpenShift Logging Operator — Vector collector + ClusterLogForwarder.
+# Logging 6.x is required on OpenShift 4.20 (observability.openshift.io/v1).
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: cluster-logging
+  namespace: openshift-logging
+spec:
+  channel: stable-6.5
+  installPlanApproval: Automatic
+  name: cluster-logging
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace

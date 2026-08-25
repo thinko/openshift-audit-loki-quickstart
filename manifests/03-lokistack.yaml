@@ -1,0 +1,39 @@
+---
+# Sandbox / evaluation LokiStack. Object storage is Azure Blob (via the
+# logging-loki-azure secret). storageClassName is *block* storage for
+# ingester/compactor PVCs — on Azure Red Hat OpenShift that is managed-csi.
+#
+# Size 1x.extra-small is the smallest supported production profile
+# (~100 GB/day ingest). It is not highly available; use 1x.small or
+# 1x.medium before promoting this pattern to a production cluster.
+apiVersion: loki.grafana.com/v1
+kind: LokiStack
+metadata:
+  name: logging-loki
+  namespace: openshift-logging
+  labels:
+    app.kubernetes.io/name: lokistack
+    app.kubernetes.io/part-of: openshift-logging
+spec:
+  managementState: Managed
+  size: 1x.extra-small
+  storage:
+    schemas:
+      # v13 is required for current Loki Operator releases.
+      - version: v13
+        effectiveDate: "2024-10-01"
+    secret:
+      name: logging-loki-azure
+      type: azure
+      credentialMode: static
+  storageClassName: managed-csi
+  tenants:
+    mode: openshift-logging
+  limits:
+    global:
+      retention:
+        days: 7
+    tenants:
+      audit:
+        retention:
+          days: 14

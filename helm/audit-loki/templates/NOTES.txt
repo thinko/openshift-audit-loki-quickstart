@@ -1,0 +1,17 @@
+1. Confirm LokiStack is Ready:
+   oc get lokistack {{ .Values.lokiStack.name }} -n {{ include "audit-loki.lokiNamespace" . }}
+
+2. Confirm the forwarder accepted the pipeline:
+   oc get clusterlogforwarder {{ .Values.clusterLogForwarder.name }} -n {{ include "audit-loki.clfNamespace" . }}
+
+3. Enable the console plugin without wiping other plugins:
+   make enable-console-plugin
+
+   GitOps users should add "{{ .Values.consolePlugin.name }}" to the Console
+   resource they already manage. Do not oc apply manifests/05-enable-console-plugin.yaml.
+
+4. Observe -> Logs -> Audit, then run:
+   {log_type="audit"} | json | verb="delete"
+
+5. Generate a known event:
+   ./scripts/test-attribution.sh

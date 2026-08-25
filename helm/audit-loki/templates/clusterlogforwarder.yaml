@@ -1,0 +1,110 @@
+{{- $sa := .Values.clusterLogForwarder.collectorServiceAccount }}
+{{- $ns := include "audit-loki.clfNamespace" . }}
+{{- if .Values.clusterLogForwarder.createRbac }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $sa }}
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/component: collector
+    {{- include "audit-loki.labels" . | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ printf "%s-collect-audit-logs" (include "audit-loki.fullname" .) | trunc 63 | trimSuffix "-" }}
+  labels:
+    {{- include "audit-loki.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: collect-audit-logs
+subjects:
+  - kind: ServiceAccount
+    name: {{ $sa }}
+    namespace: {{ $ns }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ printf "%s-logs-writer" (include "audit-loki.fullname" .) | trunc 63 | trimSuffix "-" }}
+  labels:
+    {{- include "audit-loki.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: logging-collector-logs-writer
+subjects:
+  - kind: ServiceAccount
+    name: {{ $sa }}
+    namespace: {{ $ns }}
+---
+{{- end }}
+apiVersion: observability.openshift.io/v1
+kind: ClusterLogForwarder
+metadata:
+  name: {{ .Values.clusterLogForwarder.name }}
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/component: collector
+    {{- include "audit-loki.labels" . | nindent 4 }}
+spec:
+  managementState: Managed
+  serviceAccount:
+    name: {{ $sa }}
+  inputs:
+    - name: audit-logs
+      type: audit
+      audit:
+        sources:
+          {{- toYaml .Values.clusterLogForwarder.auditSources | nindent 10 }}
+  filters:
+    - name: kube-api-audit-policy
+      type: kubeAPIAudit
+      kubeAPIAudit:
+        omitStages:
+          {{- toYaml .Values.clusterLogForwarder.kubeAPIAudit.omitStages | nindent 10 }}
+        rules:
+          - level: None
+            verbs:
+              - get
+              - list
+              - watch
+          - level: None
+            users:
+              {{- toYaml .Values.clusterLogForwarder.kubeAPIAudit.dropUsers | nindent 14 }}
+          - level: Metadata
+    - name: drop-audit-noise
+      type: drop
+      drop:
+        - test:
+            - field: .verb
+              matches: {{ .Values.clusterLogForwarder.drop.verbPattern | quote }}
+        - test:
+            - field: .user.username
+              matches: {{ .Values.clusterLogForwarder.drop.usernamePattern | quote }}
+  outputs:
+    - name: local-loki
+      type: lokiStack
+      lokiStack:
+        dataModel: {{ .Values.clusterLogForwarder.dataModel }}
+        target:
+          name: {{ .Values.lokiStack.name }}
+          namespace: {{ include "audit-loki.lokiNamespace" . }}
+        authentication:
+          token:
+            from: serviceAccount
+      tls:
+        ca:
+          key: {{ .Values.clusterLogForwarder.tls.ca.key | quote }}
+          configMapName: {{ .Values.clusterLogForwarder.tls.ca.configMapName | quote }}
+  pipelines:
+    - name: audit-to-loki
+      inputRefs:
+        - audit-logs
+      filterRefs:
+        - kube-api-audit-policy
+        - drop-audit-noise
+      outputRefs:
+        - local-loki
