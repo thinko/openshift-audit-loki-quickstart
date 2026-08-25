@@ -6,15 +6,21 @@ ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 CHART := $(ROOT)/helm/audit-loki
 PYTHON ?= python3
 
-.PHONY: help deploy destroy test test-attribution enable-console-plugin \
-	helm-lint helm-template secret azure-storage lint
+.PHONY: help deploy deploy-operators destroy test test-attribution enable-console-plugin \
+	helm-lint helm-template secret azure-storage status lint
 
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*##"; printf "\nTargets:\n"} /^[a-zA-Z0-9_.-]+:.*##/ { printf "  %-24s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
-	@printf "\nDeploy requires Azure Blob env vars (see scripts/create-azure-storage.sh).\n\n"
+	@printf "\nBlob storage can wait: make deploy-operators. Full deploy needs Azure Blob (docs/azure-blob-request.md).\n\n"
 
 deploy: ## Install operators, LokiStack, audit forwarder, and console plugin
 	"$(ROOT)/scripts/deploy.sh"
+
+deploy-operators: ## Install Loki + logging operators only (no Blob secret / LokiStack)
+	"$(ROOT)/scripts/deploy.sh" --operators-only
+
+status: ## Show operator, secret-key, and LokiStack progress (does not print Azure keys)
+	"$(ROOT)/scripts/status.sh"
 
 destroy: ## Remove the forwarder, LokiStack, and collector RBAC (asks for confirmation)
 	"$(ROOT)/scripts/destroy.sh"
@@ -32,6 +38,7 @@ test: ## Run local validation (pytest, yamllint, shell syntax, helm lint)
 	@bash -n "$(ROOT)/scripts/test-attribution.sh"
 	@bash -n "$(ROOT)/scripts/enable-console-plugin.sh"
 	@bash -n "$(ROOT)/scripts/create-azure-storage.sh"
+	@bash -n "$(ROOT)/scripts/status.sh"
 	@if command -v helm >/dev/null 2>&1; then helm lint "$(CHART)"; else echo "helm not on PATH; skip helm lint"; fi
 
 test-attribution: ## Create/delete a ConfigMap and print LogQL to verify user attribution

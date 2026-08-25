@@ -23,3 +23,9 @@ def test_create_azure_storage_is_anonymized_and_defers_ocp_secret(repo_root: Pat
     assert "logging-loki-azure" in text
     assert "oc create secret" not in text
     assert "--enable-hierarchical-namespace false" in text
+
+
+def test_deploy_supports_operators_only(repo_root: Path):
+    text = (repo_root / "scripts" / "deploy.sh").read_text(encoding="utf-8")
+    assert "--operators-only" in text
+    assert "make deploy-operators" in (repo_root / "Makefile").read_text(encoding="utf-8")

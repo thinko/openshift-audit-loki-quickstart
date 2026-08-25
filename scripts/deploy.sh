@@ -14,9 +14,9 @@ Deploys Loki Operator + Cluster Logging Operator, an Azure-backed LokiStack
 (1x.extra-small), an audit-only ClusterLogForwarder with edge filters, and
 enables the OpenShift console logging-view-plugin.
 
-Required environment:
-  AZURE_STORAGE_ACCOUNT_NAME
-  AZURE_STORAGE_ACCOUNT_KEY
+Azure Blob is required for LokiStack (not for operator install):
+  AZURE_STORAGE_ACCOUNT_NAME and AZURE_STORAGE_ACCOUNT_KEY
+  or an existing Secret openshift-logging/logging-loki-azure with Loki keys.
 
 Optional environment:
   AZURE_CONTAINER_NAME     Azure Blob container (default: loki-audit)
@@ -24,17 +24,21 @@ Optional environment:
   SKIP_CONSOLE_PLUGIN      Set to 1 to skip patching the Console operator
 
 Options:
-  --skip-wait     Do not wait for operators / LokiStack to become Ready
-  --skip-console  Do not enable logging-view-plugin
-  -h, --help      Show this help
+  --operators-only  Namespaces, OperatorGroups, subscriptions, wait for CRDs; stop
+                    before the Azure secret / LokiStack / forwarder
+  --skip-wait       Do not wait for operators / LokiStack to become Ready
+  --skip-console    Do not enable logging-view-plugin
+  -h, --help        Show this help
 EOF
 }
 
 SKIP_WAIT=0
 SKIP_CONSOLE="${SKIP_CONSOLE_PLUGIN:-0}"
+OPERATORS_ONLY=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --operators-only) OPERATORS_ONLY=1; shift ;;
     --skip-wait) SKIP_WAIT=1; shift ;;
     --skip-console) SKIP_CONSOLE=1; shift ;;
     -h|--help) usage; exit 0 ;;
@@ -58,6 +62,30 @@ if [[ "${SKIP_WAIT}" -eq 0 ]]; then
   wait_for_csv "${NAMESPACE}"
   wait_for_crd lokistacks.loki.grafana.com
   wait_for_crd clusterlogforwarders.observability.openshift.io
+fi
+
+if [[ "${OPERATORS_ONLY}" -eq 1 ]]; then
+  cat <<EOF
+
+Operators submitted. LokiStack was not created (no object storage yet).
+
+While waiting on the Blob account:
+  * oc get csv -n ${OPERATORS_NAMESPACE}
+  * oc get csv -n ${NAMESPACE}
+  * oc get crd lokistacks.loki.grafana.com clusterlogforwarders.observability.openshift.io
+  * oc get storageclass managed-csi
+  * make status
+
+Give the cloud team docs/azure-blob-request.md. When the account exists:
+
+  export AZURE_STORAGE_ACCOUNT_NAME='...'
+  export AZURE_STORAGE_ACCOUNT_KEY='...'
+  export AZURE_CONTAINER_NAME='...'
+  make deploy
+
+If they create Secret ${NAMESPACE}/${SECRET_NAME} for you, just re-run make deploy.
+EOF
+  exit 0
 fi
 
 apply_azure_secret

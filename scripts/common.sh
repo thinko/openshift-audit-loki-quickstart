@@ -109,14 +109,41 @@ enable_console_plugin() {
   die "Failed to patch consoles.operator.openshift.io/cluster"
 }
 
+azure_secret_has_required_keys() {
+  oc get secret "${SECRET_NAME}" -n "${NAMESPACE}" >/dev/null 2>&1 || return 1
+  local key
+  for key in account_name account_key container environment; do
+    [[ -n "$(oc get secret "${SECRET_NAME}" -n "${NAMESPACE}" -o jsonpath="{.data.${key}}" 2>/dev/null || true)" ]] || return 1
+  done
+  return 0
+}
+
+list_secret_key_names() {
+  oc get secret "${SECRET_NAME}" -n "${NAMESPACE}" \
+    -o go-template='{{range $k, $v := .data}}{{$k}}{{"\n"}}{{end}}' 2>/dev/null || true
+}
+
 apply_azure_secret() {
   local account_name="${AZURE_STORAGE_ACCOUNT_NAME:-}"
   local account_key="${AZURE_STORAGE_ACCOUNT_KEY:-}"
   local container="${AZURE_CONTAINER_NAME:-${AZURE_STORAGE_CONTAINER:-loki-audit}}"
   local environment="${AZURE_ENVIRONMENT:-AzureGlobal}"
 
+  if [[ -z "${account_name}" && -z "${account_key}" ]] && azure_secret_has_required_keys; then
+    log "Reusing existing Secret ${NAMESPACE}/${SECRET_NAME} (keys are not printed)"
+    return 0
+  fi
+
   if [[ -z "${account_name}" || -z "${account_key}" ]]; then
-    die "Set AZURE_STORAGE_ACCOUNT_NAME and AZURE_STORAGE_ACCOUNT_KEY before deploying.
+    die "Azure Blob credentials are not available yet.
+
+LokiStack cannot start without object storage. Either:
+  * wait for the storage account, then set AZURE_STORAGE_ACCOUNT_NAME and AZURE_STORAGE_ACCOUNT_KEY
+  * or have the cloud team create Secret ${NAMESPACE}/${SECRET_NAME} with keys
+    account_name, account_key, container, environment
+  * meanwhile: make deploy-operators
+
+See docs/azure-blob-request.md for the storage request fields.
 Optionally set AZURE_CONTAINER_NAME (default: loki-audit) and AZURE_ENVIRONMENT (default: AzureGlobal)."
   fi
 

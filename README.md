@@ -43,6 +43,8 @@ OpenShift 4.20 ships Logging **6.x**. The forwarder API is `observability.opensh
 - Storage class `managed-csi` (default on ARO). On other clouds set `lokiStack.storageClassName` / edit `manifests/03-lokistack.yaml`
 - Helm 3.x only if you install via the chart
 
+Azure Blob can arrive later. Operators do not need it; LokiStack does.
+
 Confirm the operator channel exists on your cluster:
 
 ```bash
@@ -77,6 +79,21 @@ OpenShift secret; `make deploy` creates `logging-loki-azure`.
 Alternatively set `AZURE_STORAGE_ACCOUNT_NAME`, `AZURE_STORAGE_ACCOUNT_KEY`,
 and `AZURE_CONTAINER_NAME` yourself. For Entra Workload ID / CCO, omit the
 account key and switch LokiStack `credentialMode` to `token-cco`.
+
+See [docs/azure-blob-request.md](docs/azure-blob-request.md) for a paste-ready
+request if a cloud team must create the account (do not reuse ARO cluster or
+image-registry accounts; do not use `azure-cloud-credentials`).
+
+If Blob is still pending:
+
+```bash
+make deploy-operators
+make status
+```
+
+That installs namespaces, OperatorGroups, and the Loki + Cluster Logging
+subscriptions, then stops. Re-run `make deploy` when the account or
+`logging-loki-azure` secret exists.
 
 Supported `environment` values: `AzureGlobal`, `AzureChinaCloud`, `AzureGermanCloud`, `AzureUSGovernment`.
 
@@ -229,8 +246,8 @@ Console plugins are left as-is on destroy.
 ```text
 manifests/     oc apply path used by make deploy
 helm/          parameterized chart for Helm / Argo CD
-scripts/       deploy, destroy, attribution probe, console plugin
-docs/          LogQL cheat sheet
+scripts/       deploy, operators-only, status, Azure bootstrap, destroy
+docs/          LogQL cheat sheet and Azure Blob request fields
 tests/         schema and leak checks (no live cluster required)
 ```
 
