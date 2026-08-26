@@ -14,12 +14,31 @@ BLOB_HOST="${AZURE_BLOB_HOST:-blob.core.windows.net}"
 PROBE_NAME="egress-probe-$(date -u +%s)"
 TIMEOUT=90
 
+# Resolve a trusted image from the cluster's own openshift/cli imagestream.
+# Falls back to registry.redhat.io UBI if the imagestream isn't available.
+resolve_probe_image() {
+  if [[ -n "${PROBE_IMAGE:-}" ]]; then
+    echo "${PROBE_IMAGE}"
+    return
+  fi
+  local img
+  img="$(oc get istag cli:latest -n openshift \
+         -o jsonpath='{.image.dockerImageReference}' 2>/dev/null || true)"
+  if [[ -n "${img}" ]]; then
+    echo "${img}"
+  else
+    echo "registry.redhat.io/ubi9/ubi-minimal:latest"
+  fi
+}
+
 cleanup() {
   oc delete pod "${PROBE_NAME}" -n "${PROBE_NS}" --ignore-not-found --wait=false >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
+IMAGE="$(resolve_probe_image)"
 log "Testing egress from ${PROBE_NS} to ${BLOB_HOST}"
+log "Probe image: ${IMAGE}"
 
 oc apply -n "${PROBE_NS}" -f - <<EOF
 apiVersion: v1
@@ -33,28 +52,47 @@ spec:
   terminationGracePeriodSeconds: 5
   containers:
     - name: probe
-      image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+      image: ${IMAGE}
       command:
-        - sh
+        - bash
         - -c
         - |
           echo "=== DNS resolution ==="
-          if getent hosts ${BLOB_HOST} >/dev/null 2>&1; then
-            resolved=\$(getent hosts ${BLOB_HOST} | head -1)
-            echo "PASS: ${BLOB_HOST} resolves to \${resolved}"
+          if command -v getent >/dev/null 2>&1; then
+            if getent hosts ${BLOB_HOST} >/dev/null 2>&1; then
+              resolved=\$(getent hosts ${BLOB_HOST} | head -1)
+              echo "PASS: ${BLOB_HOST} resolves to \${resolved}"
+            else
+              echo "FAIL: cannot resolve ${BLOB_HOST}"
+              exit 1
+            fi
+          elif command -v nslookup >/dev/null 2>&1; then
+            if nslookup ${BLOB_HOST} >/dev/null 2>&1; then
+              echo "PASS: ${BLOB_HOST} resolves (nslookup)"
+            else
+              echo "FAIL: cannot resolve ${BLOB_HOST}"
+              exit 1
+            fi
           else
-            echo "FAIL: cannot resolve ${BLOB_HOST}"
-            exit 1
+            echo "SKIP: no DNS lookup tool available, testing connectivity directly"
           fi
 
           echo
-          echo "=== HTTPS connectivity ==="
-          if curl -sf --connect-timeout 10 --max-time 15 \
-               -o /dev/null -w "HTTP %{http_code} in %{time_total}s\n" \
-               "https://${BLOB_HOST}/" 2>&1; then
-            echo "PASS: HTTPS connection succeeded"
+          echo "=== HTTPS connectivity (port 443) ==="
+          if command -v curl >/dev/null 2>&1; then
+            if curl -sf --connect-timeout 10 --max-time 15 \
+                 -o /dev/null -w "HTTP %{http_code} in %{time_total}s\n" \
+                 "https://${BLOB_HOST}/" 2>&1; then
+              echo "PASS: HTTPS connection succeeded (curl)"
+            else
+              echo "FAIL: cannot reach https://${BLOB_HOST}/ (curl)"
+              echo "Check Azure NSGs, firewall rules, or proxy settings."
+              exit 1
+            fi
+          elif bash -c "echo >/dev/tcp/${BLOB_HOST}/443" 2>/dev/null; then
+            echo "PASS: TCP 443 open to ${BLOB_HOST} (bash /dev/tcp)"
           else
-            echo "FAIL: cannot reach https://${BLOB_HOST}/"
+            echo "FAIL: cannot connect to ${BLOB_HOST}:443"
             echo "Check Azure NSGs, firewall rules, or proxy settings."
             exit 1
           fi
