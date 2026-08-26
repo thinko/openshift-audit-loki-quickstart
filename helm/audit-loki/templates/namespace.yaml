@@ -35,10 +35,13 @@ metadata:
 spec:
   upgradeStrategy: Default
 ---
+# WARNING: Only enable createOperatorGroups on clusters with NO pre-existing
+# logging operators. A second OperatorGroup in the same namespace breaks OLM.
+# Check first: oc get operatorgroup -n openshift-logging
 apiVersion: operators.coreos.com/v1
 kind: OperatorGroup
 metadata:
-  name: cluster-logging
+  name: {{ include "audit-loki.lokiNamespace" . }}
   namespace: {{ include "audit-loki.lokiNamespace" . }}
   labels:
     {{- include "audit-loki.labels" . | nindent 4 }}

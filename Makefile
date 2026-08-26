@@ -7,7 +7,7 @@ CHART := $(ROOT)/helm/audit-loki
 PYTHON ?= python3
 
 .PHONY: help deploy deploy-operators destroy test test-attribution enable-console-plugin \
-	helm-lint helm-template secret azure-storage status preflight apply-rbac lint
+	helm-lint helm-template secret azure-storage status preflight apply-rbac check-egress lint
 
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*##"; printf "\nTargets:\n"} /^[a-zA-Z0-9_.-]+:.*##/ { printf "  %-24s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -28,6 +28,9 @@ preflight: ## Validate cluster readiness without changing anything (read-only)
 apply-rbac: ## Pre-apply collector ServiceAccount and ClusterRoleBindings only
 	"$(ROOT)/scripts/apply-rbac.sh"
 
+check-egress: ## Test network egress from openshift-logging to Azure Blob (runs a probe pod)
+	"$(ROOT)/scripts/check-egress.sh"
+
 destroy: ## Remove the forwarder, LokiStack, and collector RBAC (asks for confirmation)
 	"$(ROOT)/scripts/destroy.sh"
 
@@ -47,6 +50,7 @@ test: ## Run local validation (pytest, yamllint, shell syntax, helm lint)
 	@bash -n "$(ROOT)/scripts/status.sh"
 	@bash -n "$(ROOT)/scripts/preflight.sh"
 	@bash -n "$(ROOT)/scripts/apply-rbac.sh"
+	@bash -n "$(ROOT)/scripts/check-egress.sh"
 	@if command -v helm >/dev/null 2>&1; then helm lint "$(CHART)"; else echo "helm not on PATH; skip helm lint"; fi
 
 test-attribution: ## Create/delete a ConfigMap and print LogQL to verify user attribution
