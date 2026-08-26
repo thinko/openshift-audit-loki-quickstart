@@ -21,6 +21,8 @@ SKIP_DIRS = {
     ".pytest_cache",
     "graphify-out",
     "tests",
+    "_dev_docs",
+    "_dev_tests_",
 }
 
 TEXT_SUFFIXES = {
