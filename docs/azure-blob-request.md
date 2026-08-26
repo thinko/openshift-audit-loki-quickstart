@@ -48,9 +48,42 @@ One of:
 Do not copy `azure-cloud-credentials` from `openshift-azure-operator` or
 `kube-system`. Those are the cluster service principal, not Blob keys.
 
-## Network
+## Network connectivity (critical)
 
-Loki pods in `openshift-logging` must reach `*.blob.core.windows.net` (or the
-sovereign cloud equivalent). If the account is firewalled, allow the cluster
-egress IPs or a private endpoint. Disk StorageClasses (`managed-csi`) are
-unrelated and already sufficient for Loki PVCs.
+Loki pods in `openshift-logging` must be able to **resolve and reach**
+`<account>.blob.core.windows.net` over HTTPS (port 443).
+
+### Private ARO clusters
+
+On ARO clusters with private networking and custom DNS servers, the cluster
+**cannot resolve public Azure endpoints** by default. The storage account
+needs all three of:
+
+1. **Private Endpoint** — create a Private Endpoint for the Blob service in the
+   ARO cluster's VNet (or a VNet peered to it).
+2. **Private DNS Zone** — create (or reuse) a Private DNS Zone for
+   `privatelink.blob.core.windows.net` and link it to the VNet. Azure
+   automatically registers an A record mapping
+   `<account>.blob.core.windows.net` → private endpoint IP.
+3. **DNS forwarding** — the VNet's custom DNS servers must conditionally
+   forward `blob.core.windows.net` queries to Azure DNS (`168.63.129.16`)
+   or to the Private DNS Zone.
+
+Without these, Loki will fail with connection-refused or DNS-resolution errors.
+
+### Verification
+
+After the storage account and private endpoint are provisioned, run from the
+repo root:
+
+```bash
+make check-egress                   # generic blob.core.windows.net test
+AZURE_BLOB_HOST=<account>.blob.core.windows.net make check-egress  # account-specific
+```
+
+Both should show `PASS` for DNS resolution and HTTPS connectivity.
+
+### Note
+
+Disk StorageClasses (`managed-csi`) are unrelated — they use the Azure disk
+API, not Blob. A working `managed-csi` does **not** mean Blob is reachable.
