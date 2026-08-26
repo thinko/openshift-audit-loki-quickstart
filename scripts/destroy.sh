@@ -89,7 +89,12 @@ if [[ "${PURGE_OPERATORS}" -eq 1 ]]; then
   delete_if_present subscription loki-operator "${OPERATORS_NAMESPACE}"
   delete_if_present subscription cluster-logging "${NAMESPACE}"
   delete_if_present operatorgroup loki-operator "${OPERATORS_NAMESPACE}"
-  delete_if_present operatorgroup cluster-logging "${NAMESPACE}"
+  # OG name varies (could be openshift-logging, cluster-logging, or custom)
+  local og_name
+  og_name="$(oc get operatorgroup -n "${NAMESPACE}" --no-headers -o custom-columns=NAME:.metadata.name 2>/dev/null | head -1)"
+  if [[ -n "${og_name}" ]]; then
+    delete_if_present operatorgroup "${og_name}" "${NAMESPACE}"
+  fi
 fi
 
 if [[ "${PURGE_NAMESPACES}" -eq 1 ]]; then

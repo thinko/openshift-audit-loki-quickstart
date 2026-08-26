@@ -30,7 +30,7 @@ This repository is a **non-production evaluation profile**. `1x.extra-small` is 
 | --- | --- |
 | Loki Operator + Cluster Logging Operator (`stable-6.5`) | CRDs and controllers for OpenShift Logging 6.x |
 | `LokiStack` `logging-loki` | Azure Blob object store, `managed-csi` for WAL/index PVCs, tenant mode `openshift-logging` |
-| `ClusterLogForwarder` `audit` | Audit-only pipeline with edge filters |
+| `ClusterLogForwarder` `loki-audit` | Audit-only pipeline with edge filters |
 | `logging-view-plugin` | Console **Observe → Logs** UI |
 
 OpenShift 4.20 ships Logging **6.x**. The forwarder API is `observability.openshift.io/v1`. The older `logging.openshift.io/v1` `ClusterLogForwarder` is not used.
@@ -107,7 +107,7 @@ If the cluster already has OpenShift Logging operators or a `ClusterLogForwarder
   apply a second OG (which breaks OLM — forces Manual InstallPlan approval and
   causes CSV install loops).
 - **Pre-existing `ClusterLogForwarder`**: The script detects existing CLFs and
-  logs them. Our CLF (`audit`) runs alongside them — each CLF gets its own
+  logs them. Our CLF (`loki-audit`) runs alongside them — each CLF gets its own
   collector DaemonSet. This is safe but doubles collector pods; consider
   consolidation after the evaluation.
 - **Operator upgrades**: If older CSVs exist, OLM walks the upgrade graph
@@ -207,7 +207,7 @@ Do **not** `oc apply -f manifests/05-enable-console-plugin.yaml`. That fragment 
 oc get csv -n openshift-operators-redhat
 oc get csv -n openshift-logging
 oc get lokistack logging-loki -n openshift-logging
-oc get clusterlogforwarder audit -n openshift-logging
+oc get clusterlogforwarder loki-audit -n openshift-logging
 oc get pods -n openshift-logging
 ```
 

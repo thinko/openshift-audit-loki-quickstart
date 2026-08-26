@@ -42,7 +42,7 @@ azure:
   credentialMode: static
 
 clusterLogForwarder:
-  name: audit
+  name: loki-audit
   namespace: openshift-logging
   collectorServiceAccount: logging-collector
   createRbac: true
