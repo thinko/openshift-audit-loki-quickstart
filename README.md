@@ -97,6 +97,26 @@ subscriptions, then stops. Re-run `make deploy` when the account or
 
 Supported `environment` values: `AzureGlobal`, `AzureChinaCloud`, `AzureGermanCloud`, `AzureUSGovernment`.
 
+### Clusters with an existing logging stack
+
+If the cluster already has OpenShift Logging operators or a `ClusterLogForwarder`,
+`deploy.sh` handles it automatically:
+
+- **OperatorGroup**: The script checks each namespace for exactly one
+  OperatorGroup and creates one only if none exists. It will **not** blindly
+  apply a second OG (which breaks OLM — forces Manual InstallPlan approval and
+  causes CSV install loops).
+- **Pre-existing `ClusterLogForwarder`**: The script detects existing CLFs and
+  logs them. Our CLF (`audit`) runs alongside them — each CLF gets its own
+  collector DaemonSet. This is safe but doubles collector pods; consider
+  consolidation after the evaluation.
+- **Operator upgrades**: If older CSVs exist, OLM walks the upgrade graph
+  automatically (e.g. `v6.2.3 → v6.4.1 → v6.4.2 → v6.5.2`). Use `make status`
+  to monitor progress.
+
+Run `make status` at any time to see OperatorGroup counts, Failed CSVs,
+unapproved InstallPlans, and existing CLFs.
+
 ## Quickstart (`make deploy`)
 
 ```bash
@@ -106,12 +126,13 @@ make deploy
 
 `scripts/deploy.sh` will:
 
-1. Create `openshift-operators-redhat` and `openshift-logging`
-2. Subscribe to the Loki and Cluster Logging operators and wait for CRDs
-3. Create secret `logging-loki-azure` from the environment (the key is never printed)
-4. Apply `LokiStack` and wait until `Ready=True`
-5. Apply collector RBAC **then** the `ClusterLogForwarder`
-6. Append `logging-view-plugin` to `consoles.operator.openshift.io/cluster` without replacing other plugins
+1. Create `openshift-operators-redhat` and `openshift-logging` namespaces
+2. **Pre-flight**: verify exactly one OperatorGroup per namespace (create if missing, error if duplicates)
+3. Subscribe to the Loki and Cluster Logging operators and wait for CRDs
+4. Create secret `logging-loki-azure` from the environment (the key is never printed)
+5. Apply `LokiStack` and wait until `Ready=True`
+6. Apply collector RBAC **then** the `ClusterLogForwarder`
+7. Append `logging-view-plugin` to `consoles.operator.openshift.io/cluster` without replacing other plugins
 
 ## Quickstart (Helm / GitOps)
 

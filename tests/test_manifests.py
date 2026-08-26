@@ -17,7 +17,9 @@ def test_namespace_manifest(repo_root: Path):
     assert ("Namespace", "openshift-logging") in kinds
     assert ("Namespace", "openshift-operators-redhat") in kinds
     assert ("OperatorGroup", "loki-operator") in kinds
-    assert ("OperatorGroup", "cluster-logging") in kinds
+    # openshift-logging OperatorGroup is created dynamically by deploy.sh
+    # to avoid conflicts with pre-existing OperatorGroups on the cluster
+    assert ("OperatorGroup", "cluster-logging") not in kinds
 
 
 def test_operator_subscriptions(repo_root: Path):

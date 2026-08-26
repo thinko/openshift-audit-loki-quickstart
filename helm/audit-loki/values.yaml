@@ -13,7 +13,11 @@ operator:
   sourceNamespace: openshift-marketplace
   installPlanApproval: Automatic
   createNamespaces: true
-  createOperatorGroups: true
+  # Set to true ONLY on clusters with no existing logging operators.
+  # A second OperatorGroup in the same namespace breaks OLM (forces Manual
+  # InstallPlan approval, causes CSV install loops). Check first:
+  #   oc get operatorgroup -n openshift-logging
+  createOperatorGroups: false
   createSubscriptions: true
 
 lokiStack:

@@ -109,6 +109,81 @@ enable_console_plugin() {
   die "Failed to patch consoles.operator.openshift.io/cluster"
 }
 
+ensure_single_operatorgroup() {
+  local ns="$1"
+  local og_count
+  og_count="$(oc get operatorgroup -n "${ns}" --no-headers 2>/dev/null | wc -l)"
+  og_count="${og_count##* }"
+
+  if (( og_count == 0 )); then
+    log "No OperatorGroup in ${ns} — creating one"
+    oc apply -f - <<EOF
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: ${ns}
+  namespace: ${ns}
+spec:
+  upgradeStrategy: Default
+EOF
+  elif (( og_count == 1 )); then
+    local og_name
+    og_name="$(oc get operatorgroup -n "${ns}" --no-headers -o custom-columns=NAME:.metadata.name)"
+    log "OperatorGroup ${ns}/${og_name} already exists (count=1, OK)"
+  else
+    local og_names
+    og_names="$(oc get operatorgroup -n "${ns}" --no-headers -o custom-columns=NAME:.metadata.name 2>/dev/null)"
+    die "Multiple OperatorGroups in ${ns} (count=${og_count}). OLM requires exactly one.
+Found:
+${og_names}
+
+Fix: delete the extra OperatorGroup(s), then re-run. Example:
+  oc delete operatorgroup <extra-name> -n ${ns}"
+  fi
+}
+
+check_existing_clusterlogforwarders() {
+  local ns="$1"
+  local count
+  count="$(oc get clusterlogforwarder.observability.openshift.io -n "${ns}" --no-headers 2>/dev/null | wc -l)"
+  count="${count##* }"
+
+  if (( count > 0 )); then
+    local names
+    names="$(oc get clusterlogforwarder.observability.openshift.io -n "${ns}" --no-headers -o custom-columns=NAME:.metadata.name 2>/dev/null)"
+    log "Existing ClusterLogForwarder(s) in ${ns}:"
+    echo "${names}" | sed 's/^/  /'
+    log "Our CLF (${CLF_NAME}) will run alongside them (separate collector DaemonSet per CLF)"
+  fi
+}
+
+check_failed_csvs() {
+  local ns="$1"
+  local failed
+  failed="$(oc get csv -n "${ns}" --no-headers 2>/dev/null | awk '$NF == "Failed" {print $1}')"
+  if [[ -n "${failed}" ]]; then
+    err "Failed CSVs in ${ns}:"
+    echo "${failed}" | sed 's/^/  /' >&2
+    err "Run: oc describe csv <name> -n ${ns}  to diagnose"
+    return 1
+  fi
+  return 0
+}
+
+check_unapproved_installplans() {
+  local ns="$1"
+  local unapproved
+  unapproved="$(oc get installplan -n "${ns}" --no-headers 2>/dev/null \
+    | awk '$3 == "Manual" && $4 == "false" {print $1, $2}')"
+  if [[ -n "${unapproved}" ]]; then
+    err "Unapproved InstallPlans in ${ns}:"
+    echo "${unapproved}" | sed 's/^/  /' >&2
+    err "This can happen when multiple OperatorGroups exist. Fix OG count first."
+    return 1
+  fi
+  return 0
+}
+
 azure_secret_has_required_keys() {
   oc get secret "${SECRET_NAME}" -n "${NAMESPACE}" >/dev/null 2>&1 || return 1
   local key

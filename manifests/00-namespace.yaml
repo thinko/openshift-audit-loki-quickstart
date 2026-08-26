@@ -32,12 +32,7 @@ metadata:
   namespace: openshift-operators-redhat
 spec:
   upgradeStrategy: Default
----
-# Namespaced OperatorGroup for the Red Hat OpenShift Logging Operator.
-apiVersion: operators.coreos.com/v1
-kind: OperatorGroup
-metadata:
-  name: cluster-logging
-  namespace: openshift-logging
-spec:
-  upgradeStrategy: Default
+# NOTE: The openshift-logging OperatorGroup is NOT in this manifest.
+# deploy.sh creates one only if the namespace does not already have one.
+# Blindly applying a second OperatorGroup breaks OLM (forces Manual
+# InstallPlan approval and causes CSV install loops).

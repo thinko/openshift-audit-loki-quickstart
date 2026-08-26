@@ -51,8 +51,14 @@ require_cluster_admin
 
 log "Using API $(oc whoami --show-server) / context $(oc config current-context 2>/dev/null || echo unknown)"
 
-log "Applying namespaces and OperatorGroups"
+log "Applying namespaces"
 oc apply -f "${ROOT}/manifests/00-namespace.yaml"
+
+log "Pre-flight: checking OperatorGroups (OLM requires exactly one per namespace)"
+ensure_single_operatorgroup "${OPERATORS_NAMESPACE}"
+ensure_single_operatorgroup "${NAMESPACE}"
+
+check_existing_clusterlogforwarders "${NAMESPACE}" || true
 
 log "Applying operator subscriptions"
 oc apply -f "${ROOT}/manifests/01-loki-operator-subscription.yaml"
