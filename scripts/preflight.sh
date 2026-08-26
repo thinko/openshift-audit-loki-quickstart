@@ -75,16 +75,24 @@ done
 
 echo
 echo "== Existing CSVs =="
+OUR_CSVS="loki-operator|cluster-logging"
 for ns in "${OPERATORS_NAMESPACE}" "${NAMESPACE}"; do
   if ! oc get namespace "${ns}" >/dev/null 2>&1; then
     continue
   fi
-  failed="$(oc get csv -n "${ns}" --no-headers 2>/dev/null | awk '$NF == "Failed" {print $1}')"
-  if [[ -n "${failed}" ]]; then
-    fail "Failed CSVs in ${ns}:"
-    echo "${failed}" | sed 's/^/         /'
+  our_failed="$(oc get csv -n "${ns}" --no-headers 2>/dev/null \
+    | awk -v pat="${OUR_CSVS}" '$NF == "Failed" && $1 ~ pat {print $1}')"
+  other_failed="$(oc get csv -n "${ns}" --no-headers 2>/dev/null \
+    | awk -v pat="${OUR_CSVS}" '$NF == "Failed" && $1 !~ pat {print $1}')"
+  if [[ -n "${our_failed}" ]]; then
+    fail "Our CSVs in Failed state in ${ns}:"
+    echo "${our_failed}" | sed 's/^/         /'
   else
-    pass "No Failed CSVs in ${ns}"
+    pass "No Failed loki/logging CSVs in ${ns}"
+  fi
+  if [[ -n "${other_failed}" ]]; then
+    warn "Unrelated Failed CSVs in ${ns} (not blocking our deploy):"
+    echo "${other_failed}" | sed 's/^/         /'
   fi
 done
 
