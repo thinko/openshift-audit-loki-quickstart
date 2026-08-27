@@ -32,5 +32,9 @@ Chart.lock
 *~
 .onedev/
 
+# Internal dev docs and test scripts (not part of the public repo)
+_dev_docs/
+_dev_tests_/
+
 # Local graphify output
 graphify-out/
