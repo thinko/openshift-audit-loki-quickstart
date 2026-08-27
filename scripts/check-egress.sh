@@ -80,14 +80,20 @@ spec:
           echo
           echo "=== HTTPS connectivity (port 443) ==="
           if command -v curl >/dev/null 2>&1; then
-            if curl -sf --connect-timeout 10 --max-time 15 \
-                 -o /dev/null -w "HTTP %{http_code} in %{time_total}s\n" \
-                 "https://${BLOB_HOST}/" 2>&1; then
-              echo "PASS: HTTPS connection succeeded (curl)"
-            else
-              echo "FAIL: cannot reach https://${BLOB_HOST}/ (curl)"
+            http_code=\$(curl -sk --connect-timeout 10 --max-time 15 \
+                 -o /dev/null -w "%{http_code}" \
+                 "https://${BLOB_HOST}/" 2>/dev/null || echo "000")
+            echo "HTTP \${http_code}"
+            if [[ "\${http_code}" == "000" ]]; then
+              echo "FAIL: cannot connect to https://${BLOB_HOST}/ (TCP/TLS failed)"
               echo "Check Azure NSGs, firewall rules, or proxy settings."
               exit 1
+            elif [[ "\${http_code}" == "403" ]]; then
+              echo "FAIL: storage account firewall is blocking this subnet (HTTP 403)"
+              echo "Add the cluster VNet/subnet to the storage account firewall rules."
+              exit 1
+            else
+              echo "PASS: HTTPS connection succeeded (HTTP \${http_code} is expected for unauthenticated Blob requests)"
             fi
           elif bash -c "echo >/dev/tcp/${BLOB_HOST}/443" 2>/dev/null; then
             echo "PASS: TCP 443 open to ${BLOB_HOST} (bash /dev/tcp)"
