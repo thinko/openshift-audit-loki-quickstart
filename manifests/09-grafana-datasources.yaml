@@ -1,5 +1,5 @@
 ---
-# ServiceAccount used by Grafana to query the LokiStack gateway.
+# RBAC: ServiceAccount for Grafana to query the LokiStack gateway.
 # OpenShift-logging tenant mode authorizes via SAR on
 # loki.grafana.com/{audit,infrastructure,application} resourceName=logs.
 apiVersion: v1
@@ -50,114 +50,7 @@ subjects:
     name: grafana-loki
     namespace: openshift-logging
 ---
-# Loki datasource — audit tenant (default). Gateway path encodes the tenant.
-# Token secret grafana-loki-gateway-token is created by scripts/deploy-grafana.sh
-# (value MUST include the "Bearer " prefix).
-apiVersion: grafana.integreatly.org/v1beta1
-kind: GrafanaDatasource
-metadata:
-  name: loki
-  namespace: openshift-logging
-  labels:
-    app.kubernetes.io/name: loki-grafana
-    app.kubernetes.io/part-of: openshift-logging
-  annotations:
-    argocd.argoproj.io/sync-wave: "3"
-spec:
-  instanceSelector:
-    matchLabels:
-      dashboards: "loki-audit"
-  datasource:
-    name: Loki
-    type: loki
-    access: proxy
-    url: https://logging-loki-gateway-http.openshift-logging.svc:8080/api/logs/v1/audit
-    isDefault: true
-    jsonData:
-      httpHeaderName1: Authorization
-      maxLines: 5000
-      timeout: 60
-      tlsSkipVerify: true
-  valuesFrom:
-    - targetPath: "secureJsonData.httpHeaderValue1"
-      valueFrom:
-        secretKeyRef:
-          name: grafana-loki-gateway-token
-          key: token
----
-apiVersion: grafana.integreatly.org/v1beta1
-kind: GrafanaDatasource
-metadata:
-  name: loki-infrastructure
-  namespace: openshift-logging
-  labels:
-    app.kubernetes.io/name: loki-grafana
-    app.kubernetes.io/part-of: openshift-logging
-  annotations:
-    argocd.argoproj.io/sync-wave: "3"
-spec:
-  instanceSelector:
-    matchLabels:
-      dashboards: "loki-audit"
-  datasource:
-    name: Loki-Infrastructure
-    type: loki
-    access: proxy
-    url: https://logging-loki-gateway-http.openshift-logging.svc:8080/api/logs/v1/infrastructure
-    jsonData:
-      httpHeaderName1: Authorization
-      maxLines: 5000
-      timeout: 60
-      tlsSkipVerify: true
-  valuesFrom:
-    - targetPath: "secureJsonData.httpHeaderValue1"
-      valueFrom:
-        secretKeyRef:
-          name: grafana-loki-gateway-token
-          key: token
----
-apiVersion: grafana.integreatly.org/v1beta1
-kind: GrafanaDatasource
-metadata:
-  name: loki-application
-  namespace: openshift-logging
-  labels:
-    app.kubernetes.io/name: loki-grafana
-    app.kubernetes.io/part-of: openshift-logging
-  annotations:
-    argocd.argoproj.io/sync-wave: "3"
-spec:
-  instanceSelector:
-    matchLabels:
-      dashboards: "loki-audit"
-  datasource:
-    name: Loki-Application
-    type: loki
-    access: proxy
-    url: https://logging-loki-gateway-http.openshift-logging.svc:8080/api/logs/v1/application
-    jsonData:
-      httpHeaderName1: Authorization
-      maxLines: 5000
-      timeout: 60
-      tlsSkipVerify: true
-  valuesFrom:
-    - targetPath: "secureJsonData.httpHeaderValue1"
-      valueFrom:
-        secretKeyRef:
-          name: grafana-loki-gateway-token
-          key: token
----
-# Prometheus datasource for PromQL metrics.
-# Points to the in-cluster Thanos Querier. Uses a ServiceAccount token
-# for authentication against the OpenShift monitoring stack.
-#
-# Before applying, create the token secret:
-#   oc create token grafana-prometheus -n openshift-logging --duration=8760h \
-#     | xargs -I{} oc create secret generic grafana-prometheus-token \
-#       -n openshift-logging --from-literal=token="Bearer {}"
-#
-# The secret value MUST include the "Bearer " prefix because the Grafana
-# Operator injects it verbatim into the Authorization header.
+# RBAC: ServiceAccount for Prometheus / Thanos Querier access.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -187,32 +80,95 @@ subjects:
     name: grafana-prometheus
     namespace: openshift-logging
 ---
-apiVersion: grafana.integreatly.org/v1beta1
-kind: GrafanaDatasource
+# Grafana datasource provisioning via ConfigMap.
+# Mounted into /etc/grafana/provisioning/datasources/ by the Deployment.
+#
+# Token placeholders ($LOKI_BEARER_TOKEN, $PROMETHEUS_BEARER_TOKEN) are
+# replaced by scripts/deploy-grafana.sh at deploy time using sed + oc create.
+apiVersion: v1
+kind: ConfigMap
 metadata:
-  name: prometheus
+  name: grafana-datasource-provisioning
   namespace: openshift-logging
   labels:
     app.kubernetes.io/name: loki-grafana
     app.kubernetes.io/part-of: openshift-logging
   annotations:
     argocd.argoproj.io/sync-wave: "3"
-spec:
-  instanceSelector:
-    matchLabels:
-      dashboards: "loki-audit"
-  datasource:
-    name: Prometheus
-    type: prometheus
-    access: proxy
-    url: https://thanos-querier.openshift-monitoring.svc.cluster.local:9091
-    jsonData:
-      httpHeaderName1: Authorization
-      timeInterval: "30s"
-      tlsSkipVerify: true
-  valuesFrom:
-    - targetPath: "secureJsonData.httpHeaderValue1"
-      valueFrom:
-        secretKeyRef:
-          name: grafana-prometheus-token
-          key: token
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Loki (Audit)
+        type: loki
+        access: proxy
+        url: https://logging-loki-gateway-http.openshift-logging.svc:8080/api/logs/v1/audit
+        isDefault: true
+        jsonData:
+          httpHeaderName1: Authorization
+          maxLines: 5000
+          timeout: 60
+          tlsSkipVerify: true
+        secureJsonData:
+          httpHeaderValue1: "$LOKI_BEARER_TOKEN"
+
+      - name: Loki (Infrastructure)
+        type: loki
+        access: proxy
+        url: https://logging-loki-gateway-http.openshift-logging.svc:8080/api/logs/v1/infrastructure
+        jsonData:
+          httpHeaderName1: Authorization
+          maxLines: 5000
+          timeout: 60
+          tlsSkipVerify: true
+        secureJsonData:
+          httpHeaderValue1: "$LOKI_BEARER_TOKEN"
+
+      - name: Loki (Application)
+        type: loki
+        access: proxy
+        url: https://logging-loki-gateway-http.openshift-logging.svc:8080/api/logs/v1/application
+        jsonData:
+          httpHeaderName1: Authorization
+          maxLines: 5000
+          timeout: 60
+          tlsSkipVerify: true
+        secureJsonData:
+          httpHeaderValue1: "$LOKI_BEARER_TOKEN"
+
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: https://thanos-querier.openshift-monitoring.svc.cluster.local:9091
+        jsonData:
+          httpHeaderName1: Authorization
+          timeInterval: "30s"
+          tlsSkipVerify: true
+        secureJsonData:
+          httpHeaderValue1: "$PROMETHEUS_BEARER_TOKEN"
+---
+# Dashboard provider — tells Grafana to look for JSON files in the dashboards mount.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-provider
+  namespace: openshift-logging
+  labels:
+    app.kubernetes.io/name: loki-grafana
+    app.kubernetes.io/part-of: openshift-logging
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: default
+        orgId: 1
+        folder: ''
+        type: file
+        disableDeletion: false
+        editable: true
+        updateIntervalSeconds: 30
+        options:
+          path: /var/lib/grafana/dashboards
+          foldersFromFilesStructure: false
