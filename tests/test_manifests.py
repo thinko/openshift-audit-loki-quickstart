@@ -53,6 +53,10 @@ def test_clusterlogforwarder_edge_filters(repo_root: Path):
 
     inputs = {i["name"]: i for i in spec["inputs"]}
     assert inputs["audit-logs"]["type"] == "audit"
+    assert inputs["infra-logs"]["type"] == "infrastructure"
+    assert inputs["infra-logs"]["infrastructure"]["sources"] == ["container", "node"]
+    assert inputs["app-logs"]["type"] == "application"
+    assert "application" in inputs["app-logs"]
 
     filters = {f["name"]: f for f in spec["filters"]}
     drop = filters["drop-audit-noise"]
@@ -100,3 +104,18 @@ def test_collector_rbac_present(repo_root: Path):
     ]
     assert "collect-audit-logs" in roles
     assert "logging-collector-logs-writer" in roles
+    assert "collect-infrastructure-logs" in roles
+    assert "collect-application-logs" in roles
+
+
+def test_grafana_loki_gateway_rbac(repo_root: Path):
+    docs = _load_docs(repo_root / "manifests" / "09-grafana-datasources.yaml")
+    role = next(d for d in docs if d["kind"] == "ClusterRole")
+    assert role["metadata"]["name"] == "grafana-loki-tenant-view"
+    resources = set(role["rules"][0]["resources"])
+    assert resources == {"application", "audit", "infrastructure"}
+    assert role["rules"][0]["resourceNames"] == ["logs"]
+    assert role["rules"][0]["verbs"] == ["get"]
+    loki_ds = next(d for d in docs if d["kind"] == "GrafanaDatasource" and d["metadata"]["name"] == "loki")
+    assert "/api/logs/v1/audit" in loki_ds["spec"]["datasource"]["url"]
+    assert loki_ds["spec"]["datasource"]["jsonData"]["httpHeaderName1"] == "Authorization"

@@ -92,9 +92,10 @@ destroy-grafana: ## Remove Grafana instance and CRs (leaves operator installed)
 	-oc delete grafanadashboard --all -n openshift-logging 2>/dev/null
 	-oc delete grafanadatasource --all -n openshift-logging 2>/dev/null
 	-oc delete grafana loki-grafana -n openshift-logging 2>/dev/null
-	-oc delete secret grafana-prometheus-token -n openshift-logging 2>/dev/null
-	-oc delete clusterrolebinding grafana-prometheus-monitoring-view 2>/dev/null
-	-oc delete sa grafana-prometheus -n openshift-logging 2>/dev/null
+	-oc delete secret grafana-prometheus-token grafana-loki-gateway-token -n openshift-logging 2>/dev/null
+	-oc delete clusterrolebinding grafana-prometheus-monitoring-view grafana-loki-tenant-view 2>/dev/null
+	-oc delete clusterrole grafana-loki-tenant-view 2>/dev/null
+	-oc delete sa grafana-prometheus grafana-loki -n openshift-logging 2>/dev/null
 	@echo "==> Grafana removed. Operator subscription left in place."
 	@echo "    To fully remove: oc delete subscription grafana-operator -n openshift-operators"
 
