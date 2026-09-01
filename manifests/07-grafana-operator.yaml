@@ -1,0 +1,20 @@
+---
+# Grafana Operator via OLM. Installs into openshift-operators (cluster-wide)
+# which already has an OperatorGroup, so no new OG is needed.
+# Channel v5 is the only supported channel for the community Grafana Operator.
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: grafana-operator
+  namespace: openshift-operators
+  labels:
+    app.kubernetes.io/name: grafana-operator
+    app.kubernetes.io/part-of: openshift-logging
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  channel: v5
+  installPlanApproval: Automatic
+  name: grafana-operator
+  source: community-operators
+  sourceNamespace: openshift-marketplace
