@@ -3,6 +3,8 @@ kind: LokiStack
 metadata:
   name: {{ .Values.lokiStack.name }}
   namespace: {{ include "audit-loki.lokiNamespace" . }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
   labels:
     app.kubernetes.io/component: lokistack
     {{- include "audit-loki.labels" . | nindent 4 }}
@@ -28,3 +30,13 @@ spec:
       audit:
         retention:
           days: {{ .Values.lokiStack.auditRetentionDays }}
+      {{- if .Values.infrastructure.enabled }}
+      infrastructure:
+        retention:
+          days: {{ .Values.infrastructure.retentionDays | default 7 }}
+      {{- end }}
+      {{- if .Values.application.enabled }}
+      application:
+        retention:
+          days: {{ .Values.application.retentionDays | default 7 }}
+      {{- end }}

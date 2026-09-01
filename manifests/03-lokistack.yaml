@@ -11,6 +11,8 @@ kind: LokiStack
 metadata:
   name: logging-loki
   namespace: openshift-logging
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
   labels:
     app.kubernetes.io/name: lokistack
     app.kubernetes.io/part-of: openshift-logging
@@ -37,3 +39,9 @@ spec:
       audit:
         retention:
           days: 14
+      infrastructure:
+        retention:
+          days: 7
+      application:
+        retention:
+          days: 7

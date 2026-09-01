@@ -8,7 +8,7 @@ PYTHON ?= python3
 
 .PHONY: help deploy deploy-operators destroy test test-attribution enable-console-plugin \
 	helm-lint helm-template secret azure-storage status preflight apply-rbac check-egress \
-	deploy-dashboard lint
+	deploy-dashboard deploy-grafana destroy-grafana lint
 
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*##"; printf "\nTargets:\n"} /^[a-zA-Z0-9_.-]+:.*##/ { printf "  %-24s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -52,6 +52,7 @@ test: ## Run local validation (pytest, yamllint, shell syntax, helm lint)
 	@bash -n "$(ROOT)/scripts/preflight.sh"
 	@bash -n "$(ROOT)/scripts/apply-rbac.sh"
 	@bash -n "$(ROOT)/scripts/check-egress.sh"
+	@bash -n "$(ROOT)/scripts/deploy-grafana.sh"
 	@if command -v helm >/dev/null 2>&1; then helm lint "$(CHART)"; else echo "helm not on PATH; skip helm lint"; fi
 
 test-attribution: ## Create/delete a ConfigMap and print LogQL to verify user attribution
@@ -82,6 +83,20 @@ secret: ## Create/update the Azure Blob secret from environment variables
 		--from-literal=account_key="$${AZURE_STORAGE_ACCOUNT_KEY}" \
 		--from-literal=container="$${AZURE_CONTAINER_NAME:-loki-audit}" \
 		--dry-run=client -o yaml | oc apply -f -
+
+deploy-grafana: ## Deploy Grafana Operator, instance, datasources, and dashboards
+	"$(ROOT)/scripts/deploy-grafana.sh"
+
+destroy-grafana: ## Remove Grafana instance and CRs (leaves operator installed)
+	@echo "==> Removing Grafana dashboards, datasources, and instance..."
+	-oc delete grafanadashboard --all -n openshift-logging 2>/dev/null
+	-oc delete grafanadatasource --all -n openshift-logging 2>/dev/null
+	-oc delete grafana loki-grafana -n openshift-logging 2>/dev/null
+	-oc delete secret grafana-prometheus-token -n openshift-logging 2>/dev/null
+	-oc delete clusterrolebinding grafana-prometheus-monitoring-view 2>/dev/null
+	-oc delete sa grafana-prometheus -n openshift-logging 2>/dev/null
+	@echo "==> Grafana removed. Operator subscription left in place."
+	@echo "    To fully remove: oc delete subscription grafana-operator -n openshift-operators"
 
 deploy-dashboard: ## Deploy the Audit LokiStack Grafana dashboard to the Console
 	@echo "==> Creating dashboard ConfigMap in openshift-config-managed..."

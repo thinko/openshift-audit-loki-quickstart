@@ -6,6 +6,8 @@ kind: ServiceAccount
 metadata:
   name: {{ $sa }}
   namespace: {{ $ns }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
   labels:
     app.kubernetes.io/component: collector
     {{- include "audit-loki.labels" . | nindent 4 }}
@@ -14,6 +16,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: {{ printf "%s-collect-audit-logs" (include "audit-loki.fullname" .) | trunc 63 | trimSuffix "-" }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
   labels:
     {{- include "audit-loki.labels" . | nindent 4 }}
 roleRef:
@@ -29,6 +33,8 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: {{ printf "%s-logs-writer" (include "audit-loki.fullname" .) | trunc 63 | trimSuffix "-" }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
   labels:
     {{- include "audit-loki.labels" . | nindent 4 }}
 roleRef:
@@ -39,6 +45,44 @@ subjects:
   - kind: ServiceAccount
     name: {{ $sa }}
     namespace: {{ $ns }}
+{{- if .Values.infrastructure.enabled }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ printf "%s-collect-infra-logs" (include "audit-loki.fullname" .) | trunc 63 | trimSuffix "-" }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  labels:
+    {{- include "audit-loki.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: collect-infrastructure-logs
+subjects:
+  - kind: ServiceAccount
+    name: {{ $sa }}
+    namespace: {{ $ns }}
+{{- end }}
+{{- if .Values.application.enabled }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ printf "%s-collect-app-logs" (include "audit-loki.fullname" .) | trunc 63 | trimSuffix "-" }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  labels:
+    {{- include "audit-loki.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: collect-application-logs
+subjects:
+  - kind: ServiceAccount
+    name: {{ $sa }}
+    namespace: {{ $ns }}
+{{- end }}
 ---
 {{- end }}
 apiVersion: observability.openshift.io/v1
@@ -46,6 +90,8 @@ kind: ClusterLogForwarder
 metadata:
   name: {{ .Values.clusterLogForwarder.name }}
   namespace: {{ $ns }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
   labels:
     app.kubernetes.io/component: collector
     {{- include "audit-loki.labels" . | nindent 4 }}
@@ -59,6 +105,14 @@ spec:
       audit:
         sources:
           {{- toYaml .Values.clusterLogForwarder.auditSources | nindent 10 }}
+    {{- if .Values.infrastructure.enabled }}
+    - name: infra-logs
+      type: infrastructure
+    {{- end }}
+    {{- if .Values.application.enabled }}
+    - name: app-logs
+      type: application
+    {{- end }}
   filters:
     - name: kube-api-audit-policy
       type: kubeAPIAudit
@@ -84,6 +138,26 @@ spec:
         - test:
             - field: .user.username
               matches: {{ .Values.clusterLogForwarder.drop.usernamePattern | quote }}
+    {{- if and .Values.infrastructure.enabled (or .Values.infrastructure.dropProbeNoise .Values.infrastructure.dropDnsNoise) }}
+    - name: drop-infra-noise
+      type: drop
+      drop:
+        {{- if .Values.infrastructure.dropProbeNoise }}
+        - test:
+            - field: .message
+              matches: '(healthz|readyz|livez).*200'
+        - test:
+            - field: .message
+              matches: 'Syncing proxy rules'
+        {{- end }}
+        {{- if .Values.infrastructure.dropDnsNoise }}
+        - test:
+            - field: .kubernetes.container_name
+              matches: '^dns$'
+            - field: .message
+              matches: '^\d+\.\d+\.\d+\.\d+.*NOERROR'
+        {{- end }}
+    {{- end }}
   outputs:
     - name: local-loki
       type: lokiStack
@@ -108,3 +182,21 @@ spec:
         - drop-audit-noise
       outputRefs:
         - local-loki
+    {{- if .Values.infrastructure.enabled }}
+    - name: infra-to-loki
+      inputRefs:
+        - infra-logs
+      {{- if or .Values.infrastructure.dropProbeNoise .Values.infrastructure.dropDnsNoise }}
+      filterRefs:
+        - drop-infra-noise
+      {{- end }}
+      outputRefs:
+        - local-loki
+    {{- end }}
+    {{- if .Values.application.enabled }}
+    - name: app-to-loki
+      inputRefs:
+        - app-logs
+      outputRefs:
+        - local-loki
+    {{- end }}

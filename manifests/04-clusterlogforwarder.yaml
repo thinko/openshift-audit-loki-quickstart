@@ -10,6 +10,8 @@ metadata:
   labels:
     app.kubernetes.io/name: clusterlogforwarder
     app.kubernetes.io/component: collector
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -17,6 +19,8 @@ metadata:
   name: logging-collector-audit-logs
   labels:
     app.kubernetes.io/name: clusterlogforwarder
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -32,10 +36,46 @@ metadata:
   name: logging-collector-logs-writer
   labels:
     app.kubernetes.io/name: clusterlogforwarder
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: logging-collector-logs-writer
+subjects:
+  - kind: ServiceAccount
+    name: logging-collector
+    namespace: openshift-logging
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: logging-collector-infrastructure-logs
+  labels:
+    app.kubernetes.io/name: clusterlogforwarder
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: collect-infrastructure-logs
+subjects:
+  - kind: ServiceAccount
+    name: logging-collector
+    namespace: openshift-logging
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: logging-collector-application-logs
+  labels:
+    app.kubernetes.io/name: clusterlogforwarder
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: collect-application-logs
 subjects:
   - kind: ServiceAccount
     name: logging-collector
@@ -55,6 +95,8 @@ metadata:
   labels:
     app.kubernetes.io/name: clusterlogforwarder
     app.kubernetes.io/part-of: openshift-logging
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
 spec:
   managementState: Managed
   serviceAccount:
@@ -67,6 +109,10 @@ spec:
           - kubeAPI
           - openshiftAPI
           - ovn
+    - name: infra-logs
+      type: infrastructure
+    - name: app-logs
+      type: application
   filters:
     # kubeAPIAudit understands kube-apiserver JSON natively (wildcards, verbs).
     # Metadata (not RequestResponse) keeps user/verb/objectRef without bodies
@@ -99,6 +145,23 @@ spec:
         - test:
             - field: .user.username
               matches: '^system:(node|serviceaccount:kube-system|serviceaccount:openshift-.*)'
+    # Drop high-volume, low-value infrastructure log noise.
+    # Health probes, kube-proxy sync, and successful CoreDNS lookups
+    # generate massive volume with minimal diagnostic value.
+    - name: drop-infra-noise
+      type: drop
+      drop:
+        - test:
+            - field: .message
+              matches: '(healthz|readyz|livez).*200'
+        - test:
+            - field: .message
+              matches: 'Syncing proxy rules'
+        - test:
+            - field: .kubernetes.container_name
+              matches: '^dns$'
+            - field: .message
+              matches: '^\d+\.\d+\.\d+\.\d+.*NOERROR'
   outputs:
     - name: local-loki
       type: lokiStack
@@ -121,5 +184,17 @@ spec:
       filterRefs:
         - kube-api-audit-policy
         - drop-audit-noise
+      outputRefs:
+        - local-loki
+    - name: infra-to-loki
+      inputRefs:
+        - infra-logs
+      filterRefs:
+        - drop-infra-noise
+      outputRefs:
+        - local-loki
+    - name: app-to-loki
+      inputRefs:
+        - app-logs
       outputRefs:
         - local-loki
