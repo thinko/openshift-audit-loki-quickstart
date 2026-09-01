@@ -80,7 +80,55 @@ subjects:
     name: grafana-prometheus
     namespace: {{ include "audit-loki.lokiNamespace" . }}
 ---
-# Loki datasource
+# ServiceAccount for LokiStack gateway queries
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: grafana-loki
+  namespace: {{ include "audit-loki.lokiNamespace" . }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  labels:
+    {{- include "audit-loki.labels" . | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ printf "%s-grafana-loki-tenant-view" (include "audit-loki.fullname" .) | trunc 63 | trimSuffix "-" }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  labels:
+    {{- include "audit-loki.labels" . | nindent 4 }}
+rules:
+  - apiGroups:
+      - loki.grafana.com
+    resources:
+      - application
+      - audit
+      - infrastructure
+    resourceNames:
+      - logs
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ printf "%s-grafana-loki-tenant-view" (include "audit-loki.fullname" .) | trunc 63 | trimSuffix "-" }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  labels:
+    {{- include "audit-loki.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ printf "%s-grafana-loki-tenant-view" (include "audit-loki.fullname" .) | trunc 63 | trimSuffix "-" }}
+subjects:
+  - kind: ServiceAccount
+    name: grafana-loki
+    namespace: {{ include "audit-loki.lokiNamespace" . }}
+---
+# Loki datasource — audit tenant (default). Gateway path encodes the tenant.
 apiVersion: grafana.integreatly.org/v1beta1
 kind: GrafanaDatasource
 metadata:
@@ -98,14 +146,79 @@ spec:
     name: Loki
     type: loki
     access: proxy
-    url: http://logging-loki-gateway-http.{{ include "audit-loki.lokiNamespace" . }}.svc:8080
+    url: https://logging-loki-gateway-http.{{ include "audit-loki.lokiNamespace" . }}.svc:8080/api/logs/v1/audit
     isDefault: true
     jsonData:
-      httpHeaderName1: X-Scope-OrgID
+      httpHeaderName1: Authorization
       maxLines: 5000
       timeout: 60
-    secureJsonData:
-      httpHeaderValue1: "audit|infrastructure|application"
+      tlsSkipVerify: true
+  valuesFrom:
+    - targetPath: "secureJsonData.httpHeaderValue1"
+      valueFrom:
+        secretKeyRef:
+          name: grafana-loki-gateway-token
+          key: token
+---
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDatasource
+metadata:
+  name: loki-infrastructure
+  namespace: {{ include "audit-loki.lokiNamespace" . }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+  labels:
+    {{- include "audit-loki.labels" . | nindent 4 }}
+spec:
+  instanceSelector:
+    matchLabels:
+      dashboards: "loki-audit"
+  datasource:
+    name: Loki-Infrastructure
+    type: loki
+    access: proxy
+    url: https://logging-loki-gateway-http.{{ include "audit-loki.lokiNamespace" . }}.svc:8080/api/logs/v1/infrastructure
+    jsonData:
+      httpHeaderName1: Authorization
+      maxLines: 5000
+      timeout: 60
+      tlsSkipVerify: true
+  valuesFrom:
+    - targetPath: "secureJsonData.httpHeaderValue1"
+      valueFrom:
+        secretKeyRef:
+          name: grafana-loki-gateway-token
+          key: token
+---
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDatasource
+metadata:
+  name: loki-application
+  namespace: {{ include "audit-loki.lokiNamespace" . }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+  labels:
+    {{- include "audit-loki.labels" . | nindent 4 }}
+spec:
+  instanceSelector:
+    matchLabels:
+      dashboards: "loki-audit"
+  datasource:
+    name: Loki-Application
+    type: loki
+    access: proxy
+    url: https://logging-loki-gateway-http.{{ include "audit-loki.lokiNamespace" . }}.svc:8080/api/logs/v1/application
+    jsonData:
+      httpHeaderName1: Authorization
+      maxLines: 5000
+      timeout: 60
+      tlsSkipVerify: true
+  valuesFrom:
+    - targetPath: "secureJsonData.httpHeaderValue1"
+      valueFrom:
+        secretKeyRef:
+          name: grafana-loki-gateway-token
+          key: token
 ---
 # Prometheus datasource — token is injected from a Secret
 apiVersion: grafana.integreatly.org/v1beta1

@@ -108,10 +108,15 @@ spec:
     {{- if .Values.infrastructure.enabled }}
     - name: infra-logs
       type: infrastructure
+      infrastructure:
+        sources:
+          - container
+          - node
     {{- end }}
     {{- if .Values.application.enabled }}
     - name: app-logs
       type: application
+      application: {}
     {{- end }}
   filters:
     - name: kube-api-audit-policy

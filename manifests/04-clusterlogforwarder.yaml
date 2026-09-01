@@ -111,8 +111,13 @@ spec:
           - ovn
     - name: infra-logs
       type: infrastructure
+      infrastructure:
+        sources:
+          - container
+          - node
     - name: app-logs
       type: application
+      application: {}
   filters:
     # kubeAPIAudit understands kube-apiserver JSON natively (wildcards, verbs).
     # Metadata (not RequestResponse) keeps user/verb/objectRef without bodies
