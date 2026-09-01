@@ -1,22 +1,8 @@
 {
-  "__inputs": [
-    {
-      "name": "DS_PROMETHEUS",
-      "label": "Prometheus",
-      "description": "Cluster Prometheus / Thanos Querier",
-      "type": "datasource",
-      "pluginId": "prometheus",
-      "pluginName": "Prometheus"
-    }
-  ],
-  "annotations": {
-    "list": []
-  },
-  "description": "Audit log pipeline health: LokiStack ingestion, edge filter effectiveness, collector metrics, and storage utilization.",
+  "annotations": { "list": [] },
+  "description": "Audit log pipeline: LokiStack ingestion, edge filter effectiveness, collector metrics, and storage.",
   "editable": true,
-  "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "id": null,
   "links": [],
   "panels": [
     {
@@ -27,191 +13,130 @@
       "type": "row"
     },
     {
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "fieldConfig": {
-        "defaults": {
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "red", "value": null },
-              { "color": "yellow", "value": 0.80 },
-              { "color": "green", "value": 0.90 }
-            ]
-          },
-          "unit": "percentunit",
-          "min": 0,
-          "max": 1
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 1 },
+      "datasource": "prometheus",
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 1 },
       "id": 1,
-      "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
-        "orientation": "auto",
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true
-      },
       "title": "Edge Filter Effectiveness",
       "description": "Percentage of audit events dropped by edge filters. Higher = less noise stored.",
-      "type": "gauge",
+      "type": "singlestat",
+      "format": "percentunit",
+      "sparkline": { "show": true, "full": false },
+      "colorBackground": true,
+      "thresholds": "0.80,0.90",
+      "colors": ["#d44a3a", "#ff9830", "#299c46"],
       "targets": [
         {
-          "expr": "1 - clamp_min(\n  sum(rate(loki_distributor_lines_received_total{namespace=\"openshift-logging\"}[5m]))\n  /\n  sum(rate(apiserver_audit_event_total[5m]))\n, 0)",
-          "legendFormat": "Filter ratio",
+          "expr": "1 - clamp_min(sum(rate(loki_distributor_lines_received_total{namespace=\"openshift-logging\"}[5m])) / sum(rate(apiserver_audit_event_total[5m])), 0)",
+          "legendFormat": "",
           "refId": "A"
         }
       ]
     },
     {
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 1 },
+      "datasource": "prometheus",
+      "gridPos": { "h": 5, "w": 6, "x": 6, "y": 1 },
       "id": 2,
-      "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "textMode": "auto"
-      },
       "title": "Audit Lines Ingested / min",
       "description": "Rate of audit log lines arriving in LokiStack after edge filtering.",
-      "type": "stat",
+      "type": "singlestat",
+      "format": "short",
+      "sparkline": { "show": true, "full": false },
+      "colorBackground": false,
       "targets": [
         {
           "expr": "sum(rate(loki_distributor_lines_received_total{namespace=\"openshift-logging\"}[5m])) * 60",
-          "legendFormat": "lines/min",
+          "legendFormat": "",
           "refId": "A"
         }
       ]
     },
     {
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "Bps",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 1048576 },
-              { "color": "red", "value": 10485760 }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 1 },
+      "datasource": "prometheus",
+      "gridPos": { "h": 5, "w": 6, "x": 12, "y": 1 },
       "id": 3,
-      "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "textMode": "auto"
-      },
       "title": "Bytes Ingested / sec",
-      "description": "Byte rate into LokiStack. Yellow at 1MB/s, red at 10MB/s.",
-      "type": "stat",
+      "description": "Byte rate into LokiStack.",
+      "type": "singlestat",
+      "format": "Bps",
+      "sparkline": { "show": true, "full": false },
+      "colorBackground": false,
       "targets": [
         {
           "expr": "sum(rate(loki_distributor_bytes_received_total{namespace=\"openshift-logging\"}[5m]))",
-          "legendFormat": "bytes/s",
+          "legendFormat": "",
           "refId": "A"
         }
       ]
     },
     {
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 500 },
-              { "color": "red", "value": 2000 }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 1 },
+      "datasource": "prometheus",
+      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 1 },
       "id": 4,
-      "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "textMode": "auto"
-      },
       "title": "Active Streams",
       "description": "Number of active log streams in Loki ingesters.",
-      "type": "stat",
+      "type": "singlestat",
+      "format": "short",
+      "sparkline": { "show": true, "full": false },
+      "colorBackground": false,
       "targets": [
         {
           "expr": "sum(loki_ingester_memory_streams{namespace=\"openshift-logging\"})",
-          "legendFormat": "streams",
+          "legendFormat": "",
           "refId": "A"
         }
       ]
     },
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 7 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 6 },
       "id": 101,
       "title": "Ingestion Over Time",
       "type": "row"
     },
     {
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "fieldConfig": {
-        "defaults": { "unit": "short", "custom": { "lineWidth": 2, "fillOpacity": 15, "showPoints": "never" } },
-        "overrides": []
-      },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": "prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 7 },
       "id": 10,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
       "title": "Audit Events: API Server vs Loki Ingested",
-      "description": "Compare total audit events generated vs what Loki actually stores. The gap is edge filter savings.",
-      "type": "timeseries",
+      "description": "Compare total audit events generated vs what Loki stores. The gap = edge filter savings.",
+      "type": "graph",
+      "lines": true,
+      "linewidth": 2,
+      "fill": 1,
+      "nullPointMode": "null",
+      "yaxes": [
+        { "format": "short", "label": "events/min", "show": true },
+        { "format": "short", "show": false }
+      ],
+      "legend": { "show": true, "alignAsTable": true, "avg": true, "current": true, "max": true },
       "targets": [
         {
           "expr": "sum(rate(apiserver_audit_event_total[5m])) * 60",
-          "legendFormat": "API server events/min (total)",
+          "legendFormat": "API server total/min",
           "refId": "A"
         },
         {
           "expr": "sum(rate(loki_distributor_lines_received_total{namespace=\"openshift-logging\"}[5m])) * 60",
-          "legendFormat": "Loki ingested/min (filtered)",
+          "legendFormat": "Loki ingested/min (after filters)",
           "refId": "B"
         }
       ]
     },
     {
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "fieldConfig": {
-        "defaults": { "unit": "binBps", "custom": { "lineWidth": 2, "fillOpacity": 15, "showPoints": "never" } },
-        "overrides": []
-      },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": "prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 7 },
       "id": 11,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
       "title": "Loki Ingestion Byte Rate",
-      "type": "timeseries",
+      "type": "graph",
+      "lines": true,
+      "linewidth": 2,
+      "fill": 1,
+      "nullPointMode": "null",
+      "yaxes": [
+        { "format": "Bps", "label": "", "show": true },
+        { "format": "short", "show": false }
+      ],
+      "legend": { "show": true, "alignAsTable": true, "avg": true, "current": true, "max": true },
       "targets": [
         {
           "expr": "sum(rate(loki_distributor_bytes_received_total{namespace=\"openshift-logging\"}[5m]))",
@@ -222,23 +147,27 @@
     },
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 16 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 15 },
       "id": 102,
-      "title": "Collector Pipeline",
+      "title": "Collector Pipeline (Vector)",
       "type": "row"
     },
     {
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "fieldConfig": {
-        "defaults": { "unit": "short", "custom": { "lineWidth": 2, "fillOpacity": 15, "showPoints": "never" } },
-        "overrides": []
-      },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 17 },
+      "datasource": "prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
       "id": 20,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
-      "title": "Vector Collector: Received vs Sent Events",
-      "description": "Events received by the collector before filtering vs events sent to Loki after filtering.",
-      "type": "timeseries",
+      "title": "Collector: Received vs Sent Events",
+      "description": "Events received before filtering vs events sent to Loki after. The gap is filtered noise.",
+      "type": "graph",
+      "lines": true,
+      "linewidth": 2,
+      "fill": 1,
+      "nullPointMode": "null",
+      "yaxes": [
+        { "format": "ops", "label": "events/sec", "show": true },
+        { "format": "short", "show": false }
+      ],
+      "legend": { "show": true, "alignAsTable": true, "avg": true, "current": true },
       "targets": [
         {
           "expr": "sum(rate(vector_component_received_events_total{namespace=\"openshift-logging\"}[5m]))",
@@ -253,17 +182,21 @@
       ]
     },
     {
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "fieldConfig": {
-        "defaults": { "unit": "short", "custom": { "lineWidth": 2, "fillOpacity": 10, "showPoints": "never" } },
-        "overrides": []
-      },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 17 },
+      "datasource": "prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
       "id": 21,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
-      "title": "Vector Buffer Utilization",
-      "description": "Events buffered in the collector. Sustained growth indicates backpressure from Loki.",
-      "type": "timeseries",
+      "title": "Collector Buffer Utilization",
+      "description": "Sustained growth = backpressure from Loki.",
+      "type": "graph",
+      "lines": true,
+      "linewidth": 2,
+      "fill": 1,
+      "nullPointMode": "null",
+      "yaxes": [
+        { "format": "short", "label": "buffered events", "show": true },
+        { "format": "short", "show": false }
+      ],
+      "legend": { "show": true },
       "targets": [
         {
           "expr": "sum by (pod) (vector_buffer_events{namespace=\"openshift-logging\"})",
@@ -274,22 +207,26 @@
     },
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 25 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 24 },
       "id": 103,
       "title": "Loki Health",
       "type": "row"
     },
     {
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "fieldConfig": {
-        "defaults": { "unit": "s", "custom": { "lineWidth": 2, "fillOpacity": 10, "showPoints": "never" } },
-        "overrides": []
-      },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 26 },
+      "datasource": "prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 25 },
       "id": 30,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
       "title": "Loki Request Latency (p99)",
-      "type": "timeseries",
+      "type": "graph",
+      "lines": true,
+      "linewidth": 2,
+      "fill": 1,
+      "nullPointMode": "null",
+      "yaxes": [
+        { "format": "s", "label": "latency", "show": true },
+        { "format": "short", "show": false }
+      ],
+      "legend": { "show": true, "alignAsTable": true, "current": true, "max": true },
       "targets": [
         {
           "expr": "histogram_quantile(0.99, sum by (le, route) (rate(loki_request_duration_seconds_bucket{namespace=\"openshift-logging\", route=~\"/loki/api/v1.*\"}[5m])))",
@@ -299,17 +236,22 @@
       ]
     },
     {
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "fieldConfig": {
-        "defaults": { "unit": "short", "custom": { "lineWidth": 2, "fillOpacity": 10, "showPoints": "never", "stacking": { "mode": "normal" } } },
-        "overrides": []
-      },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 26 },
+      "datasource": "prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 25 },
       "id": 31,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
       "title": "Loki Errors by Route",
-      "description": "Non-2xx responses from Loki. Sustained errors indicate unhealthy components.",
-      "type": "timeseries",
+      "description": "Non-2xx Loki responses. Sustained errors = unhealthy components.",
+      "type": "graph",
+      "lines": true,
+      "linewidth": 2,
+      "fill": 1,
+      "stack": true,
+      "nullPointMode": "null as zero",
+      "yaxes": [
+        { "format": "ops", "label": "errors/sec", "show": true },
+        { "format": "short", "show": false }
+      ],
+      "legend": { "show": true, "alignAsTable": true, "current": true },
       "targets": [
         {
           "expr": "sum by (route, status_code) (rate(loki_request_duration_seconds_count{namespace=\"openshift-logging\", status_code!~\"2..\"}[5m]))",
@@ -319,16 +261,20 @@
       ]
     },
     {
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "fieldConfig": {
-        "defaults": { "unit": "bytes", "custom": { "lineWidth": 2, "fillOpacity": 15, "showPoints": "never" } },
-        "overrides": []
-      },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 34 },
+      "datasource": "prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 33 },
       "id": 32,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
       "title": "Ingester Memory Usage",
-      "type": "timeseries",
+      "type": "graph",
+      "lines": true,
+      "linewidth": 2,
+      "fill": 1,
+      "nullPointMode": "null",
+      "yaxes": [
+        { "format": "bytes", "label": "", "show": true },
+        { "format": "short", "show": false }
+      ],
+      "legend": { "show": true },
       "targets": [
         {
           "expr": "sum by (pod) (container_memory_working_set_bytes{namespace=\"openshift-logging\", container=\"loki\", pod=~\"logging-loki-ingester.*\"})",
@@ -338,16 +284,20 @@
       ]
     },
     {
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "fieldConfig": {
-        "defaults": { "unit": "bytes", "custom": { "lineWidth": 2, "fillOpacity": 15, "showPoints": "never" } },
-        "overrides": []
-      },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 34 },
+      "datasource": "prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 33 },
       "id": 33,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
       "title": "Compactor / Querier Memory",
-      "type": "timeseries",
+      "type": "graph",
+      "lines": true,
+      "linewidth": 2,
+      "fill": 1,
+      "nullPointMode": "null",
+      "yaxes": [
+        { "format": "bytes", "label": "", "show": true },
+        { "format": "short", "show": false }
+      ],
+      "legend": { "show": true },
       "targets": [
         {
           "expr": "sum by (pod) (container_memory_working_set_bytes{namespace=\"openshift-logging\", container=\"loki\", pod=~\"logging-loki-(compactor|querier).*\"})",
@@ -358,55 +308,54 @@
     },
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 42 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 41 },
       "id": 104,
       "title": "Storage",
       "type": "row"
     },
     {
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percentunit",
-          "min": 0,
-          "max": 1,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 0.75 },
-              { "color": "red", "value": 0.90 }
-            ]
-          },
-          "custom": { "lineWidth": 2, "fillOpacity": 15, "showPoints": "never" }
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 43 },
+      "datasource": "prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 42 },
       "id": 40,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
       "title": "PVC Usage (% Full)",
-      "description": "Loki PVC utilization. Yellow at 75%, red at 90%.",
-      "type": "timeseries",
+      "description": "Loki PVC utilization. Yellow 75%, red 90%.",
+      "type": "graph",
+      "lines": true,
+      "linewidth": 2,
+      "fill": 1,
+      "nullPointMode": "null",
+      "yaxes": [
+        { "format": "percentunit", "label": "", "show": true, "min": 0, "max": 1 },
+        { "format": "short", "show": false }
+      ],
+      "legend": { "show": true, "alignAsTable": true, "current": true },
+      "thresholds": [
+        { "value": 0.75, "colorMode": "warning", "op": "gt", "fill": false, "line": true },
+        { "value": 0.90, "colorMode": "critical", "op": "gt", "fill": false, "line": true }
+      ],
       "targets": [
         {
-          "expr": "kubelet_volume_stats_used_bytes{namespace=\"openshift-logging\", persistentvolumeclaim=~\".*loki.*\"}\n/\nkubelet_volume_stats_capacity_bytes{namespace=\"openshift-logging\", persistentvolumeclaim=~\".*loki.*\"}",
+          "expr": "kubelet_volume_stats_used_bytes{namespace=\"openshift-logging\", persistentvolumeclaim=~\".*loki.*\"} / kubelet_volume_stats_capacity_bytes{namespace=\"openshift-logging\", persistentvolumeclaim=~\".*loki.*\"}",
           "legendFormat": "{{persistentvolumeclaim}}",
           "refId": "A"
         }
       ]
     },
     {
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-      "fieldConfig": {
-        "defaults": { "unit": "bytes", "custom": { "lineWidth": 2, "fillOpacity": 15, "showPoints": "never" } },
-        "overrides": []
-      },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 43 },
+      "datasource": "prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 42 },
       "id": 41,
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
       "title": "PVC Used Bytes",
-      "type": "timeseries",
+      "type": "graph",
+      "lines": true,
+      "linewidth": 2,
+      "fill": 1,
+      "nullPointMode": "null",
+      "yaxes": [
+        { "format": "bytes", "label": "", "show": true },
+        { "format": "short", "show": false }
+      ],
+      "legend": { "show": true, "alignAsTable": true, "current": true },
       "targets": [
         {
           "expr": "kubelet_volume_stats_used_bytes{namespace=\"openshift-logging\", persistentvolumeclaim=~\".*loki.*\"}",
@@ -416,15 +365,13 @@
       ]
     }
   ],
-  "schemaVersion": 39,
+  "schemaVersion": 16,
   "tags": ["loki", "audit", "openshift", "logging"],
-  "templating": {
-    "list": []
-  },
+  "templating": { "list": [] },
   "time": { "from": "now-6h", "to": "now" },
   "timepicker": {},
   "timezone": "browser",
   "title": "Audit LokiStack Overview",
   "uid": "audit-loki-overview",
-  "version": 1
+  "version": 2
 }
