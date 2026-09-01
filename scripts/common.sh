@@ -16,6 +16,7 @@ CONSOLE_PLUGIN="${CONSOLE_PLUGIN:-logging-view-plugin}"
 
 log() { printf '[%s] %s\n' "$(date -u +%H:%M:%S)" "$*"; }
 err() { printf '[%s] ERROR: %s\n' "$(date -u +%H:%M:%S)" "$*" >&2; }
+header() { printf '\n==> %s\n' "$*"; }
 
 die() {
   err "$*"
@@ -56,21 +57,26 @@ wait_for_crd() {
   die "Timed out waiting for CRD ${crd}"
 }
 
-wait_for_csv() {
+wait_for_named_csv() {
   local ns="$1"
-  local timeout="${2:-600}"
-  log "Waiting for a Succeeded ClusterServiceVersion in ${ns} (timeout ${timeout}s)"
+  local name_prefix="$2"
+  local timeout="${3:-600}"
+  log "Waiting for CSV ${name_prefix}* Succeeded in ${ns} (timeout ${timeout}s)"
   local elapsed=0
   while (( elapsed < timeout )); do
-    if oc get csv -n "${ns}" -o jsonpath='{range .items[*]}{.status.phase}{"\n"}{end}' 2>/dev/null | grep -qx Succeeded; then
-      oc get csv -n "${ns}" --no-headers 2>/dev/null | awk '{print "  "$1, $NF}' || true
+    local phase
+    phase="$(oc get csv -n "${ns}" --no-headers 2>/dev/null \
+      | awk -v p="${name_prefix}" '$1 ~ p {print $NF; exit}')"
+    if [[ "${phase}" == "Succeeded" ]]; then
+      oc get csv -n "${ns}" --no-headers 2>/dev/null | awk -v p="${name_prefix}" '$1 ~ p {print "  "$1, $NF}'
       return 0
     fi
+    log "  ${name_prefix}: ${phase:-Pending}"
     sleep 10
     elapsed=$((elapsed + 10))
   done
   oc get csv -n "${ns}" || true
-  die "Timed out waiting for operator CSV in ${ns}"
+  die "Timed out waiting for CSV ${name_prefix}* in ${ns}"
 }
 
 wait_for_lokistack() {

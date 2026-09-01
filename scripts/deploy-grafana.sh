@@ -10,6 +10,33 @@ GRAFANA_NAMESPACE="${NAMESPACE:-openshift-logging}"
 OPERATOR_NAMESPACE="openshift-operators"
 TIMEOUT="${GRAFANA_TIMEOUT:-300}"
 
+ensure_bearer_token_secret() {
+  local sa="$1"
+  local secret_name="$2"
+  if oc get secret "${secret_name}" -n "${GRAFANA_NAMESPACE}" &>/dev/null; then
+    echo "    ${secret_name} already exists"
+    return 0
+  fi
+  local token
+  token="$(oc create token "${sa}" -n "${GRAFANA_NAMESPACE}" --duration=8760h 2>/dev/null || echo "")"
+  if [ -z "${token}" ]; then
+    echo "    WARN: Could not create token for SA ${sa}. Re-run after the SA is ready."
+    return 0
+  fi
+  oc create secret generic "${secret_name}" \
+    -n "${GRAFANA_NAMESPACE}" \
+    --from-literal=token="Bearer ${token}" \
+    --dry-run=client -o yaml | oc apply -f -
+  echo "    Created ${secret_name}"
+}
+
+loki_datasource_for_dashboard() {
+  case "$1" in
+    grafana-infra-health) echo "Loki-Infrastructure" ;;
+    *) echo "Loki" ;;
+  esac
+}
+
 header "Deploying Grafana Operator"
 
 echo "==> Installing Grafana Operator Subscription..."
@@ -17,6 +44,7 @@ oc apply -f "${ROOT}/manifests/07-grafana-operator.yaml"
 
 echo "==> Waiting for Grafana Operator CSV (timeout: ${TIMEOUT}s)..."
 end_time=$((SECONDS + TIMEOUT))
+csv_phase=""
 while [ $SECONDS -lt $end_time ]; do
   csv_phase=$(oc get csv -n "${OPERATOR_NAMESPACE}" \
     -l operators.coreos.com/grafana-operator.openshift-operators="" \
@@ -43,28 +71,16 @@ header "Deploying Grafana Instance"
 echo "==> Applying Grafana instance..."
 oc apply -f "${ROOT}/manifests/08-grafana-instance.yaml"
 
-echo "==> Setting up Prometheus datasource RBAC..."
+echo "==> Applying datasource CRs and query RBAC..."
 oc apply -f "${ROOT}/manifests/09-grafana-datasources.yaml"
 
-echo "==> Creating Prometheus bearer token secret..."
-if ! oc get secret grafana-prometheus-token -n "${GRAFANA_NAMESPACE}" &>/dev/null; then
-  TOKEN=$(oc create token grafana-prometheus -n "${GRAFANA_NAMESPACE}" --duration=8760h 2>/dev/null || echo "")
-  if [ -n "${TOKEN}" ]; then
-    oc create secret generic grafana-prometheus-token \
-      -n "${GRAFANA_NAMESPACE}" \
-      --from-literal=token="Bearer ${TOKEN}" \
-      --dry-run=client -o yaml | oc apply -f -
-    echo "    Created grafana-prometheus-token"
-  else
-    echo "    WARN: Could not create token. SA may not exist yet. Re-run after SA is ready."
-  fi
-else
-  echo "    grafana-prometheus-token already exists"
-fi
+echo "==> Creating gateway / Prometheus bearer token secrets..."
+ensure_bearer_token_secret grafana-prometheus grafana-prometheus-token
+ensure_bearer_token_secret grafana-loki grafana-loki-gateway-token
 
 echo "==> Waiting for Grafana pod..."
 oc wait --for=condition=Available deployment/loki-grafana-deployment \
-  -n "${GRAFANA_NAMESPACE}" --timeout=120s 2>/dev/null || \
+  -n "${GRAFANA_NAMESPACE}" --timeout=180s 2>/dev/null || \
   echo "    WARN: Grafana deployment not ready yet. Dashboards will apply once it starts."
 
 header "Deploying Dashboards"
@@ -73,7 +89,8 @@ echo "==> Creating GrafanaDashboard CRs from JSON files..."
 for dashboard_file in "${ROOT}"/dashboards/grafana-*.json; do
   [ -f "${dashboard_file}" ] || continue
   dashboard_name=$(basename "${dashboard_file}" .json)
-  echo "    Applying dashboard: ${dashboard_name}"
+  loki_ds="$(loki_datasource_for_dashboard "${dashboard_name}")"
+  echo "    Applying dashboard: ${dashboard_name} (DS_LOKI -> ${loki_ds})"
   cat <<EOF | oc apply -f -
 apiVersion: grafana.integreatly.org/v1beta1
 kind: GrafanaDashboard
@@ -89,6 +106,11 @@ spec:
   instanceSelector:
     matchLabels:
       dashboards: "loki-audit"
+  datasources:
+    - inputName: DS_LOKI
+      datasourceName: ${loki_ds}
+    - inputName: DS_PROMETHEUS
+      datasourceName: Prometheus
   json: |
 $(sed 's/^/    /' "${dashboard_file}")
 EOF
