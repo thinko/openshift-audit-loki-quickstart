@@ -57,7 +57,7 @@ data:
     org_role = Viewer
 
     [dashboards]
-    default_home_dashboard_path = /var/lib/grafana/dashboards/grafana-ops-overview.json
+    default_home_dashboard_path = /opt/grafana/dashboards/grafana-ops-overview.json
 
     [security]
     allow_embedding = true
@@ -134,9 +134,7 @@ spec:
             - name: dashboard-provider
               mountPath: /etc/grafana/provisioning/dashboards
             - name: dashboards
-              mountPath: /var/lib/grafana/dashboards
-            - name: grafana-data
-              mountPath: /var/lib/grafana
+              mountPath: /opt/grafana/dashboards
       volumes:
         - name: grafana-config
           configMap:
@@ -151,8 +149,6 @@ spec:
           configMap:
             name: grafana-dashboards
             optional: true
-        - name: grafana-data
-          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service

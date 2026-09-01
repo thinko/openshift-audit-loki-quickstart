@@ -170,5 +170,5 @@ data:
         editable: true
         updateIntervalSeconds: 30
         options:
-          path: /var/lib/grafana/dashboards
+          path: /opt/grafana/dashboards
           foldersFromFilesStructure: false
