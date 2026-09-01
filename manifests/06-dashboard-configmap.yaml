@@ -1,0 +1,42 @@
+# Grafana dashboard for Audit LokiStack metrics.
+#
+# Deployment options:
+#
+# 1. OpenShift Console (Observe > Dashboards):
+#      oc create configmap audit-loki-dashboard \
+#        --from-file=audit-loki-overview.json=dashboards/audit-loki-overview.json \
+#        -n openshift-config-managed
+#      oc label configmap audit-loki-dashboard \
+#        console.openshift.io/dashboard=true \
+#        -n openshift-config-managed
+#
+# 2. Standalone Grafana:
+#      Import dashboards/audit-loki-overview.json via the Grafana UI
+#      (Dashboards > Import > Upload JSON).
+#
+# 3. Grafana Operator (GrafanaDashboard CR):
+#      Apply the manifest below.
+#
+# The ConfigMap approach (option 1) requires cluster-admin and injects
+# the dashboard into the built-in OpenShift monitoring Grafana. If the
+# cluster doesn't expose a user-facing Grafana (OCP 4.12+), use option
+# 2 or 3 with a separately deployed Grafana instance.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: audit-loki-dashboard
+  namespace: openshift-logging
+  labels:
+    app.kubernetes.io/name: audit-loki-dashboard
+    app.kubernetes.io/part-of: openshift-logging
+    grafana_dashboard: "true"
+data:
+  audit-loki-overview.json: |
+    # This is a placeholder. Deploy the actual dashboard from the
+    # dashboards/audit-loki-overview.json file using one of the methods
+    # described above.
+    #
+    # To inline the full JSON here, run:
+    #   yq eval '.data["audit-loki-overview.json"] = load_str("dashboards/audit-loki-overview.json")' \
+    #     manifests/06-dashboard-configmap.yaml
