@@ -7,7 +7,8 @@ CHART := $(ROOT)/helm/audit-loki
 PYTHON ?= python3
 
 .PHONY: help deploy deploy-operators destroy test test-attribution enable-console-plugin \
-	helm-lint helm-template secret azure-storage status preflight apply-rbac check-egress lint
+	helm-lint helm-template secret azure-storage status preflight apply-rbac check-egress \
+	deploy-dashboard lint
 
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*##"; printf "\nTargets:\n"} /^[a-zA-Z0-9_.-]+:.*##/ { printf "  %-24s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -81,5 +82,16 @@ secret: ## Create/update the Azure Blob secret from environment variables
 		--from-literal=account_key="$${AZURE_STORAGE_ACCOUNT_KEY}" \
 		--from-literal=container="$${AZURE_CONTAINER_NAME:-loki-audit}" \
 		--dry-run=client -o yaml | oc apply -f -
+
+deploy-dashboard: ## Deploy the Audit LokiStack Grafana dashboard to the Console
+	@echo "==> Creating dashboard ConfigMap in openshift-config-managed..."
+	oc create configmap audit-loki-dashboard \
+		--from-file=audit-loki-overview.json="$(ROOT)/dashboards/audit-loki-overview.json" \
+		-n openshift-config-managed \
+		--dry-run=client -o yaml | oc apply -f -
+	oc label configmap audit-loki-dashboard \
+		console.openshift.io/dashboard=true \
+		-n openshift-config-managed --overwrite
+	@echo "==> Dashboard available at Observe > Dashboards > Audit LokiStack Overview"
 
 lint: test ## Alias for test
