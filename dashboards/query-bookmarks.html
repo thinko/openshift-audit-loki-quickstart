@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Audit LokiStack — Query Bookmarks</title>
+<style>
+  :root {
+    --bg: #0e1117; --surface: #161b22; --border: #30363d;
+    --text: #e6edf3; --muted: #8b949e; --accent: #58a6ff;
+    --green: #3fb950; --orange: #d29922; --red: #f85149;
+    --code-bg: #1c2128;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.5;
+    max-width: 1200px; margin: 0 auto; padding: 24px;
+  }
+  header { margin-bottom: 32px; border-bottom: 1px solid var(--border); padding-bottom: 16px; }
+  header h1 { font-size: 24px; font-weight: 600; }
+  header p { color: var(--muted); margin-top: 4px; font-size: 14px; }
+
+  .config-bar {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 24px; display: flex; align-items: center; gap: 12px;
+    flex-wrap: wrap;
+  }
+  .config-bar label { color: var(--muted); font-size: 13px; white-space: nowrap; }
+  .config-bar input {
+    flex: 1; min-width: 300px; background: var(--code-bg); border: 1px solid var(--border);
+    color: var(--text); padding: 6px 10px; border-radius: 4px; font-size: 13px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+  .config-bar button {
+    background: var(--accent); color: #fff; border: none; padding: 6px 14px;
+    border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500;
+  }
+
+  .category { margin-bottom: 32px; }
+  .category h2 {
+    font-size: 16px; font-weight: 600; margin-bottom: 12px;
+    padding-bottom: 6px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .badge {
+    font-size: 11px; padding: 2px 8px; border-radius: 10px;
+    font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .badge-security { background: rgba(248,81,73,0.15); color: var(--red); }
+  .badge-compliance { background: rgba(210,153,34,0.15); color: var(--orange); }
+  .badge-ops { background: rgba(63,185,80,0.15); color: var(--green); }
+  .badge-metrics { background: rgba(88,166,255,0.15); color: var(--accent); }
+
+  .query-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    margin-bottom: 10px; overflow: hidden;
+  }
+  .query-header {
+    padding: 10px 16px; display: flex; justify-content: space-between;
+    align-items: center; cursor: pointer; user-select: none;
+  }
+  .query-header:hover { background: rgba(88,166,255,0.04); }
+  .query-title { font-size: 14px; font-weight: 500; }
+  .query-desc { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .query-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .btn {
+    font-size: 12px; padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border);
+    background: transparent; color: var(--muted); cursor: pointer; white-space: nowrap;
+    transition: all 0.15s;
+  }
+  .btn:hover { color: var(--text); border-color: var(--accent); }
+  .btn-copy.copied { color: var(--green); border-color: var(--green); }
+  .btn-open { color: var(--accent); border-color: var(--accent); }
+  .btn-open:hover { background: rgba(88,166,255,0.1); }
+
+  .query-body { display: none; padding: 0 16px 12px; }
+  .query-body.open { display: block; }
+  pre {
+    background: var(--code-bg); padding: 12px; border-radius: 6px; overflow-x: auto;
+    font-size: 13px; line-height: 1.6; font-family: 'SF Mono', 'Fira Code', monospace;
+    color: var(--accent); border: 1px solid var(--border);
+  }
+  .query-note { color: var(--muted); font-size: 12px; margin-top: 8px; font-style: italic; }
+
+  .instructions {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 16px; margin-bottom: 24px; font-size: 13px; color: var(--muted);
+  }
+  .instructions h3 { color: var(--text); font-size: 14px; margin-bottom: 8px; }
+  .instructions ol { padding-left: 20px; }
+  .instructions li { margin-bottom: 4px; }
+  .instructions code {
+    background: var(--code-bg); padding: 1px 5px; border-radius: 3px;
+    font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; color: var(--text);
+  }
+  footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Audit LokiStack &mdash; Query Bookmarks</h1>
+  <p>Pre-built LogQL queries for the OpenShift Console Logs view, logcli, and Grafana Explore.</p>
+</header>
+
+<div class="config-bar">
+  <label for="consoleUrl">Console URL:</label>
+  <input type="text" id="consoleUrl" placeholder="https://console-openshift-console.apps.example.com">
+  <button onclick="saveConsoleUrl()">Save</button>
+</div>
+
+<div class="instructions">
+  <h3>How to use</h3>
+  <ol>
+    <li>Set your Console URL above (saved in your browser).</li>
+    <li>Click <strong>Copy</strong> to copy the LogQL query to your clipboard.</li>
+    <li>Click <strong>Open in Console</strong> to jump directly to the Logs view with the query loaded.</li>
+    <li>In the Console: set the log type to <code>audit</code>, then click <strong>Show Query</strong> and paste.</li>
+    <li>For queries with <code>| json</code> or <code>| line_format</code>: these require <strong>logcli</strong> or <strong>Grafana Explore</strong> (the Console query box only supports stream selectors).</li>
+  </ol>
+</div>
+
+<div id="queries"></div>
+
+<footer>
+  Generated from <code>openshift-audit-loki-quickstart</code>. Queries target the <code>audit</code> tenant in LokiStack.
+</footer>
+
+<script>
+const QUERIES = [
+  {
+    category: "Security", badge: "security",
+    items: [
+      {
+        title: "RBAC Changes",
+        desc: "Who created, modified, or deleted Roles, ClusterRoles, and Bindings",
+        query: '{log_type="audit"} | json\n  | objectRef_resource=~"(roles|clusterroles|rolebindings|clusterrolebindings)"\n  | verb=~"(create|update|patch|delete)"\n  | line_format `{{.verb | ToUpper}} {{.objectRef_resource}}/{{.objectRef_name}} in {{.objectRef_namespace}} by {{.user_username}}`',
+        console_search: "rolebindings clusterroles create update patch delete",
+        note: "The #1 privilege escalation indicator. Review weekly."
+      },
+      {
+        title: "Pod Exec / Attach (Shell Access)",
+        desc: "Interactive shell sessions into running containers",
+        query: '{log_type="audit"} | json\n  | objectRef_subresource=~"(exec|attach)"\n  | line_format `SHELL: {{.user_username}} -> pod/{{.objectRef_name}} in {{.objectRef_namespace}} [{{.responseStatus_code}}]`',
+        console_search: "exec attach",
+        note: "Kubernetes SSH equivalent. Every session should be justified. Show this to auditors."
+      },
+      {
+        title: "Secret Access by Humans",
+        desc: "Non-system users reading or modifying secrets",
+        query: '{log_type="audit"} | json\n  | objectRef_resource="secrets"\n  | user_username!~"system:.*"\n  | line_format `{{.verb}} secret/{{.objectRef_name}} in {{.objectRef_namespace}} by {{.user_username}} [{{.responseStatus_code}}]`',
+        console_search: "secrets",
+        note: "Credential harvesting detection. Focus on users reading secrets outside their namespace."
+      },
+      {
+        title: "Privilege Escalation Attempts",
+        desc: "Bind, escalate, and impersonate operations",
+        query: '{log_type="audit"} | json\n  | verb=~"(bind|escalate|impersonate)"\n  | line_format `{{.verb | ToUpper}} by {{.user_username}}: {{.objectRef_resource}}/{{.objectRef_name}} [{{.responseStatus_code}}]`',
+        console_search: "bind escalate impersonate",
+        note: "Any hit here warrants investigation."
+      },
+      {
+        title: "Failed Authorization (403s)",
+        desc: "Access attempts that were denied",
+        query: '{log_type="audit"} | json\n  | responseStatus_code="403"\n  | line_format `DENIED: {{.user_username}} tried to {{.verb}} {{.objectRef_resource}}/{{.objectRef_name}} in {{.objectRef_namespace}}`',
+        console_search: '"responseStatus":{"code":403',
+        note: "A burst from one user = recon or misconfigured RBAC."
+      },
+      {
+        title: "Resource Deletions by Humans",
+        desc: "All successful deletes by non-system accounts",
+        query: '{log_type="audit"} | json\n  | verb="delete"\n  | responseStatus_code="200"\n  | user_username!~"system:.*"\n  | line_format `{{.user_username}} deleted {{.objectRef_resource}}/{{.objectRef_name}} in {{.objectRef_namespace}}`',
+        console_search: '"verb":"delete"',
+        note: "Accidental or unauthorized teardown detection."
+      }
+    ]
+  },
+  {
+    category: "Compliance", badge: "compliance",
+    items: [
+      {
+        title: "User Activity Timeline",
+        desc: "All mutating actions by a specific user (edit the username below)",
+        query: '{log_type="audit"} | json\n  | user_username="REPLACE_WITH_USERNAME"\n  | verb=~"(create|update|patch|delete)"\n  | line_format `{{.verb}} {{.objectRef_resource}}/{{.objectRef_name}} in {{.objectRef_namespace}} [{{.responseStatus_code}}]`',
+        console_search: "REPLACE_WITH_USERNAME",
+        note: "Instant incident response: 'What did this user touch?'"
+      },
+      {
+        title: "Namespace / Project Creations",
+        desc: "Who created or deleted namespaces and projects",
+        query: '{log_type="audit"} | json\n  | objectRef_resource=~"(namespaces|projects|projectrequests)"\n  | verb=~"(create|delete)"\n  | line_format `{{.verb | ToUpper}} {{.objectRef_resource}}/{{.objectRef_name}} by {{.user_username}} [{{.responseStatus_code}}]`',
+        console_search: "namespaces projects projectrequests create delete",
+        note: "Tracks self-provisioner activity and environment lifecycle."
+      },
+      {
+        title: "All Changes in a Namespace",
+        desc: "Every mutation in a specific namespace (edit below)",
+        query: '{log_type="audit"} | json\n  | objectRef_namespace="REPLACE_WITH_NAMESPACE"\n  | verb=~"(create|update|patch|delete)"\n  | line_format `{{.user_username}} {{.verb}} {{.objectRef_resource}}/{{.objectRef_name}} [{{.responseStatus_code}}]`',
+        console_search: "REPLACE_WITH_NAMESPACE",
+        note: "Use for namespace-scoped compliance reviews."
+      },
+      {
+        title: "Non-Platform Service Account Activity",
+        desc: "App-level automation (CI/CD, operators, controllers) outside openshift-*/kube-*",
+        query: '{log_type="audit"} | json\n  | user_username=~"system:serviceaccount:.*"\n  | user_username!~"system:serviceaccount:(openshift-|kube-).*"\n  | verb=~"(create|update|patch|delete)"\n  | line_format `{{.user_username}} {{.verb}} {{.objectRef_resource}}/{{.objectRef_name}} in {{.objectRef_namespace}}`',
+        console_search: "serviceaccount create update patch delete",
+        note: "Audits pipeline and operator mutations."
+      },
+      {
+        title: "Resource Change History",
+        desc: "Full trail for a specific resource (edit resource, name, namespace below)",
+        query: '{log_type="audit"} | json\n  | objectRef_resource="deployments"\n  | objectRef_name="REPLACE_WITH_NAME"\n  | objectRef_namespace="REPLACE_WITH_NAMESPACE"\n  | line_format `{{.user_username}} {{.verb}} [{{.responseStatus_code}}]`',
+        console_search: "REPLACE_WITH_NAME deployments",
+        note: "Change the resource type, name, and namespace as needed."
+      }
+    ]
+  },
+  {
+    category: "Operations", badge: "ops",
+    items: [
+      {
+        title: "All Audit Events (Readable Format)",
+        desc: "Every event with human-readable one-line formatting",
+        query: '{log_type="audit"} | json\n  | line_format `{{.verb | ToUpper}} {{.objectRef_resource}}/{{.objectRef_name}} in {{.objectRef_namespace}} by {{.user_username}} [{{.responseStatus_code}}]`',
+        console_search: "",
+        note: "The single most useful query for making raw JSON readable."
+      },
+      {
+        title: "All Audit Events (Detailed Format)",
+        desc: "Multi-line format with source IP and user agent",
+        query: '{log_type="audit"} | json\n  | line_format `ACTION: {{.verb}} {{.objectRef_resource}}/{{.objectRef_name}}\n  Namespace: {{.objectRef_namespace}}\n  User:      {{.user_username}}\n  Status:    {{.responseStatus_code}} {{.responseStatus_reason}}\n  Source IP: {{.sourceIPs}}\n  Agent:     {{.userAgent}}`',
+        console_search: "",
+        note: "Best for investigating specific events. Use with logcli or Grafana."
+      },
+      {
+        title: "ConfigMap / Secret Changes",
+        desc: "Mutations to ConfigMaps and Secrets across all namespaces",
+        query: '{log_type="audit"} | json\n  | objectRef_resource=~"(configmaps|secrets)"\n  | verb=~"(create|update|patch|delete)"\n  | line_format `{{.verb}} {{.objectRef_resource}}/{{.objectRef_name}} in {{.objectRef_namespace}} by {{.user_username}}`',
+        console_search: "configmaps secrets create update patch delete",
+        note: "Configuration drift detection."
+      },
+      {
+        title: "Deployment Rollouts",
+        desc: "Creates, updates, and scale events on Deployments and StatefulSets",
+        query: '{log_type="audit"} | json\n  | objectRef_resource=~"(deployments|statefulsets|replicasets)"\n  | verb=~"(create|update|patch|delete)"\n  | user_username!~"system:.*"\n  | line_format `{{.verb}} {{.objectRef_resource}}/{{.objectRef_name}} in {{.objectRef_namespace}} by {{.user_username}}`',
+        console_search: "deployments statefulsets",
+        note: "Tracks who deployed what and when."
+      }
+    ]
+  },
+  {
+    category: "Metrics (PromQL for Observe > Metrics)", badge: "metrics",
+    items: [
+      {
+        title: "Edge Filter Effectiveness",
+        desc: "Percentage of audit events dropped (higher = less noise stored)",
+        query: '1 - clamp_min(sum(rate(loki_distributor_lines_received_total{namespace="openshift-logging"}[5m])) / sum(rate(apiserver_audit_event_total[5m])), 0)',
+        console_search: "",
+        note: "Use in Observe > Metrics (PromQL, not LogQL). The money metric for stakeholders."
+      },
+      {
+        title: "Audit Lines Ingested / min",
+        desc: "Rate of log lines reaching LokiStack",
+        query: 'sum(rate(loki_distributor_lines_received_total{namespace="openshift-logging"}[5m])) * 60',
+        console_search: "",
+        note: "Use in Observe > Metrics."
+      },
+      {
+        title: "API Server vs Loki (Filter Gap)",
+        desc: "Total audit events generated vs what Loki stores",
+        query: 'sum(rate(apiserver_audit_event_total[5m])) * 60',
+        console_search: "",
+        note: "Run alongside the ingested/min query. The gap between the two lines is the filter savings."
+      }
+    ]
+  }
+];
+
+function saveConsoleUrl() {
+  const url = document.getElementById('consoleUrl').value.replace(/\/+$/, '');
+  localStorage.setItem('ocp-console-url', url);
+  renderQueries();
+}
+
+function loadConsoleUrl() {
+  const saved = localStorage.getItem('ocp-console-url') || '';
+  document.getElementById('consoleUrl').value = saved;
+  return saved;
+}
+
+function copyQuery(btn, query) {
+  navigator.clipboard.writeText(query).then(() => {
+    btn.classList.add('copied');
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.classList.remove('copied'); btn.textContent = 'Copy'; }, 1500);
+  });
+}
+
+function openInConsole(query, isPromql) {
+  const base = document.getElementById('consoleUrl').value.replace(/\/+$/, '');
+  if (!base) { alert('Set your Console URL first.'); return; }
+  if (isPromql) {
+    const url = base + '/monitoring/query-browser?query0=' + encodeURIComponent(query);
+    window.open(url, '_blank');
+  } else {
+    const url = base + '/monitoring/logs';
+    window.open(url, '_blank');
+  }
+}
+
+function toggleBody(id) {
+  document.getElementById(id).classList.toggle('open');
+}
+
+function renderQueries() {
+  const container = document.getElementById('queries');
+  container.innerHTML = '';
+  let cardId = 0;
+
+  QUERIES.forEach(cat => {
+    const section = document.createElement('div');
+    section.className = 'category';
+    section.innerHTML = `<h2>${cat.category} <span class="badge badge-${cat.badge}">${cat.badge}</span></h2>`;
+
+    cat.items.forEach(item => {
+      const id = 'card-' + (cardId++);
+      const isMetrics = cat.badge === 'metrics';
+      const card = document.createElement('div');
+      card.className = 'query-card';
+      card.innerHTML = `
+        <div class="query-header" onclick="toggleBody('${id}')">
+          <div>
+            <div class="query-title">${item.title}</div>
+            <div class="query-desc">${item.desc}</div>
+          </div>
+          <div class="query-actions" onclick="event.stopPropagation()">
+            <button class="btn btn-copy" onclick="copyQuery(this, ${JSON.stringify(item.query).replace(/"/g, '&quot;')})">Copy</button>
+            <button class="btn btn-open" onclick="openInConsole(${JSON.stringify(item.query).replace(/"/g, '&quot;')}, ${isMetrics})">${isMetrics ? 'Open Metrics' : 'Open Logs'}</button>
+          </div>
+        </div>
+        <div class="query-body" id="${id}">
+          <pre>${item.query.replace(/</g, '&lt;')}</pre>
+          ${item.note ? `<div class="query-note">${item.note}</div>` : ''}
+        </div>`;
+      section.appendChild(card);
+    });
+    container.appendChild(section);
+  });
+}
+
+loadConsoleUrl();
+renderQueries();
+</script>
+</body>
+</html>
