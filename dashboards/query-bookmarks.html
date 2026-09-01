@@ -297,14 +297,18 @@ function copyQuery(btn, query) {
   });
 }
 
-function openInConsole(query, isPromql) {
+function openInConsole(query, isPromql, consoleSearch) {
   const base = document.getElementById('consoleUrl').value.replace(/\/+$/, '');
   if (!base) { alert('Set your Console URL first.'); return; }
   if (isPromql) {
     const url = base + '/monitoring/query-browser?query0=' + encodeURIComponent(query);
     window.open(url, '_blank');
   } else {
-    const url = base + '/monitoring/logs';
+    const params = new URLSearchParams();
+    params.set('q', query);
+    params.set('tenant', 'audit');
+    if (consoleSearch) params.set('text', consoleSearch);
+    const url = base + '/monitoring/logs?' + params.toString();
     window.open(url, '_blank');
   }
 }
@@ -328,6 +332,8 @@ function renderQueries() {
       const isMetrics = cat.badge === 'metrics';
       const card = document.createElement('div');
       card.className = 'query-card';
+      const qAttr = JSON.stringify(item.query).replace(/"/g, '&quot;');
+      const sAttr = JSON.stringify(item.console_search || '').replace(/"/g, '&quot;');
       card.innerHTML = `
         <div class="query-header" onclick="toggleBody('${id}')">
           <div>
@@ -335,8 +341,8 @@ function renderQueries() {
             <div class="query-desc">${item.desc}</div>
           </div>
           <div class="query-actions" onclick="event.stopPropagation()">
-            <button class="btn btn-copy" onclick="copyQuery(this, ${JSON.stringify(item.query).replace(/"/g, '&quot;')})">Copy</button>
-            <button class="btn btn-open" onclick="openInConsole(${JSON.stringify(item.query).replace(/"/g, '&quot;')}, ${isMetrics})">${isMetrics ? 'Open Metrics' : 'Open Logs'}</button>
+            <button class="btn btn-copy" onclick="copyQuery(this, ${qAttr})">Copy</button>
+            <button class="btn btn-open" onclick="openInConsole(${qAttr}, ${isMetrics}, ${sAttr})">${isMetrics ? 'Open Metrics' : 'Open Logs'}</button>
           </div>
         </div>
         <div class="query-body" id="${id}">
