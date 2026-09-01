@@ -1,7 +1,15 @@
 ---
-# Grafana Operator via OLM. Installs into openshift-operators (cluster-wide)
-# which already has an OperatorGroup, so no new OG is needed.
-# Channel v5 is the only supported channel for the community Grafana Operator.
+# OPTIONAL: Grafana Operator via OLM.
+#
+# This manifest is NOT required for the default standalone Grafana deployment.
+# Only apply it if your cluster allows pulls from ghcr.io (community-operators)
+# and you want to use the operator's GrafanaDashboard / GrafanaDatasource CRDs.
+#
+# Most managed clusters (ARO, ROSA, etc.) block ghcr.io via image signature
+# policies. Use the standalone deployment (08-grafana-instance.yaml) instead.
+#
+# If the operator IS available, deploy-grafana.sh can be adapted to use CRDs
+# instead of ConfigMap-based provisioning.
 apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
 metadata:

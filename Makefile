@@ -84,20 +84,22 @@ secret: ## Create/update the Azure Blob secret from environment variables
 		--from-literal=container="$${AZURE_CONTAINER_NAME:-loki-audit}" \
 		--dry-run=client -o yaml | oc apply -f -
 
-deploy-grafana: ## Deploy Grafana Operator, instance, datasources, and dashboards
+deploy-grafana: ## Deploy standalone Grafana with datasources and dashboards
 	"$(ROOT)/scripts/deploy-grafana.sh"
 
-destroy-grafana: ## Remove Grafana instance and CRs (leaves operator installed)
-	@echo "==> Removing Grafana dashboards, datasources, and instance..."
-	-oc delete grafanadashboard --all -n openshift-logging 2>/dev/null
-	-oc delete grafanadatasource --all -n openshift-logging 2>/dev/null
-	-oc delete grafana loki-grafana -n openshift-logging 2>/dev/null
-	-oc delete secret grafana-prometheus-token grafana-loki-gateway-token -n openshift-logging 2>/dev/null
+destroy-grafana: ## Remove standalone Grafana deployment and associated resources
+	@echo "==> Removing Grafana deployment, service, route, and ConfigMaps..."
+	-oc delete route loki-grafana -n openshift-logging 2>/dev/null
+	-oc delete service loki-grafana -n openshift-logging 2>/dev/null
+	-oc delete deployment loki-grafana -n openshift-logging 2>/dev/null
+	-oc delete configmap grafana-config grafana-datasource-provisioning \
+		grafana-dashboard-provider grafana-dashboards \
+		-n openshift-logging 2>/dev/null
+	-oc delete secret grafana-admin-credentials -n openshift-logging 2>/dev/null
 	-oc delete clusterrolebinding grafana-prometheus-monitoring-view grafana-loki-tenant-view 2>/dev/null
 	-oc delete clusterrole grafana-loki-tenant-view 2>/dev/null
-	-oc delete sa grafana-prometheus grafana-loki -n openshift-logging 2>/dev/null
-	@echo "==> Grafana removed. Operator subscription left in place."
-	@echo "    To fully remove: oc delete subscription grafana-operator -n openshift-operators"
+	-oc delete sa grafana-loki grafana-prometheus -n openshift-logging 2>/dev/null
+	@echo "==> Grafana removed."
 
 deploy-dashboard: ## Deploy the Audit LokiStack Grafana dashboard to the Console
 	@echo "==> Creating dashboard ConfigMap in openshift-config-managed..."

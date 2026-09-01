@@ -116,6 +116,8 @@ def test_grafana_loki_gateway_rbac(repo_root: Path):
     assert resources == {"application", "audit", "infrastructure"}
     assert role["rules"][0]["resourceNames"] == ["logs"]
     assert role["rules"][0]["verbs"] == ["get"]
-    loki_ds = next(d for d in docs if d["kind"] == "GrafanaDatasource" and d["metadata"]["name"] == "loki")
-    assert "/api/logs/v1/audit" in loki_ds["spec"]["datasource"]["url"]
-    assert loki_ds["spec"]["datasource"]["jsonData"]["httpHeaderName1"] == "Authorization"
+    # Datasource provisioning is now a ConfigMap, not GrafanaDatasource CRDs.
+    ds_cm = next(d for d in docs if d["kind"] == "ConfigMap" and d["metadata"]["name"] == "grafana-datasource-provisioning")
+    ds_yaml = ds_cm["data"]["datasources.yaml"]
+    assert "/api/logs/v1/audit" in ds_yaml
+    assert "Authorization" in ds_yaml
