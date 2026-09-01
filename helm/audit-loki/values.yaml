@@ -66,6 +66,34 @@ clusterLogForwarder:
       - "system:serviceaccount:kube-system:*"
       - "system:serviceaccount:openshift-*"
 
+# Opt-in log pipelines. Only audit is enabled by default.
+# Enable infrastructure and/or application per environment.
+infrastructure:
+  enabled: false
+  retentionDays: 7
+  # Drop high-volume infra noise (probe responses, kube-proxy sync, DNS lookups).
+  dropProbeNoise: true
+  dropDnsNoise: true
+
+application:
+  enabled: false
+  retentionDays: 7
+
+# Grafana Operator deployment. Disabled by default; enable for full
+# LogQL query support, saved dashboards, and Explore mode.
+grafana:
+  enabled: false
+  replicas: 1
+  resources:
+    requests:
+      memory: 64Mi
+      cpu: 100m
+    limits:
+      memory: 256Mi
+      cpu: 250m
+  route:
+    enabled: true
+
 consolePlugin:
   enabled: false
   name: logging-view-plugin

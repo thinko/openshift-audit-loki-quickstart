@@ -9,6 +9,8 @@ kind: Subscription
 metadata:
   name: loki-operator
   namespace: openshift-operators-redhat
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   channel: stable-6.5
   installPlanApproval: Automatic
@@ -23,6 +25,8 @@ kind: Subscription
 metadata:
   name: cluster-logging
   namespace: openshift-logging
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   channel: stable-6.5
   installPlanApproval: Automatic

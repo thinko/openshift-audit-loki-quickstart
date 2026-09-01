@@ -1,0 +1,147 @@
+# ArgoCD Application example for deploying the Audit LokiStack.
+#
+# This file is a REFERENCE — do not apply it directly. Copy and adapt
+# it into your ArgoCD app-of-apps or ApplicationSet configuration.
+#
+# Prerequisites:
+#   1. The Azure Blob secret must exist in openshift-logging before sync.
+#      Create it out-of-band, via ExternalSecrets, SealedSecrets, or Vault.
+#      Set azure.existingSecret in values to match the secret name.
+#
+#   2. The Prometheus bearer token for the Grafana datasource is created
+#      by scripts/deploy-grafana.sh. If using pure GitOps, create the
+#      grafana-prometheus-token Secret via your secrets management tool.
+#
+# Sync wave order (controlled by annotations on each manifest):
+#   Wave 0: Namespaces
+#   Wave 1: OperatorGroups, Subscriptions (Loki, CLO, Grafana)
+#   Wave 2: RBAC (ServiceAccounts, ClusterRoleBindings)
+#   Wave 3: LokiStack, Grafana instance, datasources, storage secret
+#   Wave 4: ClusterLogForwarder, GrafanaDashboard CRs, UIPlugin
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: audit-loki-sandbox
+  namespace: openshift-gitops
+  # finalizers:
+  #   - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/thinko/openshift-audit-loki-quickstart.git
+    targetRevision: main
+    path: helm/audit-loki
+    helm:
+      # Per-environment values file. Create values-<env>.yaml in the chart
+      # directory for each environment (sandbox, test, prod).
+      valueFiles:
+        - values.yaml
+        # - values-sandbox.yaml
+
+      # Inline overrides (alternative to a values file):
+      # parameters:
+      #   - name: lokiStack.size
+      #     value: "1x.extra-small"
+      #   - name: infrastructure.enabled
+      #     value: "true"
+      #   - name: grafana.enabled
+      #     value: "true"
+      #   - name: azure.existingSecret
+      #     value: "logging-loki-azure"
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openshift-logging
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+
+  # OLM manages CSVs, InstallPlans, and operator Deployments.
+  # ArgoCD must ignore their mutable fields to avoid sync loops.
+  ignoreDifferences:
+    - group: operators.coreos.com
+      kind: Subscription
+      jsonPointers:
+        - /status
+        - /spec/startingCSV
+    - group: operators.coreos.com
+      kind: ClusterServiceVersion
+      jsonPointers:
+        - /metadata/annotations
+        - /spec/install
+        - /status
+    - group: operators.coreos.com
+      kind: InstallPlan
+      jsonPointers:
+        - /spec
+        - /status
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
+      name: grafana-operator-controller-manager
+    # Grafana Operator mutates the Grafana CR status
+    - group: grafana.integreatly.org
+      kind: Grafana
+      jsonPointers:
+        - /status
+    # Loki Operator mutates LokiStack status
+    - group: loki.grafana.com
+      kind: LokiStack
+      jsonPointers:
+        - /status
+
+---
+# ApplicationSet example for multi-environment deployment.
+# Uncomment and adapt if managing sandbox, test, and prod from one config.
+#
+# apiVersion: argoproj.io/v1alpha1
+# kind: ApplicationSet
+# metadata:
+#   name: audit-loki
+#   namespace: openshift-gitops
+# spec:
+#   generators:
+#     - list:
+#         elements:
+#           - cluster: sandbox
+#             url: https://api.sandbox.example.com:6443
+#             values: values-sandbox.yaml
+#             lokiSize: 1x.extra-small
+#           - cluster: test
+#             url: https://api.test.example.com:6443
+#             values: values-test.yaml
+#             lokiSize: 1x.small
+#           - cluster: prod
+#             url: https://api.prod.example.com:6443
+#             values: values-prod.yaml
+#             lokiSize: 1x.medium
+#   template:
+#     metadata:
+#       name: "audit-loki-{{cluster}}"
+#     spec:
+#       project: default
+#       source:
+#         repoURL: https://github.com/thinko/openshift-audit-loki-quickstart.git
+#         targetRevision: main
+#         path: helm/audit-loki
+#         helm:
+#           valueFiles:
+#             - "{{values}}"
+#       destination:
+#         server: "{{url}}"
+#         namespace: openshift-logging

@@ -82,6 +82,8 @@
   .btn-copy.copied { color: var(--green); border-color: var(--green); }
   .btn-open { color: var(--accent); border-color: var(--accent); }
   .btn-open:hover { background: rgba(88,166,255,0.1); }
+  .btn-grafana { color: var(--orange); border-color: var(--orange); }
+  .btn-grafana:hover { background: rgba(210,153,34,0.1); }
 
   .query-body { display: none; padding: 0 16px 12px; }
   .query-body.open { display: block; }
@@ -119,6 +121,11 @@
   <button onclick="saveConsoleUrl()">Save</button>
 </div>
 <div class="config-bar">
+  <label for="grafanaUrl">Grafana URL:</label>
+  <input type="text" id="grafanaUrl" placeholder="https://loki-grafana-openshift-logging.apps.example.com">
+  <button onclick="saveGrafanaUrl()">Save</button>
+</div>
+<div class="config-bar">
   <label for="timeRange">Time Range:</label>
   <select id="timeRange" onchange="saveTimeRange()">
     <option value="3600000">Last 1 hour</option>
@@ -135,11 +142,11 @@
 <div class="instructions">
   <h3>How to use</h3>
   <ol>
-    <li>Set your Console URL above (saved in your browser).</li>
-    <li>Click <strong>Copy</strong> to copy the LogQL query to your clipboard.</li>
-    <li>Click <strong>Open in Console</strong> to jump directly to the Logs view with the query loaded.</li>
-    <li>In the Console: set the log type to <code>audit</code>, then click <strong>Show Query</strong> and paste.</li>
-    <li>For queries with <code>| json</code> or <code>| line_format</code>: these require <strong>logcli</strong> or <strong>Grafana Explore</strong> (the Console query box only supports stream selectors).</li>
+    <li>Set your Console URL and Grafana URL above (saved in your browser).</li>
+    <li><strong>Copy</strong> &mdash; copies the LogQL/PromQL query to your clipboard.</li>
+    <li><strong>Open Logs / Open Metrics</strong> &mdash; opens the OpenShift Console with the query and time range pre-filled.</li>
+    <li><strong>Explore</strong> &mdash; opens Grafana Explore with the query loaded (supports full LogQL including <code>| json</code> and <code>| line_format</code>).</li>
+    <li>The Console query box only supports stream selectors. For <code>| json</code> and <code>| line_format</code> queries, use <strong>Explore</strong> in Grafana.</li>
   </ol>
 </div>
 
@@ -311,6 +318,11 @@ function saveConsoleUrl() {
   localStorage.setItem('ocp-console-url', url);
 }
 
+function saveGrafanaUrl() {
+  const url = document.getElementById('grafanaUrl').value.replace(/\/+$/, '');
+  localStorage.setItem('grafana-url', url);
+}
+
 function saveTimeRange() {
   const val = document.getElementById('timeRange').value;
   localStorage.setItem('ocp-time-range', val);
@@ -321,6 +333,8 @@ function saveTimeRange() {
 function loadSettings() {
   const savedUrl = localStorage.getItem('ocp-console-url') || '';
   document.getElementById('consoleUrl').value = savedUrl;
+  const savedGrafana = localStorage.getItem('grafana-url') || '';
+  document.getElementById('grafanaUrl').value = savedGrafana;
   const savedTime = localStorage.getItem('ocp-time-range') || '86400000';
   document.getElementById('timeRange').value = savedTime;
   document.getElementById('timeDisplay').innerHTML =
@@ -365,6 +379,22 @@ function openInConsole(query, isPromql, consoleSearch) {
   }
 }
 
+function openInGrafana(query, isPromql) {
+  const base = document.getElementById('grafanaUrl').value.replace(/\/+$/, '');
+  if (!base) { alert('Set your Grafana URL first.'); return; }
+
+  const rangeMs = getTimeRange();
+  const from = Date.now() - rangeMs;
+  const to = Date.now();
+
+  const left = JSON.stringify({
+    datasource: isPromql ? 'Prometheus' : 'Loki',
+    queries: [{ refId: 'A', expr: query }],
+    range: { from: String(from), to: String(to) }
+  });
+  window.open(base + '/explore?left=' + encodeURIComponent(left), '_blank');
+}
+
 function toggleBody(id) {
   document.getElementById(id).classList.toggle('open');
 }
@@ -395,6 +425,7 @@ function renderQueries() {
           <div class="query-actions" onclick="event.stopPropagation()">
             <button class="btn btn-copy" onclick="copyQuery(this, ${qAttr})">Copy</button>
             <button class="btn btn-open" onclick="openInConsole(${qAttr}, ${isMetrics}, ${sAttr})">${isMetrics ? 'Open Metrics' : 'Open Logs'}</button>
+            <button class="btn btn-grafana" onclick="openInGrafana(${qAttr}, ${isMetrics})">Explore</button>
           </div>
         </div>
         <div class="query-body" id="${id}">

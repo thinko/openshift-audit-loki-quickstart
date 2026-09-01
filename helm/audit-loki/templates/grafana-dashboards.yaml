@@ -1,0 +1,23 @@
+{{- if .Values.grafana.enabled }}
+{{- $ns := include "audit-loki.lokiNamespace" . }}
+{{- range $name, $_ := .Files.Glob "dashboards/grafana-*.json" }}
+---
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: {{ base $name | trimSuffix ".json" }}
+  namespace: {{ $ns }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+  labels:
+    app.kubernetes.io/name: loki-grafana
+    app.kubernetes.io/part-of: openshift-logging
+    {{- include "audit-loki.labels" $ | nindent 4 }}
+spec:
+  instanceSelector:
+    matchLabels:
+      dashboards: "loki-audit"
+  json: |
+    {{ $.Files.Get $name | nindent 4 }}
+{{- end }}
+{{- end }}

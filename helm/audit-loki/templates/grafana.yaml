@@ -1,0 +1,139 @@
+{{- if .Values.grafana.enabled }}
+---
+# Grafana Operator Subscription (installs into openshift-operators)
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: grafana-operator
+  namespace: openshift-operators
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    {{- include "audit-loki.labels" . | nindent 4 }}
+spec:
+  channel: v5
+  installPlanApproval: Automatic
+  name: grafana-operator
+  source: community-operators
+  sourceNamespace: openshift-marketplace
+---
+# Grafana instance
+apiVersion: grafana.integreatly.org/v1beta1
+kind: Grafana
+metadata:
+  name: loki-grafana
+  namespace: {{ include "audit-loki.lokiNamespace" . }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+  labels:
+    dashboards: "loki-audit"
+    {{- include "audit-loki.labels" . | nindent 4 }}
+spec:
+  deployment:
+    spec:
+      replicas: {{ .Values.grafana.replicas }}
+      template:
+        spec:
+          containers:
+            - name: grafana
+              resources:
+                {{- toYaml .Values.grafana.resources | nindent 16 }}
+  {{- if .Values.grafana.route.enabled }}
+  route:
+    spec:
+      tls:
+        termination: edge
+  {{- end }}
+  config:
+    log:
+      mode: console
+      level: warn
+    auth.anonymous:
+      enabled: "true"
+      org_role: Viewer
+---
+# ServiceAccount for Prometheus queries
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: grafana-prometheus
+  namespace: {{ include "audit-loki.lokiNamespace" . }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  labels:
+    {{- include "audit-loki.labels" . | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ printf "%s-grafana-prometheus" (include "audit-loki.fullname" .) | trunc 63 | trimSuffix "-" }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  labels:
+    {{- include "audit-loki.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-monitoring-view
+subjects:
+  - kind: ServiceAccount
+    name: grafana-prometheus
+    namespace: {{ include "audit-loki.lokiNamespace" . }}
+---
+# Loki datasource
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDatasource
+metadata:
+  name: loki
+  namespace: {{ include "audit-loki.lokiNamespace" . }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+  labels:
+    {{- include "audit-loki.labels" . | nindent 4 }}
+spec:
+  instanceSelector:
+    matchLabels:
+      dashboards: "loki-audit"
+  datasource:
+    name: Loki
+    type: loki
+    access: proxy
+    url: http://logging-loki-gateway-http.{{ include "audit-loki.lokiNamespace" . }}.svc:8080
+    isDefault: true
+    jsonData:
+      httpHeaderName1: X-Scope-OrgID
+      maxLines: 5000
+      timeout: 60
+    secureJsonData:
+      httpHeaderValue1: "audit|infrastructure|application"
+---
+# Prometheus datasource — token is injected from a Secret
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDatasource
+metadata:
+  name: prometheus
+  namespace: {{ include "audit-loki.lokiNamespace" . }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+  labels:
+    {{- include "audit-loki.labels" . | nindent 4 }}
+spec:
+  instanceSelector:
+    matchLabels:
+      dashboards: "loki-audit"
+  valuesFrom:
+    - targetPath: "secureJsonData.httpHeaderValue1"
+      valueFrom:
+        secretKeyRef:
+          name: grafana-prometheus-token
+          key: token
+  datasource:
+    name: Prometheus
+    type: prometheus
+    access: proxy
+    url: https://thanos-querier.openshift-monitoring.svc.cluster.local:9091
+    jsonData:
+      httpHeaderName1: Authorization
+      timeInterval: "30s"
+      tlsSkipVerify: true
+{{- end }}
