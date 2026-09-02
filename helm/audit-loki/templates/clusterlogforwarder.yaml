@@ -166,7 +166,15 @@ spec:
             - field: .kubernetes.container_name
               matches: '^kube-rbac-proxy'
             - field: .message
-              matches: 'TLS handshake error.*connection reset by peer'
+              matches: 'TLS handshake error'
+        - test:
+            - field: .message
+              matches: 'successfully (renewed|acquired) lease'
+        - test:
+            - field: .message
+              matches: '(tokenreview|authenticate).*success'
+            - field: .kubernetes.container_name
+              matches: '^kube-rbac-proxy'
     {{- end }}
   outputs:
     - name: local-loki
