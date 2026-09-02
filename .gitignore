@@ -6,6 +6,7 @@ manifests/02-storage-secret.yaml
 secrets/
 .env
 .env.*
+!.env.example
 *.pem
 *.key
 !manifests/02-storage-secret.template.yaml
