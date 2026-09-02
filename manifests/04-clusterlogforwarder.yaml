@@ -64,22 +64,9 @@ subjects:
     name: logging-collector
     namespace: openshift-logging
 ---
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: logging-collector-application-logs
-  labels:
-    app.kubernetes.io/name: clusterlogforwarder
-  annotations:
-    argocd.argoproj.io/sync-wave: "2"
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: collect-application-logs
-subjects:
-  - kind: ServiceAccount
-    name: logging-collector
-    namespace: openshift-logging
+# Application log collection RBAC is intentionally omitted.
+# Customer scope covers audit + infrastructure only.
+# To add later, uncomment and apply collect-application-logs CRB.
 ---
 # OpenShift Logging 6.x (OpenShift 4.14+ / 4.20): observability.openshift.io/v1.
 # The older logging.openshift.io/v1 ClusterLogForwarder API is removed in 6.x.
@@ -115,9 +102,7 @@ spec:
         sources:
           - container
           - node
-    - name: app-logs
-      type: application
-      application: {}
+    # Application logs intentionally excluded — out of customer scope.
   filters:
     # kubeAPIAudit understands kube-apiserver JSON natively (wildcards, verbs).
     # Metadata (not RequestResponse) keeps user/verb/objectRef without bodies
@@ -198,8 +183,4 @@ spec:
         - drop-infra-noise
       outputRefs:
         - local-loki
-    - name: app-to-loki
-      inputRefs:
-        - app-logs
-      outputRefs:
-        - local-loki
+    # app-to-loki pipeline intentionally excluded — out of customer scope.

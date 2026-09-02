@@ -42,6 +42,4 @@ spec:
       infrastructure:
         retention:
           days: 7
-      application:
-        retention:
-          days: 7
+      # Application tenant intentionally excluded — out of customer scope.

@@ -55,8 +55,8 @@ def test_clusterlogforwarder_edge_filters(repo_root: Path):
     assert inputs["audit-logs"]["type"] == "audit"
     assert inputs["infra-logs"]["type"] == "infrastructure"
     assert inputs["infra-logs"]["infrastructure"]["sources"] == ["container", "node"]
-    assert inputs["app-logs"]["type"] == "application"
-    assert "application" in inputs["app-logs"]
+    # Application logs are intentionally excluded from customer scope.
+    assert "app-logs" not in inputs
 
     filters = {f["name"]: f for f in spec["filters"]}
     drop = filters["drop-audit-noise"]
@@ -105,7 +105,7 @@ def test_collector_rbac_present(repo_root: Path):
     assert "collect-audit-logs" in roles
     assert "logging-collector-logs-writer" in roles
     assert "collect-infrastructure-logs" in roles
-    assert "collect-application-logs" in roles
+    # collect-application-logs intentionally excluded from customer scope.
 
 
 def test_grafana_loki_gateway_rbac(repo_root: Path):
