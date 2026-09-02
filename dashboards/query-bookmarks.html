@@ -343,11 +343,11 @@ const QUERIES = [
     category: "Metrics (PromQL for Observe > Metrics)", badge: "metrics",
     items: [
       {
-        title: "Audit Drop Ratio",
-        desc: "Percentage of audit events filtered before Loki (clamped 0-1). Shows 0% when infra logs inflate the total.",
-        query: 'clamp(1 - sum(rate(loki_distributor_lines_received_total{namespace="openshift-logging"}[5m])) / sum(rate(apiserver_audit_event_total[5m])), 0, 1)',
+        title: "Audit Filter Effectiveness",
+        desc: "Percentage of API server audit events dropped by edge filters (tenant-scoped, unaffected by infra logs)",
+        query: '1 - sum(rate(loki_distributor_lines_received_total{namespace="openshift-logging", tenant="audit"}[5m])) / sum(rate(apiserver_audit_event_total[5m]))',
         console_search: "",
-        note: "Use in Observe > Metrics. With infra+audit, compare the API Server vs Loki Ingested trend instead."
+        note: "Use in Observe > Metrics. The money metric — shows what % of audit noise the filters remove."
       },
       {
         title: "Audit Lines Ingested / min",
