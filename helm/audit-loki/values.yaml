@@ -66,10 +66,11 @@ clusterLogForwarder:
       - "system:serviceaccount:kube-system:*"
       - "system:serviceaccount:openshift-*"
 
-# Opt-in log pipelines. Only audit is enabled by default.
-# Enable infrastructure and/or application per environment.
+# Opt-in log pipelines. Audit is always enabled.
+# Infrastructure is enabled for Cloud Ops visibility.
+# Application is out of scope (customer manages app logging separately).
 infrastructure:
-  enabled: false
+  enabled: true
   retentionDays: 7
   # Drop high-volume infra noise (probe responses, kube-proxy sync, DNS lookups).
   dropProbeNoise: true

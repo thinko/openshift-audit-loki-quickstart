@@ -1,8 +1,8 @@
 # OpenShift audit LokiStack quickstart
 
-Edge-filtered Kubernetes audit logs on Azure Red Hat OpenShift (ARO) / OpenShift 4.20, stored in a sandbox-sized `LokiStack` on Azure Blob.
+Edge-filtered Kubernetes **audit** and **infrastructure** logs on Azure Red Hat OpenShift (ARO) / OpenShift 4.20, stored in a sandbox-sized `LokiStack` on Azure Blob.
 
-Collectors (Vector, via `ClusterLogForwarder`) drop routine reads and platform service-account noise **before** the events leave the node. What remains — mutating API traffic with user attribution — is written to the in-cluster LokiStack and queried from **Observe → Logs → Audit**.
+Collectors (Vector, via `ClusterLogForwarder`) drop routine reads and platform service-account noise **before** the events leave the node. What remains — mutating API traffic with user attribution — is written to the in-cluster LokiStack and queried from **Observe → Logs → Audit**. Infrastructure logs (kubelet, operators, etcd, platform containers, node journals) are collected in parallel for Cloud Ops visibility.
 
 ```text
   kube-apiserver / OpenShift API / OVN audit
@@ -30,7 +30,7 @@ This repository is a **non-production evaluation profile**. `1x.extra-small` is 
 | --- | --- |
 | Loki Operator + Cluster Logging Operator (`stable-6.5`) | CRDs and controllers for OpenShift Logging 6.x |
 | `LokiStack` `logging-loki` | Azure Blob object store, `managed-csi` for WAL/index PVCs, tenant mode `openshift-logging` |
-| `ClusterLogForwarder` `loki-audit` | Audit-only pipeline with edge filters |
+| `ClusterLogForwarder` `loki-audit` | Audit + infrastructure pipelines with edge filters |
 | `logging-view-plugin` | Console **Observe → Logs** UI |
 
 OpenShift 4.20 ships Logging **6.x**. The forwarder API is `observability.openshift.io/v1`. The older `logging.openshift.io/v1` `ClusterLogForwarder` is not used.
@@ -243,6 +243,45 @@ Two filters run in order on the audit pipeline:
 HTTP 401 and 403 are **kept** (default omit list is 404/409/422/429). Failed authentication and authorization remain queryable.
 
 Application service accounts in non-`openshift-*` / non-`kube-system` namespaces are **not** dropped, so a compromised workload SA deleting a Secret still appears.
+
+## Grafana Dashboards
+
+A standalone Grafana instance provides full LogQL Explore, Prometheus metrics,
+and pre-built dashboards. No Grafana Operator required.
+
+```bash
+# Use Nexus proxy image on clusters with registry restrictions:
+GRAFANA_IMAGE=nexus.example.com:8081/grafana/grafana:latest make deploy-grafana
+# Or default (grafana/grafana:latest):
+make deploy-grafana
+```
+
+Pre-built dashboards (auto-loaded from `dashboards/grafana-*.json`):
+
+| Dashboard | Focus |
+| --- | --- |
+| Operational Overview | Pipeline KPIs, ingestion trends, security event feed, storage |
+| Audit & Security | RBAC changes, pod exec, 403s, secret access, deletions, privilege escalation |
+| Infrastructure Health | OOM kills, CrashLoopBackOff, operator errors, restart rate, etcd |
+| Node & Cluster Health | CPU/memory/disk by node, pod restarts, kernel warnings, network errors |
+| Platform & Operators | etcd performance, ClusterOperator status, operator logs, DNS, API server |
+
+To remove Grafana without affecting Loki:
+
+```bash
+make destroy-grafana
+```
+
+## Log Pipeline Scope
+
+| Tenant | Status | Description |
+| --- | --- | --- |
+| **Audit** | ✅ Enabled | Mutating API events with user attribution |
+| **Infrastructure** | ✅ Enabled | Kubelet, operators, etcd, platform containers, node journals |
+| **Application** | ❌ Disabled | Out of scope — customer manages app logging separately |
+
+To enable the application pipeline, set `application.enabled: true` in Helm values
+or uncomment the app sections in `manifests/04-clusterlogforwarder.yaml`.
 
 ## Rollback
 

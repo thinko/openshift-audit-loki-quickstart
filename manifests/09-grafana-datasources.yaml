@@ -124,17 +124,7 @@ data:
         secureJsonData:
           httpHeaderValue1: "$LOKI_BEARER_TOKEN"
 
-      - name: Loki (Application)
-        type: loki
-        access: proxy
-        url: http://logging-loki-gateway-http.openshift-logging.svc:8080/api/logs/v1/application
-        jsonData:
-          httpHeaderName1: Authorization
-          maxLines: 5000
-          timeout: 60
-          tlsSkipVerify: true
-        secureJsonData:
-          httpHeaderValue1: "$LOKI_BEARER_TOKEN"
+      # Loki (Application) datasource intentionally excluded — out of customer scope.
 
       - name: Prometheus
         type: prometheus

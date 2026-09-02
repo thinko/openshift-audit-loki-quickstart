@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Audit LokiStack — Query Bookmarks</title>
+<title>LokiStack — Query Bookmarks (Audit + Infrastructure)</title>
 <style>
   :root {
     --bg: #0e1117; --surface: #161b22; --border: #30363d;
@@ -111,8 +111,8 @@
 <body>
 
 <header>
-  <h1>Audit LokiStack &mdash; Query Bookmarks</h1>
-  <p>Pre-built LogQL queries for the OpenShift Console Logs view, logcli, and Grafana Explore.</p>
+  <h1>LokiStack &mdash; Query Bookmarks</h1>
+  <p>Pre-built LogQL &amp; PromQL queries for <strong>audit</strong> and <strong>infrastructure</strong> tenants. Use in OpenShift Console, logcli, or Grafana Explore.</p>
 </header>
 
 <div class="config-bar">
@@ -153,7 +153,7 @@
 <div id="queries"></div>
 
 <footer>
-  Generated from <code>openshift-audit-loki-quickstart</code>. Queries target the <code>audit</code> tenant in LokiStack.
+  Generated from <code>openshift-audit-loki-quickstart</code>. Queries target the <code>audit</code> and <code>infrastructure</code> tenants in LokiStack.
 </footer>
 
 <script>
@@ -279,6 +279,67 @@ const QUERIES = [
     ]
   },
   {
+    category: "Infrastructure (LogQL for infra tenant)", badge: "infra",
+    items: [
+      {
+        title: "OOM Kill Events",
+        desc: "Kernel out-of-memory kills across all nodes",
+        query: '{log_type="infrastructure"} |~ "(?i)(oom.?kill|out of memory|killed process|invoked oom)"',
+        console_search: "oom kill",
+        note: "Indicates memory pressure. Correlate with pod evictions.",
+        tenant: "infrastructure"
+      },
+      {
+        title: "CrashLoopBackOff Pods",
+        desc: "Containers stuck in crash loops",
+        query: '{log_type="infrastructure"} |~ "CrashLoopBackOff"',
+        console_search: "CrashLoopBackOff",
+        note: "Filter by kubernetes_namespace_name to scope to a team.",
+        tenant: "infrastructure"
+      },
+      {
+        title: "etcd Warnings & Slow Requests",
+        desc: "etcd performance issues — slow requests, leader changes, compaction",
+        query: '{log_type="infrastructure", kubernetes_namespace_name="openshift-etcd"} |~ "(?i)(slow|took too long|overloaded|leader changed|compaction|snapshot|apply request took)"',
+        console_search: "etcd slow overloaded",
+        note: "etcd health directly impacts cluster stability.",
+        tenant: "infrastructure"
+      },
+      {
+        title: "Operator Errors (openshift-* namespaces)",
+        desc: "Error-level logs from all OpenShift platform operators",
+        query: '{log_type="infrastructure", kubernetes_namespace_name=~"openshift-.*"} |~ "(?i)(error|fail|exception|panic)" |!~ "(?i)(healthz|readyz|livez|metrics|info.*error_count=0)"',
+        console_search: "error fail exception panic",
+        note: "Cast a wide net. Narrow by namespace once you find a pattern.",
+        tenant: "infrastructure"
+      },
+      {
+        title: "CoreDNS Failures",
+        desc: "DNS resolution failures across the cluster",
+        query: '{log_type="infrastructure", kubernetes_namespace_name="openshift-dns"} |~ "(?i)(SERVFAIL|NXDOMAIN|error|timeout|refused)" |!~ "NOERROR"',
+        console_search: "SERVFAIL NXDOMAIN error",
+        note: "DNS failures cascade into pod startup delays and API errors.",
+        tenant: "infrastructure"
+      },
+      {
+        title: "Kubelet Warnings",
+        desc: "Node-level kubelet issues — evictions, image pulls, volume mounts",
+        query: '{log_type="infrastructure"} |~ "(?i)kubelet" |~ "(?i)(warning|error|evict|fail|image.*pull|volume.*mount)"',
+        console_search: "kubelet warning error evict",
+        note: "Kubelet health is a leading indicator of node problems.",
+        tenant: "infrastructure"
+      },
+      {
+        title: "Kernel / Hardware Errors",
+        desc: "Kernel-level errors and hardware faults from node journals",
+        query: '{log_type="infrastructure"} |~ "(?i)(kernel|hardware error|segfault|mce:|edac|i/o error|ext4-fs error)"',
+        console_search: "kernel hardware error segfault",
+        note: "Hardware-level issues that need physical remediation.",
+        tenant: "infrastructure"
+      }
+    ]
+  },
+  {
     category: "Metrics (PromQL for Observe > Metrics)", badge: "metrics",
     items: [
       {
@@ -353,7 +414,7 @@ function copyQuery(btn, query) {
   });
 }
 
-function openInConsole(query, isPromql, consoleSearch) {
+function openInConsole(query, isPromql, consoleSearch, tenant) {
   const base = document.getElementById('consoleUrl').value.replace(/\/+$/, '');
   if (!base) { alert('Set your Console URL first.'); return; }
 
@@ -370,7 +431,7 @@ function openInConsole(query, isPromql, consoleSearch) {
   } else {
     const params = new URLSearchParams();
     params.set('q', query);
-    params.set('tenant', 'audit');
+    params.set('tenant', tenant || 'audit');
     params.set('start', String(startMs * 1000000));
     params.set('end', String(endMs * 1000000));
     params.set('timeRange', String(rangeMs));
@@ -379,7 +440,7 @@ function openInConsole(query, isPromql, consoleSearch) {
   }
 }
 
-function openInGrafana(query, isPromql) {
+function openInGrafana(query, isPromql, tenant) {
   const base = document.getElementById('grafanaUrl').value.replace(/\/+$/, '');
   if (!base) { alert('Set your Grafana URL first.'); return; }
 
@@ -387,8 +448,13 @@ function openInGrafana(query, isPromql) {
   const from = Date.now() - rangeMs;
   const to = Date.now();
 
+  let dsName;
+  if (isPromql) dsName = 'Prometheus';
+  else if (tenant === 'infrastructure') dsName = 'Loki (Infrastructure)';
+  else dsName = 'Loki (Audit)';
+
   const left = JSON.stringify({
-    datasource: isPromql ? 'Prometheus' : 'Loki',
+    datasource: dsName,
     queries: [{ refId: 'A', expr: query }],
     range: { from: String(from), to: String(to) }
   });
@@ -412,20 +478,22 @@ function renderQueries() {
     cat.items.forEach(item => {
       const id = 'card-' + (cardId++);
       const isMetrics = cat.badge === 'metrics';
+      const tenant = item.tenant || 'audit';
       const card = document.createElement('div');
       card.className = 'query-card';
       const qAttr = JSON.stringify(item.query).replace(/"/g, '&quot;');
       const sAttr = JSON.stringify(item.console_search || '').replace(/"/g, '&quot;');
+      const tAttr = JSON.stringify(tenant).replace(/"/g, '&quot;');
       card.innerHTML = `
         <div class="query-header" onclick="toggleBody('${id}')">
           <div>
-            <div class="query-title">${item.title}</div>
+            <div class="query-title">${item.title}${tenant !== 'audit' ? ` <span class="badge badge-${cat.badge}" style="font-size:10px">${tenant}</span>` : ''}</div>
             <div class="query-desc">${item.desc}</div>
           </div>
           <div class="query-actions" onclick="event.stopPropagation()">
             <button class="btn btn-copy" onclick="copyQuery(this, ${qAttr})">Copy</button>
-            <button class="btn btn-open" onclick="openInConsole(${qAttr}, ${isMetrics}, ${sAttr})">${isMetrics ? 'Open Metrics' : 'Open Logs'}</button>
-            <button class="btn btn-grafana" onclick="openInGrafana(${qAttr}, ${isMetrics})">Explore</button>
+            <button class="btn btn-open" onclick="openInConsole(${qAttr}, ${isMetrics}, ${sAttr}, ${tAttr})">${isMetrics ? 'Open Metrics' : 'Open Logs'}</button>
+            <button class="btn btn-grafana" onclick="openInGrafana(${qAttr}, ${isMetrics}, ${tAttr})">Explore</button>
           </div>
         </div>
         <div class="query-body" id="${id}">
