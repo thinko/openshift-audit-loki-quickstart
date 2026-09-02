@@ -162,6 +162,11 @@ spec:
             - field: .message
               matches: '^\d+\.\d+\.\d+\.\d+.*NOERROR'
         {{- end }}
+        - test:
+            - field: .kubernetes.container_name
+              matches: '^kube-rbac-proxy'
+            - field: .message
+              matches: 'TLS handshake error.*connection reset by peer'
     {{- end }}
   outputs:
     - name: local-loki

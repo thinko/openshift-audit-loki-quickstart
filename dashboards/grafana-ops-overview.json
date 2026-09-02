@@ -37,7 +37,7 @@
     },
     {
       "datasource": "Prometheus",
-      "description": "Percentage of audit events filtered out before reaching Loki \u2014 higher is better",
+      "description": "Ratio of API server audit events to Loki-ingested audit lines. Values >90% mean most read-only events are being filtered. Note: only meaningful when compared against audit events specifically.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -93,13 +93,13 @@
         {
           "datasource": "Prometheus",
           "editorMode": "code",
-          "expr": "1 - clamp_min(sum(rate(loki_distributor_lines_received_total{namespace=\"openshift-logging\"}[5m])) / sum(rate(apiserver_audit_event_total[5m])), 0)",
+          "expr": "clamp(1 - sum(rate(loki_distributor_lines_received_total{namespace=\"openshift-logging\"}[5m])) / sum(rate(apiserver_audit_event_total[5m])), 0, 1)",
           "legendFormat": "filter %",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Filter Effectiveness",
+      "title": "Audit Drop Ratio",
       "type": "gauge"
     },
     {
@@ -423,7 +423,7 @@
     },
     {
       "datasource": "Prometheus",
-      "description": "API server audit event rate vs Loki ingestion rate \u2014 the gap represents filtered events",
+      "description": "Gap between the two lines shows audit filter savings. When infra logs are enabled, the Loki line includes all tenants.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -545,7 +545,7 @@
           "datasource": "Prometheus",
           "editorMode": "code",
           "expr": "sum(rate(apiserver_audit_event_total[5m])) * 60",
-          "legendFormat": "API server total/min",
+          "legendFormat": "API audit events/min (generated)",
           "range": true,
           "refId": "A"
         },
@@ -553,7 +553,7 @@
           "datasource": "Prometheus",
           "editorMode": "code",
           "expr": "sum(rate(loki_distributor_lines_received_total{namespace=\"openshift-logging\"}[5m])) * 60",
-          "legendFormat": "Loki ingested/min",
+          "legendFormat": "Loki lines/min (all tenants)",
           "range": true,
           "refId": "B"
         }
