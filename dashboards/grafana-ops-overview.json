@@ -570,35 +570,11 @@
             "mode": "palette-classic"
           },
           "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 15,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "smooth",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": false,
+            "fillOpacity": 80,
+            "lineWidth": 1,
             "stacking": {
-              "group": "A",
-              "mode": "normal"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
+              "mode": "normal",
+              "group": "A"
             }
           },
           "mappings": [],
@@ -623,18 +599,17 @@
       },
       "id": 8,
       "options": {
-        "legend": {
-          "calcs": [
-            "mean",
-            "sum"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
+        "barWidth": 0.8,
+        "groupWidth": 0.7,
+        "showValue": "never",
+        "stacking": "normal",
         "tooltip": {
           "mode": "multi",
           "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
         }
       },
       "targets": [
@@ -648,7 +623,7 @@
         }
       ],
       "title": "Log Volume by Tenant",
-      "type": "timeseries"
+      "type": "barchart"
     },
     {
       "collapsed": false,
@@ -724,7 +699,11 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "short",
+          "custom": {
+            "fillOpacity": 80,
+            "lineWidth": 1
+          }
         },
         "overrides": []
       },
@@ -736,22 +715,15 @@
       },
       "id": 10,
       "options": {
-        "displayMode": "gradient",
-        "maxVizHeight": 300,
-        "minVizHeight": 16,
-        "minVizWidth": 8,
-        "namePlacement": "auto",
         "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
+        "barWidth": 0.7,
+        "showValue": "auto",
+        "tooltip": {
+          "mode": "single"
         },
-        "showUnfilled": true,
-        "sizing": "auto",
-        "valueMode": "color"
+        "legend": {
+          "displayMode": "hidden"
+        }
       },
       "targets": [
         {
@@ -764,7 +736,7 @@
         }
       ],
       "title": "Top Error-Producing Namespaces",
-      "type": "bargauge"
+      "type": "barchart"
     },
     {
       "collapsed": false,
@@ -932,7 +904,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "egress bytes/s"
+              "options": "Egress bytes/sec"
             },
             "properties": [
               {
@@ -940,35 +912,24 @@
                 "value": "left"
               },
               {
-                "id": "custom.axisLabel",
-                "value": "Bytes/s"
-              },
-              {
                 "id": "unit",
                 "value": "Bps"
               },
               {
-                "id": "color",
-                "value": {
-                  "fixedColor": "blue",
-                  "mode": "fixed"
-                }
+                "id": "custom.fillOpacity",
+                "value": 15
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "latency p99"
+              "options": "p99 blob latency"
             },
             "properties": [
               {
                 "id": "custom.axisPlacement",
                 "value": "right"
-              },
-              {
-                "id": "custom.axisLabel",
-                "value": "Latency (s)"
               },
               {
                 "id": "unit",
@@ -977,23 +938,13 @@
               {
                 "id": "color",
                 "value": {
-                  "fixedColor": "red",
-                  "mode": "fixed"
+                  "mode": "fixed",
+                  "fixedColor": "orange"
                 }
               },
               {
                 "id": "custom.fillOpacity",
                 "value": 0
-              },
-              {
-                "id": "custom.lineStyle",
-                "value": {
-                  "dash": [
-                    10,
-                    10
-                  ],
-                  "fill": "dash"
-                }
               }
             ]
           }
@@ -1026,7 +977,7 @@
           "datasource": "Prometheus",
           "editorMode": "code",
           "expr": "sum(rate(loki_azure_blob_egress_bytes_total{namespace=\"openshift-logging\"}[5m]))",
-          "legendFormat": "egress bytes/s",
+          "legendFormat": "Egress bytes/sec",
           "range": true,
           "refId": "A"
         },
@@ -1034,7 +985,7 @@
           "datasource": "Prometheus",
           "editorMode": "code",
           "expr": "histogram_quantile(0.99, sum by (le) (rate(loki_azure_blob_request_duration_seconds_bucket{namespace=\"openshift-logging\"}[5m])))",
-          "legendFormat": "latency p99",
+          "legendFormat": "p99 blob latency",
           "range": true,
           "refId": "B"
         }

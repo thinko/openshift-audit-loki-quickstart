@@ -212,36 +212,8 @@
             "mode": "palette-classic"
           },
           "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "line",
-            "fillOpacity": 15,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "smooth",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
+            "fillOpacity": 80,
+            "lineWidth": 1
           },
           "mappings": [],
           "thresholds": {
@@ -265,41 +237,34 @@
       },
       "id": 5,
       "options": {
-        "legend": {
-          "calcs": [
-            "mean",
-            "max"
-          ],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
+        "barWidth": 0.9,
+        "groupWidth": 0.7,
+        "showValue": "never",
         "tooltip": {
-          "mode": "single",
-          "sort": "none"
+          "mode": "single"
+        },
+        "legend": {
+          "displayMode": "hidden"
         }
       },
       "targets": [
         {
           "datasource": "Loki (Audit)",
           "editorMode": "code",
-          "expr": "sum(count_over_time({log_type=\"audit\"} | json | verb=~\"(create|update|patch|delete)\" [5m]))",
+          "expr": "sum(count_over_time({log_type=\"audit\"} | json | verb=~\"(create|update|patch|delete)\" [15m]))",
           "legendFormat": "mutations/5m",
           "queryType": "range",
           "refId": "A"
         }
       ],
       "title": "Activity Histogram",
-      "type": "timeseries"
+      "type": "barchart"
     },
     {
       "datasource": "Loki (Audit)",
       "description": "Distribution of audit events by API verb over the last hour",
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -309,6 +274,10 @@
                 "value": null
               }
             ]
+          },
+          "custom": {
+            "fillOpacity": 80,
+            "lineWidth": 1
           }
         },
         "overrides": []
@@ -321,25 +290,14 @@
       },
       "id": 6,
       "options": {
-        "displayLabels": [
-          "percent"
-        ],
-        "legend": {
-          "displayMode": "list",
-          "placement": "right",
-          "showLegend": true
-        },
-        "pieType": "donut",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
+        "orientation": "horizontal",
+        "barWidth": 0.7,
+        "showValue": "auto",
         "tooltip": {
-          "mode": "single",
-          "sort": "none"
+          "mode": "single"
+        },
+        "legend": {
+          "displayMode": "hidden"
         }
       },
       "targets": [
@@ -353,7 +311,7 @@
         }
       ],
       "title": "Events by Verb",
-      "type": "piechart"
+      "type": "barchart"
     },
     {
       "collapsed": false,

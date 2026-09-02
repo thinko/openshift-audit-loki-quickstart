@@ -492,8 +492,8 @@
       "fieldConfig": {
         "defaults": {
           "custom": {
-            "align": "auto",
-            "displayMode": "auto"
+            "fillOpacity": 80,
+            "lineWidth": 1
           }
         },
         "overrides": [
@@ -547,13 +547,15 @@
       },
       "id": 9,
       "options": {
-        "showHeader": true,
-        "sortBy": [
-          {
-            "displayName": "Restarts/hr",
-            "desc": true
-          }
-        ]
+        "orientation": "horizontal",
+        "barWidth": 0.7,
+        "showValue": "auto",
+        "tooltip": {
+          "mode": "single"
+        },
+        "legend": {
+          "displayMode": "hidden"
+        }
       },
       "targets": [
         {
@@ -566,7 +568,7 @@
         }
       ],
       "title": "Pod Restarts Top 10",
-      "type": "table",
+      "type": "barchart",
       "transformations": [
         {
           "id": "organize",
@@ -589,33 +591,31 @@
           "custom": {
             "align": "auto",
             "displayMode": "auto"
-          }
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "Pending": {
+                  "text": "Pending",
+                  "color": "yellow",
+                  "index": 0
+                },
+                "Failed": {
+                  "text": "Failed",
+                  "color": "red",
+                  "index": 1
+                },
+                "Unknown": {
+                  "text": "Unknown",
+                  "color": "orange",
+                  "index": 2
+                }
+              }
+            }
+          ]
         },
         "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "namespace"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 200
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "pod"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 300
-              }
-            ]
-          },
           {
             "matcher": {
               "id": "byName",
@@ -623,8 +623,8 @@
             },
             "properties": [
               {
-                "id": "custom.width",
-                "value": 120
+                "id": "custom.displayMode",
+                "value": "color-background-solid"
               }
             ]
           }
@@ -768,7 +768,7 @@
             "showPoints": "never",
             "spanNulls": false,
             "thresholdsStyle": {
-              "mode": "line"
+              "mode": "area"
             }
           },
           "color": {
@@ -835,7 +835,8 @@
           },
           "color": {
             "mode": "palette-classic"
-          }
+          },
+          "noValue": "0"
         },
         "overrides": []
       },
@@ -860,7 +861,7 @@
       "targets": [
         {
           "datasource": "Prometheus",
-          "expr": "sum by (instance) (rate(node_network_receive_errs_total[5m]) + rate(node_network_transmit_errs_total[5m]))",
+          "expr": "(sum by (instance) (rate(node_network_receive_errs_total[5m]) + rate(node_network_transmit_errs_total[5m]))) OR on() vector(0)",
           "legendFormat": "{{instance}}",
           "refId": "A"
         }

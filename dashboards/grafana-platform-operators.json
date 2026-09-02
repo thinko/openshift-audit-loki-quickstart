@@ -148,10 +148,30 @@
             "lineWidth": 2,
             "fillOpacity": 15,
             "showPoints": "never",
-            "spanNulls": false
+            "spanNulls": false,
+            "thresholdsStyle": {
+              "mode": "dashed+area"
+            }
           },
           "color": {
             "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.01
+              },
+              {
+                "color": "red",
+                "value": 0.025
+              }
+            ]
           }
         },
         "overrides": []
@@ -451,6 +471,10 @@
                 "value": null
               }
             ]
+          },
+          "custom": {
+            "fillOpacity": 80,
+            "lineWidth": 1
           }
         },
         "overrides": []
@@ -463,18 +487,15 @@
       },
       "id": 9,
       "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
         "orientation": "horizontal",
-        "displayMode": "gradient",
-        "showUnfilled": true,
-        "minVizWidth": 0,
-        "minVizHeight": 10
+        "barWidth": 0.7,
+        "showValue": "auto",
+        "tooltip": {
+          "mode": "single"
+        },
+        "legend": {
+          "displayMode": "hidden"
+        }
       },
       "targets": [
         {
@@ -485,7 +506,7 @@
         }
       ],
       "title": "Namespace Error Rate",
-      "type": "bargauge"
+      "type": "barchart"
     },
     {
       "collapsed": false,
@@ -589,10 +610,12 @@
       "fieldConfig": {
         "defaults": {
           "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 15,
-            "showPoints": "never",
-            "spanNulls": false
+            "fillOpacity": 80,
+            "lineWidth": 1,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
           },
           "color": {
             "mode": "palette-classic"
@@ -608,14 +631,17 @@
       },
       "id": 12,
       "options": {
+        "barWidth": 0.8,
+        "groupWidth": 0.7,
+        "showValue": "never",
+        "stacking": "normal",
         "tooltip": {
           "mode": "multi",
           "sort": "desc"
         },
         "legend": {
           "displayMode": "list",
-          "placement": "bottom",
-          "calcs": []
+          "placement": "bottom"
         }
       },
       "targets": [
@@ -627,41 +653,50 @@
         }
       ],
       "title": "API Server Request Rate",
-      "type": "timeseries"
+      "type": "barchart"
     },
     {
       "datasource": "Prometheus",
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit",
-          "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 15,
-            "showPoints": "never",
-            "spanNulls": false
-          },
-          "color": {
-            "mode": "palette-classic"
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.01
+              },
+              {
+                "color": "red",
+                "value": 0.05
+              }
+            ]
           }
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 7,
-        "w": 12,
+        "h": 5,
+        "w": 6,
         "x": 12,
         "y": 46
       },
       "id": 13,
       "options": {
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        },
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "calcs": []
+        "graphMode": "area",
+        "textMode": "value_and_name",
+        "colorMode": "background",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
         }
       },
       "targets": [
@@ -673,7 +708,7 @@
         }
       ],
       "title": "API Server Error Rate",
-      "type": "timeseries"
+      "type": "stat"
     }
   ],
   "refresh": "30s",
