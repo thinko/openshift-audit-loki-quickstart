@@ -37,7 +37,7 @@
     },
     {
       "datasource": "Prometheus",
-      "description": "Ratio of API server audit events to Loki-ingested audit lines. Values >90% mean most read-only events are being filtered. Note: only meaningful when compared against audit events specifically.",
+      "description": "Percentage of API server audit events dropped by edge filters before reaching Loki. Uses tenant-scoped metric.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -93,13 +93,13 @@
         {
           "datasource": "Prometheus",
           "editorMode": "code",
-          "expr": "clamp(1 - sum(rate(loki_distributor_lines_received_total{namespace=\"openshift-logging\"}[5m])) / sum(rate(apiserver_audit_event_total[5m])), 0, 1)",
+          "expr": "1 - sum(rate(loki_distributor_lines_received_total{namespace=\"openshift-logging\", tenant=\"audit\"}[5m])) / sum(rate(apiserver_audit_event_total[5m]))",
           "legendFormat": "filter %",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Audit Drop Ratio",
+      "title": "Audit Filter Effectiveness",
       "type": "gauge"
     },
     {
@@ -151,7 +151,7 @@
         {
           "datasource": "Prometheus",
           "editorMode": "code",
-          "expr": "sum(rate(loki_distributor_lines_received_total{namespace=\"openshift-logging\"}[5m])) * 60",
+          "expr": "sum(rate(loki_distributor_lines_received_total{namespace=\"openshift-logging\", tenant=\"audit\"}[5m])) * 60",
           "legendFormat": "lines/min",
           "range": true,
           "refId": "A"
