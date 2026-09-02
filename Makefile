@@ -14,7 +14,7 @@ endef
 
 .PHONY: help deploy deploy-operators destroy test test-attribution enable-console-plugin \
 	helm-lint helm-template secret azure-storage status preflight apply-rbac check-egress \
-	deploy-dashboard deploy-grafana destroy-grafana lint
+	deploy-grafana destroy-grafana lint
 
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*##"; printf "\nTargets:\n"} /^[a-zA-Z0-9_.-]+:.*##/ { printf "  %-24s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -106,16 +106,5 @@ destroy-grafana: ## Remove standalone Grafana deployment and associated resource
 	-oc delete clusterrole grafana-loki-tenant-view 2>/dev/null
 	-oc delete sa grafana-loki grafana-prometheus -n openshift-logging 2>/dev/null
 	@echo "==> Grafana removed."
-
-deploy-dashboard: ## Deploy the Audit LokiStack Grafana dashboard to the Console
-	@echo "==> Creating dashboard ConfigMap in openshift-config-managed..."
-	oc create configmap audit-loki-dashboard \
-		--from-file=audit-loki-overview.json="$(ROOT)/dashboards/audit-loki-overview.json" \
-		-n openshift-config-managed \
-		--dry-run=client -o yaml | oc apply -f -
-	oc label configmap audit-loki-dashboard \
-		console.openshift.io/dashboard=true \
-		-n openshift-config-managed --overwrite
-	@echo "==> Dashboard available at Observe > Dashboards > Audit LokiStack Overview"
 
 lint: test ## Alias for test
