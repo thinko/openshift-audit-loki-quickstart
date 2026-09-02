@@ -2,6 +2,7 @@ extends: default
 
 ignore: |
   **/templates/**
+  **/11-console-dashboards.yaml
 
 rules:
   line-length:
