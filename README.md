@@ -272,6 +272,24 @@ To remove Grafana without affecting Loki:
 make destroy-grafana
 ```
 
+### OpenShift Console Dashboards (no Grafana required)
+
+Two Prometheus-only dashboards are available directly in **Observe → Dashboards**,
+with no Grafana deployment needed:
+
+```bash
+make deploy-console-dashboards
+```
+
+| Console Dashboard | Panels | Focus |
+| --- | --- | --- |
+| LokiStack Pipeline Health | 11 | Filter effectiveness, ingestion rate, error rate, PVC, Azure Blob |
+| Cluster Health Essentials | 10 | Nodes, operators, CPU/memory, pod restarts, API server, etcd |
+
+These use the OCP Console's built-in Prometheus proxy and are visible to any
+cluster user with Console access. For LogQL queries and infrastructure log
+investigation, use the standalone Grafana instance.
+
 ## Log Pipeline Scope
 
 | Tenant | Status | Description |
