@@ -6,6 +6,12 @@ ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 CHART := $(ROOT)/helm/audit-loki
 PYTHON ?= python3
 
+# Environment overrides: copy .env.example → .env and fill in values.
+# .env is gitignored. Loaded automatically via _load_env (shell source).
+define _load_env
+if [ -f "$(ROOT)/.env" ]; then set -a; . "$(ROOT)/.env"; set +a; fi
+endef
+
 .PHONY: help deploy deploy-operators destroy test test-attribution enable-console-plugin \
 	helm-lint helm-template secret azure-storage status preflight apply-rbac check-egress \
 	deploy-dashboard deploy-grafana destroy-grafana lint
@@ -15,13 +21,13 @@ help: ## Show this help
 	@printf "\nBlob storage can wait: make deploy-operators. Full deploy needs Azure Blob (docs/azure-blob-request.md).\n\n"
 
 deploy: ## Install operators, LokiStack, audit forwarder, and console plugin
-	"$(ROOT)/scripts/deploy.sh"
+	$(_load_env); "$(ROOT)/scripts/deploy.sh"
 
 deploy-operators: ## Install Loki + logging operators only (no Blob secret / LokiStack)
-	"$(ROOT)/scripts/deploy.sh" --operators-only
+	$(_load_env); "$(ROOT)/scripts/deploy.sh" --operators-only
 
 status: ## Show operator, secret-key, and LokiStack progress (does not print Azure keys)
-	"$(ROOT)/scripts/status.sh"
+	$(_load_env); "$(ROOT)/scripts/status.sh"
 
 preflight: ## Validate cluster readiness without changing anything (read-only)
 	"$(ROOT)/scripts/preflight.sh"
@@ -74,8 +80,8 @@ azure-storage: ## Create a dedicated Azure Blob account and container (AZURE_RES
 	"$(ROOT)/scripts/create-azure-storage.sh"
 
 secret: ## Create/update the Azure Blob secret from environment variables
-	@test -n "$${AZURE_STORAGE_ACCOUNT_NAME:-}" || (echo "AZURE_STORAGE_ACCOUNT_NAME is required" >&2; exit 1)
-	@test -n "$${AZURE_STORAGE_ACCOUNT_KEY:-}" || (echo "AZURE_STORAGE_ACCOUNT_KEY is required" >&2; exit 1)
+	@$(_load_env); test -n "$${AZURE_STORAGE_ACCOUNT_NAME:-}" || (echo "AZURE_STORAGE_ACCOUNT_NAME is required" >&2; exit 1)
+	@$(_load_env); test -n "$${AZURE_STORAGE_ACCOUNT_KEY:-}" || (echo "AZURE_STORAGE_ACCOUNT_KEY is required" >&2; exit 1)
 	oc create secret generic logging-loki-azure \
 		--namespace openshift-logging \
 		--from-literal=environment="$${AZURE_ENVIRONMENT:-AzureGlobal}" \
@@ -85,7 +91,7 @@ secret: ## Create/update the Azure Blob secret from environment variables
 		--dry-run=client -o yaml | oc apply -f -
 
 deploy-grafana: ## Deploy standalone Grafana with datasources and dashboards
-	"$(ROOT)/scripts/deploy-grafana.sh"
+	$(_load_env); "$(ROOT)/scripts/deploy-grafana.sh"
 
 destroy-grafana: ## Remove standalone Grafana deployment and associated resources
 	@echo "==> Removing Grafana deployment, service, route, and ConfigMaps..."
