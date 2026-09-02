@@ -61,6 +61,10 @@ data:
 
     [security]
     allow_embedding = true
+
+    [dataproxy]
+    timeout = 300
+    keep_alive_seconds = 300
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -180,6 +184,7 @@ metadata:
     app.kubernetes.io/part-of: openshift-logging
   annotations:
     argocd.argoproj.io/sync-wave: "3"
+    haproxy.router.openshift.io/timeout: 5m
 spec:
   tls:
     termination: edge
