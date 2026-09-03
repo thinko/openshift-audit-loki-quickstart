@@ -74,6 +74,16 @@ echo "==> Waiting for Grafana pod to become ready..."
 oc rollout status deployment/loki-grafana -n "${GRAFANA_NAMESPACE}" --timeout=120s 2>/dev/null || \
   echo "    WARN: Grafana deployment not ready yet. Check: oc get pods -n ${GRAFANA_NAMESPACE} -l app=loki-grafana"
 
+# ── Step 7: Clean up stale ReplicaSets (0/0 desired/ready) ──
+echo "==> Cleaning up stale ReplicaSets..."
+oc get rs -n "${GRAFANA_NAMESPACE}" -l app=loki-grafana \
+  --no-headers -o custom-columns='NAME:.metadata.name,DESIRED:.spec.replicas' 2>/dev/null \
+  | awk '$2 == 0 { print $1 }' \
+  | while read -r rs; do
+      echo "    Deleting stale ReplicaSet: ${rs}"
+      oc delete rs "${rs}" -n "${GRAFANA_NAMESPACE}" --ignore-not-found
+    done
+
 header "Grafana Deployment Complete"
 
 ROUTE=$(oc get route loki-grafana -n "${GRAFANA_NAMESPACE}" \
