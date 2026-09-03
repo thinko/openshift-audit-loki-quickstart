@@ -242,7 +242,8 @@
         }
       ],
       "title": "etcd Slow Requests & Warnings",
-      "type": "logs"
+      "type": "logs",
+      "maxDataPoints": 100
     },
     {
       "collapsed": false,
@@ -380,9 +381,9 @@
       "options": {
         "showTime": true,
         "sortOrder": "Descending",
-        "enableLogDetails": true,
+        "enableLogDetails": false,
         "wrapLogMessage": true,
-        "dedupStrategy": "none",
+        "dedupStrategy": "signature",
         "prettifyLogMessage": false
       },
       "targets": [
@@ -393,7 +394,8 @@
         }
       ],
       "title": "Operator Error Logs",
-      "type": "logs"
+      "type": "logs",
+      "maxDataPoints": 100
     },
     {
       "collapsed": false,
@@ -448,7 +450,7 @@
       "targets": [
         {
           "datasource": "Loki (Infrastructure)",
-          "expr": "sum by (kubernetes_namespace_name) (count_over_time({log_type=\"infrastructure\", kubernetes_namespace_name=~\"openshift-.*\"} [5m]))",
+          "expr": "sum by (kubernetes_namespace_name) (count_over_time({log_type=\"infrastructure\", kubernetes_namespace_name=~\"openshift-.*\"} [15m]))",
           "legendFormat": "{{kubernetes_namespace_name}}",
           "refId": "A"
         }
@@ -492,7 +494,7 @@
       "targets": [
         {
           "datasource": "Loki (Infrastructure)",
-          "expr": "topk(15, sum by (kubernetes_namespace_name) (count_over_time({log_type=\"infrastructure\", kubernetes_namespace_name=~\"openshift-.*\"} |~ \"(?i)error\" [5m])))",
+          "expr": "topk(10, sum by (kubernetes_namespace_name) (count_over_time({log_type=\"infrastructure\", kubernetes_namespace_name=~\"openshift-.*\"} |~ \"(?i)error\" [15m])))",
           "legendFormat": "{{kubernetes_namespace_name}}",
           "refId": "A"
         }
@@ -537,7 +539,8 @@
         }
       ],
       "title": "CoreDNS Errors",
-      "type": "logs"
+      "type": "logs",
+      "maxDataPoints": 100
     },
     {
       "datasource": "Prometheus",
@@ -697,7 +700,7 @@
       "type": "stat"
     }
   ],
-  "refresh": "30s",
+  "refresh": "1m",
   "schemaVersion": 39,
   "tags": [
     "infrastructure",
@@ -710,7 +713,7 @@
     "list": []
   },
   "time": {
-    "from": "now-6h",
+    "from": "now-1h",
     "to": "now"
   },
   "timepicker": {},
