@@ -517,7 +517,7 @@
       "type": "row"
     },
     {
-      "datasource": "Loki (Infrastructure)",
+      "datasource": "Prometheus",
       "gridPos": {
         "h": 7,
         "w": 12,
@@ -526,23 +526,85 @@
       },
       "id": 10,
       "options": {
-        "showTime": true,
-        "sortOrder": "Descending",
-        "enableLogDetails": true,
-        "wrapLogMessage": true,
-        "dedupStrategy": "none",
-        "prettifyLogMessage": false
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
       },
       "targets": [
         {
-          "datasource": "Loki (Infrastructure)",
-          "expr": "{log_type=\"infrastructure\", kubernetes_namespace_name=\"openshift-dns\"} |~ \"(?i)(SERVFAIL|NXDOMAIN|error|timeout|refused)\" != \"NOERROR\" | json message=\"message\" | line_format \"{{ .kubernetes_pod_name }}: {{ .message | trunc 200 }}\"",
+          "expr": "sum by (rcode) (rate(coredns_dns_responses_total{namespace=\"openshift-dns\"}[5m]))",
+          "legendFormat": "{{rcode}}",
           "refId": "A"
         }
       ],
-      "title": "CoreDNS Errors",
-      "type": "logs",
-      "maxDataPoints": 50
+      "title": "DNS Health",
+      "type": "timeseries",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 30,
+            "showPoints": "never",
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "NOERROR"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "NXDOMAIN"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "yellow",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "SERVFAIL"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "datasource": "Prometheus",
