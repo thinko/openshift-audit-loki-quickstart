@@ -151,6 +151,50 @@ def test_grafana_loki_gateway_rbac(repo_root: Path):
     assert "maxLines: 500" in ds_yaml
 
 
+def test_alerting_prometheus_rules(repo_root: Path):
+    docs = _load_docs(repo_root / "manifests" / "12-alerting.yaml")
+    rule = next(d for d in docs if d["kind"] == "PrometheusRule")
+    assert rule["apiVersion"] == "monitoring.coreos.com/v1"
+    assert rule["metadata"]["namespace"] == "openshift-logging"
+    groups = {g["name"]: g for g in rule["spec"]["groups"]}
+    assert "lokistack-health" in groups
+    assert "audit-pipeline-health" in groups
+
+    # LokiStack health group should have component readiness alerts.
+    health_alerts = {r["alert"]: r for r in groups["lokistack-health"]["rules"]}
+    assert "LokiIngesterNotReady" in health_alerts
+    assert "LokiQuerierNotReady" in health_alerts
+    assert "LokiCompactorNotReady" in health_alerts
+    assert "LokiHighRequestErrorRate" in health_alerts
+    assert "LokiPVCNearlyFull" in health_alerts
+    assert "LokiComponentRestarting" in health_alerts
+    # Critical alerts for ingester/querier.
+    assert health_alerts["LokiIngesterNotReady"]["labels"]["severity"] == "critical"
+    assert health_alerts["LokiQuerierNotReady"]["labels"]["severity"] == "critical"
+    # Compactor is warning (less immediately impactful).
+    assert health_alerts["LokiCompactorNotReady"]["labels"]["severity"] == "warning"
+
+    # Audit pipeline group should have ingestion and filter alerts.
+    pipeline_alerts = {r["alert"]: r for r in groups["audit-pipeline-health"]["rules"]}
+    assert "AuditLogIngestionStopped" in pipeline_alerts
+    assert "InfraLogIngestionStopped" in pipeline_alerts
+    assert "AuditFilterEffectivenessLow" in pipeline_alerts
+    assert "AuditIngestionSpike" in pipeline_alerts
+    assert pipeline_alerts["AuditLogIngestionStopped"]["labels"]["severity"] == "critical"
+
+
+def test_alerting_alertmanager_config(repo_root: Path):
+    docs = _load_docs(repo_root / "manifests" / "12-alerting.yaml")
+    amc = next(d for d in docs if d["kind"] == "AlertmanagerConfig")
+    assert amc["apiVersion"] == "monitoring.coreos.com/v1beta1"
+    assert amc["metadata"]["namespace"] == "openshift-logging"
+    assert amc["spec"]["route"]["receiver"] == "loki-audit-webhook"
+    # Critical alerts get a shorter repeat interval.
+    crit_route = amc["spec"]["route"]["routes"][0]
+    assert crit_route["matchers"][0]["value"] == "critical"
+    assert crit_route["repeatInterval"] == "1h"
+
+
 def test_grafana_route_allows_slow_loki_panels(repo_root: Path):
     docs = _load_docs(repo_root / "manifests" / "08-grafana-instance.yaml")
     route = next(d for d in docs if d["kind"] == "Route")

@@ -1,0 +1,234 @@
+{{- if .Values.alerting.enabled }}
+{{- $ns := include "audit-loki.lokiNamespace" . }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ printf "%s-alerts" (include "audit-loki.fullname" .) | trunc 63 | trimSuffix "-" }}
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: loki-audit
+    {{- include "audit-loki.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  groups:
+    # ── LokiStack Component Health ────────────────────────────────────
+    - name: lokistack-health
+      rules:
+        - alert: LokiIngesterNotReady
+          annotations:
+            summary: LokiStack ingester has zero ready replicas.
+            description: >-
+              The ingester StatefulSet {{ "{{" }} $labels.statefulset {{ "}}" }} in
+              {{ "{{" }} $labels.namespace {{ "}}" }} has 0 ready replicas.
+          expr: |
+            kube_statefulset_status_replicas_ready{
+              namespace="{{ $ns }}",
+              statefulset=~"{{ .Values.lokiStack.name }}-ingester.*"
+            } == 0
+          for: {{ .Values.alerting.thresholds.componentNotReadyFor | default "5m" }}
+          labels:
+            severity: critical
+
+        - alert: LokiQuerierNotReady
+          annotations:
+            summary: LokiStack querier has zero ready replicas.
+            description: >-
+              All querier replicas are down — log queries will fail.
+          expr: |
+            kube_statefulset_status_replicas_ready{
+              namespace="{{ $ns }}",
+              statefulset=~"{{ .Values.lokiStack.name }}-querier.*"
+            } == 0
+          for: {{ .Values.alerting.thresholds.componentNotReadyFor | default "5m" }}
+          labels:
+            severity: critical
+
+        - alert: LokiCompactorNotReady
+          annotations:
+            summary: LokiStack compactor has zero ready replicas.
+            description: >-
+              Compaction and retention enforcement are stalled.
+          expr: |
+            kube_statefulset_status_replicas_ready{
+              namespace="{{ $ns }}",
+              statefulset=~"{{ .Values.lokiStack.name }}-compactor.*"
+            } == 0
+          for: 10m
+          labels:
+            severity: warning
+
+        - alert: LokiHighRequestErrorRate
+          annotations:
+            summary: LokiStack request error rate exceeds threshold.
+            description: >-
+              {{ "{{" }} $value | humanizePercentage {{ "}}" }} of Loki HTTP
+              requests are returning 5xx errors.
+          expr: |
+            (
+              sum(rate(loki_request_duration_seconds_count{
+                namespace="{{ $ns }}", status_code=~"5.."
+              }[15m]))
+              /
+              sum(rate(loki_request_duration_seconds_count{
+                namespace="{{ $ns }}"
+              }[15m]))
+            ) > {{ .Values.alerting.thresholds.errorRatePercent | default 5 | float64 }} / 100
+          for: 15m
+          labels:
+            severity: warning
+
+        - alert: LokiPVCNearlyFull
+          annotations:
+            summary: 'LokiStack PVC {{ "{{" }} $labels.persistentvolumeclaim {{ "}}" }} is above {{ .Values.alerting.thresholds.pvcUsagePercent | default 85 }}% full.'
+            description: >-
+              PVC is at {{ "{{" }} $value | humanizePercentage {{ "}}" }} capacity.
+          expr: |
+            (
+              kubelet_volume_stats_used_bytes{
+                namespace="{{ $ns }}",
+                persistentvolumeclaim=~"storage-{{ .Values.lokiStack.name }}-.*|wal-{{ .Values.lokiStack.name }}-.*"
+              }
+              /
+              kubelet_volume_stats_capacity_bytes{
+                namespace="{{ $ns }}",
+                persistentvolumeclaim=~"storage-{{ .Values.lokiStack.name }}-.*|wal-{{ .Values.lokiStack.name }}-.*"
+              }
+            ) > {{ .Values.alerting.thresholds.pvcUsagePercent | default 85 | float64 }} / 100
+          for: 30m
+          labels:
+            severity: warning
+
+        - alert: LokiComponentRestarting
+          annotations:
+            summary: A Loki component is restarting frequently.
+            description: >-
+              Pod {{ "{{" }} $labels.pod {{ "}}" }} has restarted more than
+              {{ .Values.alerting.thresholds.restartCount | default 3 }} times
+              in 30 minutes.
+          expr: |
+            increase(
+              kube_pod_container_status_restarts_total{
+                namespace="{{ $ns }}",
+                pod=~"{{ .Values.lokiStack.name }}-.*"
+              }[30m]
+            ) > {{ .Values.alerting.thresholds.restartCount | default 3 }}
+          for: 0m
+          labels:
+            severity: warning
+
+    # ── Audit & Logging Pipeline Health ───────────────────────────────
+    - name: audit-pipeline-health
+      rules:
+        - alert: AuditLogIngestionStopped
+          annotations:
+            summary: No audit logs ingested for 15 minutes.
+            description: >-
+              The ClusterLogForwarder audit pipeline may be broken.
+          expr: |
+            sum(rate(
+              loki_distributor_lines_received_total{
+                namespace="{{ $ns }}", tenant="audit"
+              }[5m]
+            )) == 0
+          for: {{ .Values.alerting.thresholds.ingestionStoppedFor | default "15m" }}
+          labels:
+            severity: critical
+
+        {{- if .Values.infrastructure.enabled }}
+        - alert: InfraLogIngestionStopped
+          annotations:
+            summary: No infrastructure logs ingested for 15 minutes.
+            description: >-
+              Check the CLF infra-to-loki pipeline and collector pods.
+          expr: |
+            sum(rate(
+              loki_distributor_lines_received_total{
+                namespace="{{ $ns }}", tenant="infrastructure"
+              }[5m]
+            )) == 0
+          for: {{ .Values.alerting.thresholds.ingestionStoppedFor | default "15m" }}
+          labels:
+            severity: warning
+        {{- end }}
+
+        - alert: AuditFilterEffectivenessLow
+          annotations:
+            summary: Audit filter effectiveness has dropped below threshold.
+            description: >-
+              The edge filter is passing more than expected API server
+              events to Loki (effectiveness {{ "{{" }} $value | humanizePercentage {{ "}}" }}).
+          expr: |
+            (
+              1 - (
+                sum(rate(
+                  loki_distributor_lines_received_total{
+                    namespace="{{ $ns }}", tenant="audit"
+                  }[15m]
+                ))
+                /
+                sum(rate(apiserver_request_total[15m]))
+              )
+            ) < {{ .Values.alerting.thresholds.filterEffectivenessMinPercent | default 50 | float64 }} / 100
+          for: 30m
+          labels:
+            severity: warning
+
+        - alert: AuditIngestionSpike
+          annotations:
+            summary: Audit log ingestion rate has spiked.
+            description: >-
+              Audit ingestion is more than {{ .Values.alerting.thresholds.ingestionSpikeMultiplier | default 3 }}x
+              the 1-hour average.
+          expr: |
+            sum(rate(
+              loki_distributor_lines_received_total{
+                namespace="{{ $ns }}", tenant="audit"
+              }[5m]
+            ))
+            >
+            {{ .Values.alerting.thresholds.ingestionSpikeMultiplier | default 3 }} * sum(avg_over_time(
+              rate(
+                loki_distributor_lines_received_total{
+                  namespace="{{ $ns }}", tenant="audit"
+                }[5m]
+              )[1h:]
+            ))
+          for: 10m
+          labels:
+            severity: warning
+{{- if .Values.alerting.receiver.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1beta1
+kind: AlertmanagerConfig
+metadata:
+  name: {{ printf "%s-notifications" (include "audit-loki.fullname" .) | trunc 63 | trimSuffix "-" }}
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/name: loki-audit
+    {{- include "audit-loki.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  route:
+    receiver: {{ .Values.alerting.receiver.name | default "loki-audit-webhook" }}
+    groupBy:
+      - alertname
+      - severity
+    groupWait: 30s
+    groupInterval: 5m
+    repeatInterval: {{ .Values.alerting.receiver.repeatInterval | default "4h" }}
+    routes:
+      - receiver: {{ .Values.alerting.receiver.name | default "loki-audit-webhook" }}
+        matchers:
+          - name: severity
+            value: critical
+            matchType: "="
+        repeatInterval: {{ .Values.alerting.receiver.criticalRepeatInterval | default "1h" }}
+  receivers:
+    - name: {{ .Values.alerting.receiver.name | default "loki-audit-webhook" }}
+      webhookConfigs:
+        - url: {{ .Values.alerting.receiver.webhookUrl | quote }}
+          sendResolved: true
+{{- end }}
+{{- end }}
