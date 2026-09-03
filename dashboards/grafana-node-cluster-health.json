@@ -662,7 +662,7 @@
       "targets": [
         {
           "datasource": "Loki (Infrastructure)",
-          "expr": "{log_type=\"infrastructure\"} |~ \"(?i)(oom.?kill|out of memory|killed process|invoked oom)\"",
+          "expr": "{log_type=\"infrastructure\"} |= \"OOM\" |~ \"(?i)(oom|kill|invoked)\" | line_format \"{{.hostname}}: {{.message}}\"",
           "refId": "A"
         }
       ],
@@ -689,7 +689,7 @@
       "targets": [
         {
           "datasource": "Loki (Infrastructure)",
-          "expr": "{log_type=\"infrastructure\", kubernetes_container_name=~\".*kubelet.*|.*kernel.*\"} |~ \"(?i)(warning|error|critical|panic|segfault|hardware error)\"",
+          "expr": "{log_type=\"infrastructure\"} |~ \"(?i)(kernel|hardware|mce|edac)\" |~ \"(?i)(warn|error|fail|critical)\" | line_format \"{{.hostname}}: {{.message}}\"",
           "refId": "A"
         }
       ],

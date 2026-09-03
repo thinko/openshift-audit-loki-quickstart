@@ -131,7 +131,8 @@ def test_grafana_loki_gateway_rbac(repo_root: Path):
     ds_yaml = ds_cm["data"]["datasources.yaml"]
     assert "/api/logs/v1/audit" in ds_yaml
     assert "Authorization" in ds_yaml
-    assert "timeout: 180" in ds_yaml
+    assert "timeout: 60" in ds_yaml
+    assert "maxLines: 500" in ds_yaml
 
 
 def test_grafana_route_allows_slow_loki_panels(repo_root: Path):
@@ -141,4 +142,5 @@ def test_grafana_route_allows_slow_loki_panels(repo_root: Path):
         route["metadata"]["annotations"]["haproxy.router.openshift.io/timeout"] == "5m"
     )
     cfg = next(d for d in docs if d["kind"] == "ConfigMap" and d["metadata"]["name"] == "grafana-config")
-    assert "timeout = 300" in cfg["data"]["grafana.ini"]
+    assert "timeout = 60" in cfg["data"]["grafana.ini"]
+    assert "keep_alive_seconds = 30" in cfg["data"]["grafana.ini"]

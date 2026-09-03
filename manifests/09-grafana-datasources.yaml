@@ -106,8 +106,8 @@ data:
         isDefault: true
         jsonData:
           httpHeaderName1: Authorization
-          maxLines: 1000
-          timeout: 180
+          maxLines: 500
+          timeout: 60
           tlsSkipVerify: true
         secureJsonData:
           httpHeaderValue1: "$LOKI_BEARER_TOKEN"
@@ -118,8 +118,8 @@ data:
         url: https://logging-loki-gateway-http.openshift-logging.svc:8080/api/logs/v1/infrastructure
         jsonData:
           httpHeaderName1: Authorization
-          maxLines: 1000
-          timeout: 180
+          maxLines: 500
+          timeout: 60
           tlsSkipVerify: true
         secureJsonData:
           httpHeaderValue1: "$LOKI_BEARER_TOKEN"
