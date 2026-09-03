@@ -26,6 +26,21 @@ spec:
     global:
       retention:
         days: {{ .Values.lokiStack.retentionDays }}
+      {{- with .Values.lokiStack.queryLimits }}
+      queries:
+        maxEntriesLimitPerQuery: {{ .maxEntriesLimitPerQuery | default 5000 }}
+        maxChunksPerQuery: {{ .maxChunksPerQuery | default 2000000 }}
+        maxQuerySeries: {{ .maxQuerySeries | default 500 }}
+      {{- end }}
+      {{- with .Values.lokiStack.ingestionLimits }}
+      ingestion:
+        ingestionRate: {{ .ingestionRate | default 4 }}
+        ingestionBurstSize: {{ .ingestionBurstSize | default 6 }}
+        maxLabelNameLength: {{ .maxLabelNameLength | default 1024 }}
+        maxLabelValueLength: {{ .maxLabelValueLength | default 2048 }}
+        maxLabelNamesPerSeries: {{ .maxLabelNamesPerSeries | default 30 }}
+        maxGlobalStreamsPerTenant: {{ .maxGlobalStreamsPerTenant | default 0 }}
+      {{- end }}
     tenants:
       audit:
         retention:
@@ -34,6 +49,11 @@ spec:
       infrastructure:
         retention:
           days: {{ .Values.infrastructure.retentionDays | default 7 }}
+        {{- with .Values.lokiStack.queryLimits }}
+        queries:
+          maxEntriesLimitPerQuery: {{ .maxEntriesLimitPerQuery | default 5000 }}
+          maxQuerySeries: {{ .maxQuerySeries | default 500 }}
+        {{- end }}
       {{- end }}
       {{- if .Values.application.enabled }}
       application:

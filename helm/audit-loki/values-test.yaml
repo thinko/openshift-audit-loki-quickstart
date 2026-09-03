@@ -1,0 +1,27 @@
+# values-test.yaml — Test / Pre-production environment (10-30 nodes)
+# Usage: helm upgrade --install audit-loki ./helm/audit-loki \
+#          -f helm/audit-loki/values.yaml \
+#          -f helm/audit-loki/values-test.yaml
+
+lokiStack:
+  size: 1x.small
+  # Total resource footprint: 34 vCPU, 67 Gi memory, 430 Gi disk
+  # Supports: 500 GB/day ingest, 25-50 QPS at 200ms
+  retentionDays: 14
+  auditRetentionDays: 30
+  queryLimits:
+    maxEntriesLimitPerQuery: 10000
+    maxChunksPerQuery: 4000000
+    maxQuerySeries: 1000
+  ingestionLimits:
+    ingestionRate: 8
+    ingestionBurstSize: 12
+
+infrastructure:
+  enabled: true
+  retentionDays: 14
+  dropProbeNoise: true
+  dropDnsNoise: true
+
+application:
+  enabled: false

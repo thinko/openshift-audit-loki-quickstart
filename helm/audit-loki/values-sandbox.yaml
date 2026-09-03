@@ -1,0 +1,27 @@
+# values-sandbox.yaml — Sandbox / PoC environment (≤10 nodes, 3+3 typical)
+# Usage: helm upgrade --install audit-loki ./helm/audit-loki \
+#          -f helm/audit-loki/values.yaml \
+#          -f helm/audit-loki/values-sandbox.yaml
+
+lokiStack:
+  size: 1x.extra-small
+  retentionDays: 7
+  auditRetentionDays: 14
+  queryLimits:
+    maxEntriesLimitPerQuery: 5000
+    maxChunksPerQuery: 2000000
+    maxQuerySeries: 500
+  ingestionLimits:
+    ingestionRate: 4
+    ingestionBurstSize: 6
+
+# Infra logs enabled but with aggressive noise filtering.
+infrastructure:
+  enabled: true
+  retentionDays: 7
+  dropProbeNoise: true
+  dropDnsNoise: true
+
+# Applications out of scope for sandbox.
+application:
+  enabled: false
