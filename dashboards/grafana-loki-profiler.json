@@ -35,8 +35,14 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.99, sum by (le, route) (rate(loki_request_duration_seconds_bucket{namespace=\"openshift-logging\", route=~\"/loki/api/v1/(query|query_range|series|labels|label/.*/values)\"}[5m])))",
-          "legendFormat": "p99 {{route}}"
+          "expr": "histogram_quantile(0.99, sum by (le, route) (rate(loki_request_duration_seconds_bucket{namespace=\"openshift-logging\"}[5m])))",
+          "legendFormat": "p99 {{route}}",
+          "refId": "A"
+        },
+        {
+          "expr": "topk(5, max by (route) (loki_request_duration_seconds{namespace=\"openshift-logging\", quantile=\"0.99\"}))",
+          "legendFormat": "p99 {{route}}",
+          "refId": "B"
         }
       ],
       "fieldConfig": {
@@ -62,8 +68,9 @@
       },
       "targets": [
         {
-          "expr": "sum by (route) (rate(loki_request_duration_seconds_count{namespace=\"openshift-logging\", route=~\"/loki/api/v1/(query|query_range|series|labels|label/.*/values)\"}[5m]))",
-          "legendFormat": "{{route}}"
+          "expr": "sum by (route) (rate(loki_request_duration_seconds_count{namespace=\"openshift-logging\"}[5m]))",
+          "legendFormat": "{{route}}",
+          "refId": "A"
         }
       ],
       "fieldConfig": {
@@ -92,8 +99,14 @@
       },
       "targets": [
         {
-          "expr": "sum by (route, status_code) (rate(loki_request_duration_seconds_count{namespace=\"openshift-logging\", status_code!~\"2..\", route=~\"/loki/api/v1/.*\"}[5m]))",
-          "legendFormat": "{{status_code}} {{route}}"
+          "expr": "sum by (route, status_code) (rate(loki_request_duration_seconds_count{namespace=\"openshift-logging\", status_code!~\"2..\"}[5m]))",
+          "legendFormat": "{{status_code}} {{route}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by (status_code) (rate(loki_request_duration_seconds_count{namespace=\"openshift-logging\", status_code=~\"(429|503|500)\"}[5m]))",
+          "legendFormat": "total {{status_code}}",
+          "refId": "B"
         }
       ],
       "fieldConfig": {
@@ -206,12 +219,14 @@
       },
       "targets": [
         {
-          "expr": "sum by (pod) (container_memory_working_set_bytes{namespace=\"openshift-logging\", container=\"loki\", pod=~\"logging-loki-querier-.*\"})",
-          "legendFormat": "{{pod}}"
+          "expr": "sum by (pod) (container_memory_working_set_bytes{namespace=\"openshift-logging\", pod=~\"logging-loki-querier-.*\", container!=\"POD\", container!=\"\"})",
+          "legendFormat": "{{pod}}",
+          "refId": "A"
         },
         {
-          "expr": "kube_pod_container_resource_limits{namespace=\"openshift-logging\", container=\"loki\", pod=~\"logging-loki-querier-.*\", resource=\"memory\"}",
-          "legendFormat": "limit"
+          "expr": "max(kube_pod_container_resource_limits{namespace=\"openshift-logging\", pod=~\"logging-loki-querier-.*\", resource=\"memory\", container!=\"\"})",
+          "legendFormat": "limit",
+          "refId": "B"
         }
       ],
       "fieldConfig": {
@@ -263,8 +278,9 @@
       },
       "targets": [
         {
-          "expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"openshift-logging\", container=\"loki\", pod=~\"logging-loki-querier-.*\"}[5m]))",
-          "legendFormat": "{{pod}}"
+          "expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"openshift-logging\", pod=~\"logging-loki-querier-.*\", container!=\"POD\", container!=\"\"}[5m]))",
+          "legendFormat": "{{pod}}",
+          "refId": "A"
         }
       ],
       "fieldConfig": {
@@ -301,7 +317,13 @@
       "targets": [
         {
           "expr": "sum by (tenant) (rate(loki_ingester_chunk_stored_bytes_total{namespace=\"openshift-logging\"}[5m]))",
-          "legendFormat": "{{tenant}}"
+          "legendFormat": "{{tenant}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by (tenant) (rate(loki_ingester_bytes_received_total{namespace=\"openshift-logging\"}[5m]))",
+          "legendFormat": "{{tenant}} (received)",
+          "refId": "B"
         }
       ],
       "fieldConfig": {
