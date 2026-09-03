@@ -237,7 +237,7 @@
       "targets": [
         {
           "datasource": "Loki (Infrastructure)",
-          "expr": "{log_type=\"infrastructure\", kubernetes_namespace_name=\"openshift-etcd\"} |~ \"(?i)(slow|took too long|overloaded|leader changed|compaction|snapshot|apply request took)\"",
+          "expr": "{log_type=\"infrastructure\", kubernetes_namespace_name=\"openshift-etcd\"} |~ \"(?i)(slow|took too long|overloaded|leader changed|compaction|snapshot|apply request took)\" | json | line_format \"{{.hostname}} {{.kubernetes_container_name}}: {{.message}}\"",
           "refId": "A"
         }
       ],
@@ -388,7 +388,7 @@
       "targets": [
         {
           "datasource": "Loki (Infrastructure)",
-          "expr": "{log_type=\"infrastructure\", kubernetes_namespace_name=~\"openshift-.*\"} |~ \"(?i)(error|fail|exception|panic)\" != \"healthz\" != \"readyz\" != \"livez\" != \"metrics\" != \"error_count=0\"",
+          "expr": "{log_type=\"infrastructure\", kubernetes_namespace_name=~\"openshift-.*\"} |~ \"(?i)(error|fail|exception|panic)\" != \"healthz\" != \"readyz\" != \"livez\" != \"metrics\" != \"error_count=0\" | json | line_format \"{{.kubernetes_namespace_name}}/{{.kubernetes_pod_name}} [{{.kubernetes_container_name}}]: {{.message}}\"",
           "refId": "A"
         }
       ],
@@ -534,7 +534,7 @@
       "targets": [
         {
           "datasource": "Loki (Infrastructure)",
-          "expr": "{log_type=\"infrastructure\", kubernetes_namespace_name=\"openshift-dns\"} |~ \"(?i)(SERVFAIL|NXDOMAIN|error|timeout|refused)\" != \"NOERROR\"",
+          "expr": "{log_type=\"infrastructure\", kubernetes_namespace_name=\"openshift-dns\"} |~ \"(?i)(SERVFAIL|NXDOMAIN|error|timeout|refused)\" != \"NOERROR\" | json | line_format \"{{.kubernetes_pod_name}}: {{.message}}\"",
           "refId": "A"
         }
       ],
