@@ -662,7 +662,7 @@
       "targets": [
         {
           "datasource": "Loki (Infrastructure)",
-          "expr": "{log_type=\"infrastructure\"} |= \"OOM\" |~ \"(?i)(oom|kill|invoked)\" | json | line_format \"{{.hostname}}: {{.message}}\"",
+          "expr": "{log_type=\"infrastructure\"} |= \"OOM\" |~ \"(?i)(oom|kill|invoked)\" | json message=\"message\", host=\"hostname\" | line_format \"{{.host}}: {{.message}}\"",
           "refId": "A"
         }
       ],
@@ -689,7 +689,7 @@
       "targets": [
         {
           "datasource": "Loki (Infrastructure)",
-          "expr": "{log_type=\"infrastructure\"} |~ \"(?i)(kernel|hardware|mce|edac)\" |~ \"(?i)(warn|error|fail|critical)\" | json | line_format \"{{.hostname}}: {{.message}}\"",
+          "expr": "{log_type=\"infrastructure\"} |~ \"(?i)(kernel|hardware|mce|edac)\" |~ \"(?i)(warn|error|fail|critical)\" | json message=\"message\", host=\"hostname\" | line_format \"{{.host}}: {{.message}}\"",
           "refId": "A"
         }
       ],
