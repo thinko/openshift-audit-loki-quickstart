@@ -607,7 +607,8 @@
         }
       ],
       "title": "Log Volume by Tenant",
-      "type": "timeseries"
+      "type": "timeseries",
+      "maxDataPoints": 30
     },
     {
       "collapsed": false,
@@ -663,7 +664,8 @@
         }
       ],
       "title": "Security Event Feed",
-      "type": "logs"
+      "type": "logs",
+      "maxDataPoints": 50
     },
     {
       "datasource": "Loki (Infrastructure)",
@@ -711,7 +713,8 @@
         }
       ],
       "title": "Top Error-Producing Namespaces",
-      "type": "timeseries"
+      "type": "timeseries",
+      "maxDataPoints": 30
     },
     {
       "collapsed": false,
@@ -990,5 +993,5 @@
   "version": 1,
   "weekStart": "",
   "refresh": "1m",
-  "description": "Pipeline KPIs, ingestion trends, security event feed, and storage health for LokiStack."
+  "description": "Operational overview. Recommended time range: 1h (max 2h on 1x.extra-small LokiStack)."
 }

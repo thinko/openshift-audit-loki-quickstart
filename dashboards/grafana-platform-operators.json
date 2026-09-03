@@ -243,7 +243,7 @@
       ],
       "title": "etcd Slow Requests & Warnings",
       "type": "logs",
-      "maxDataPoints": 100
+      "maxDataPoints": 50
     },
     {
       "collapsed": false,
@@ -395,7 +395,7 @@
       ],
       "title": "Operator Error Logs",
       "type": "logs",
-      "maxDataPoints": 100
+      "maxDataPoints": 50
     },
     {
       "collapsed": false,
@@ -456,7 +456,8 @@
         }
       ],
       "title": "Operator Log Volume by Namespace",
-      "type": "timeseries"
+      "type": "timeseries",
+      "maxDataPoints": 30
     },
     {
       "datasource": "Loki (Infrastructure)",
@@ -500,7 +501,8 @@
         }
       ],
       "title": "Namespace Error Rate",
-      "type": "timeseries"
+      "type": "timeseries",
+      "maxDataPoints": 30
     },
     {
       "collapsed": false,
@@ -540,7 +542,7 @@
       ],
       "title": "CoreDNS Errors",
       "type": "logs",
-      "maxDataPoints": 100
+      "maxDataPoints": 50
     },
     {
       "datasource": "Prometheus",
@@ -722,5 +724,5 @@
   "uid": "platform-operators",
   "version": 0,
   "weekStart": "",
-  "description": "etcd health, ClusterOperator status, operator error logs, DNS, and API server metrics."
+  "description": "Platform & operator health. Recommended time range: 1h (max 2h on 1x.extra-small LokiStack)."
 }
