@@ -63,8 +63,14 @@ data:
     allow_embedding = true
 
     [dataproxy]
-    timeout = 300
-    keep_alive_seconds = 300
+    timeout = 60
+    keep_alive_seconds = 30
+
+    [unified_alerting]
+    enabled = false
+
+    [alerting]
+    enabled = false
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -112,10 +118,10 @@ spec:
               value: /var/lib/grafana
           resources:
             requests:
-              memory: 128Mi
+              memory: 256Mi
               cpu: 100m
             limits:
-              memory: 512Mi
+              memory: 768Mi
               cpu: 500m
           readinessProbe:
             httpGet:
