@@ -388,14 +388,12 @@
         {
           "datasource": "Loki (Audit)",
           "refId": "A",
-          "expr": "{log_type=\"audit\"} |~ \"impersonatedUser\" | json | impersonatedUser_username!=\"\" | line_format \"IMPERSONATE {{.user_username}} acting as {{.impersonatedUser_username}}: {{.verb}} {{.objectRef_resource}} [{{.responseStatus_code}}]\"",
-          "legendFormat": ""
+          "expr": "{log_type=\"audit\"} |~ \"impersonatedUser\" | json | impersonatedUser_username!=\"\" | line_format \"IMPERSONATE {{.user_username}} as {{.impersonatedUser_username}}: {{.verb}} {{.objectRef_resource}}\""
         },
         {
           "datasource": "Loki (Audit)",
           "refId": "B",
-          "expr": "{log_type=\"audit\"} |~ \"(clusterrole|clusterrolebinding)\" | json | verb=~\"(create|update|patch)\" | objectRef_resource=~\"(clusterroles|clusterrolebindings)\" | user_username!~\"system:.*\" | line_format \"RBAC-GRANT {{.verb | ToUpper}} {{.objectRef_resource}}/{{.objectRef_name}} by {{.user_username}} [{{.responseStatus_code}}]\"",
-          "legendFormat": ""
+          "expr": "{log_type=\"audit\"} |~ \"(clusterrole|clusterrolebinding)\" | json | verb=~\"(create|update|patch)\" | objectRef_resource=~\"(clusterroles|clusterrolebindings)\" | user_username!~\"system:.*\" | line_format \"RBAC-GRANT {{.verb}} {{.objectRef_resource}}/{{.objectRef_name}} by {{.user_username}}\""
         }
       ],
       "title": "Privilege Escalation & Impersonation",

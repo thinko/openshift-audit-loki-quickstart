@@ -650,17 +650,17 @@
         {
           "datasource": "Loki (Audit)",
           "refId": "A",
-          "expr": "{log_type=\"audit\"} |~ \"(role|clusterrole)\" | json verb=\"verb\", res=\"objectRef_resource\", name=\"objectRef_name\", user=\"user_username\", code=\"responseStatus_code\" | verb=~\"(create|update|patch|delete)\" | res=~\"(rolebindings|clusterrolebindings|clusterroles|roles)\" | user!~\"system:.*\" | line_format \"RBAC {{.verb}} {{.res}}/{{.name}} by {{.user}} [{{.code}}]\""
+          "expr": "{log_type=\"audit\"} |~ \"(role|clusterrole)\" | json | verb=~\"(create|update|patch|delete)\" | objectRef_resource=~\"(rolebindings|clusterrolebindings|clusterroles|roles)\" | user_username!~\"system:.*\" | line_format \"RBAC {{.verb}} {{.objectRef_resource}}/{{.objectRef_name}} by {{.user_username}}\""
         },
         {
           "datasource": "Loki (Audit)",
           "refId": "B",
-          "expr": "{log_type=\"audit\"} |~ \"(exec|attach)\" | json verb=\"verb\", sub=\"objectRef_subresource\", ns=\"objectRef_namespace\", name=\"objectRef_name\", user=\"user_username\", code=\"responseStatus_code\" | verb=\"create\" | sub=~\"(exec|attach)\" | line_format \"{{.sub}} {{.ns}}/{{.name}} by {{.user}} [{{.code}}]\""
+          "expr": "{log_type=\"audit\"} |~ \"(exec|attach)\" | json | verb=\"create\" | objectRef_subresource=~\"(exec|attach)\" | line_format \"{{.objectRef_subresource}} {{.objectRef_namespace}}/{{.objectRef_name}} by {{.user_username}}\""
         },
         {
           "datasource": "Loki (Audit)",
           "refId": "C",
-          "expr": "{log_type=\"audit\"} |~ \"impersonatedUser\" | json verb=\"verb\", impUser=\"impersonatedUser_username\", user=\"user_username\", res=\"objectRef_resource\", code=\"responseStatus_code\" | impUser!=\"\" | line_format \"IMPERSONATE {{.user}} as {{.impUser}}: {{.verb}} {{.res}} [{{.code}}]\""
+          "expr": "{log_type=\"audit\"} |~ \"impersonatedUser\" | json | impersonatedUser_username!=\"\" | line_format \"IMPERSONATE {{.user_username}} as {{.impersonatedUser_username}}: {{.verb}} {{.objectRef_resource}}\""
         }
       ],
       "title": "Security Event Feed",
