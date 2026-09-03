@@ -64,8 +64,10 @@ subjects:
     name: {{ $sa }}
     namespace: {{ $ns }}
 {{- end }}
-{{- if .Values.application.enabled }}
 ---
+# Application log collection RBAC is always required — the app-logs input
+# is always present (either routed to Loki or dropped to silence the
+# ClusterLogForwarderRuntimeConfigurationMissingUnmatched alert).
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
@@ -82,7 +84,6 @@ subjects:
   - kind: ServiceAccount
     name: {{ $sa }}
     namespace: {{ $ns }}
-{{- end }}
 ---
 {{- end }}
 apiVersion: observability.openshift.io/v1
@@ -113,11 +114,12 @@ spec:
           - container
           - node
     {{- end }}
-    {{- if .Values.application.enabled }}
+    # Application input is always defined to prevent the
+    # ClusterLogForwarderRuntimeConfigurationMissingUnmatched alert.
+    # When application.enabled is false, a drop-all filter discards them.
     - name: app-logs
       type: application
       application: {}
-    {{- end }}
   filters:
     - name: kube-api-audit-policy
       type: kubeAPIAudit
@@ -198,6 +200,17 @@ spec:
             - field: .kubernetes.container_name
               matches: '^kube-rbac-proxy'
     {{- end }}
+    {{- if not .Values.application.enabled }}
+    # Catch-all drop for application logs — prevents storage in Loki
+    # while satisfying the operator's requirement that every log type
+    # has a matching pipeline.
+    - name: drop-all-app
+      type: drop
+      drop:
+        - test:
+            - field: .message
+              matches: '.'
+    {{- end }}
   outputs:
     - name: local-loki
       type: lokiStack
@@ -237,6 +250,16 @@ spec:
     - name: app-to-loki
       inputRefs:
         - app-logs
+      outputRefs:
+        - local-loki
+    {{- else }}
+    # Application logs collected and dropped — nothing reaches Loki.
+    # This pipeline exists solely to silence the MissingUnmatched alert.
+    - name: app-drop
+      inputRefs:
+        - app-logs
+      filterRefs:
+        - drop-all-app
       outputRefs:
         - local-loki
     {{- end }}
