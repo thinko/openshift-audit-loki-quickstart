@@ -55,6 +55,9 @@ clusterLogForwarder:
     - kubeAPI
     - openshiftAPI
     - ovn
+  # When true, secret reads by human users pass through the filter.
+  # System-account secret reads are always dropped.
+  keepSecretReads: true
   drop:
     verbPattern: '^(get|list|watch)$'
     usernamePattern: '^system:(node|serviceaccount:kube-system|serviceaccount:openshift-.*)'

@@ -183,7 +183,7 @@
         {
           "datasource": "Loki (Audit)",
           "editorMode": "code",
-          "expr": "{log_type=\"audit\"} | json | objectRef_resource=\"secrets\" | user_username!~\"system:.*\" | line_format \"{{.verb}} secret/{{.objectRef_name}} in {{.objectRef_namespace}} by {{.user_username}}\"",
+          "expr": "{log_type=\"audit\"} | json | objectRef_resource=\"secrets\" | verb=~\"(get|list|create|update|patch|delete)\" | user_username!~\"system:.*\" | line_format \"{{.verb | ToUpper}} {{.objectRef_namespace}}/{{.objectRef_name}} by {{.user_username}}\"",
           "queryType": "range",
           "refId": "A"
         }
@@ -208,24 +208,17 @@
       "description": "Count of mutation events (create/update/patch/delete) over 5-minute windows",
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
+          "unit": "short",
           "custom": {
-            "fillOpacity": 80,
-            "lineWidth": 1
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "short"
+            "lineWidth": 2,
+            "fillOpacity": 40,
+            "showPoints": "never",
+            "drawStyle": "bars",
+            "barAlignment": 0,
+            "stacking": {
+              "mode": "none"
+            }
+          }
         },
         "overrides": []
       },
@@ -237,9 +230,6 @@
       },
       "id": 5,
       "options": {
-        "barWidth": 0.9,
-        "groupWidth": 0.7,
-        "showValue": "never",
         "tooltip": {
           "mode": "single"
         },
@@ -251,33 +241,22 @@
         {
           "datasource": "Loki (Audit)",
           "editorMode": "code",
-          "expr": "sum(count_over_time({log_type=\"audit\"} | json | verb=~\"(create|update|patch|delete)\" [15m]))",
+          "expr": "sum(count_over_time({log_type=\"audit\"} | json | verb=~\"(create|update|patch|delete)\" [5m]))",
           "legendFormat": "mutations/5m",
           "queryType": "range",
           "refId": "A"
         }
       ],
       "title": "Activity Histogram",
-      "type": "barchart"
+      "type": "timeseries"
     },
     {
       "datasource": "Loki (Audit)",
       "description": "Distribution of audit events by API verb over the last hour",
       "fieldConfig": {
         "defaults": {
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "custom": {
-            "fillOpacity": 80,
-            "lineWidth": 1
+          "color": {
+            "mode": "palette-classic"
           }
         },
         "overrides": []
@@ -290,14 +269,24 @@
       },
       "id": 6,
       "options": {
-        "orientation": "horizontal",
-        "barWidth": 0.7,
-        "showValue": "auto",
-        "tooltip": {
-          "mode": "single"
+        "pieType": "donut",
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
         },
         "legend": {
-          "displayMode": "hidden"
+          "displayMode": "table",
+          "placement": "right",
+          "values": [
+            "percent",
+            "value"
+          ]
+        },
+        "tooltip": {
+          "mode": "single"
         }
       },
       "targets": [
@@ -311,7 +300,7 @@
         }
       ],
       "title": "Events by Verb",
-      "type": "barchart"
+      "type": "piechart"
     },
     {
       "collapsed": false,

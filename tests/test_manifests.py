@@ -62,17 +62,27 @@ def test_clusterlogforwarder_edge_filters(repo_root: Path):
     drop = filters["drop-audit-noise"]
     assert drop["type"] == "drop"
     tests = drop["drop"]
-    verb = tests[0]["test"][0]
-    user = tests[1]["test"][0]
-    assert verb["field"] == ".verb"
-    assert verb["matches"] == "^(get|list|watch)$"
+    # First entry drops watch, second drops get/list (except secrets),
+    # third drops system account noise.
+    assert tests[0]["test"][0]["field"] == ".verb"
+    assert tests[0]["test"][0]["matches"] == "^watch$"
+    assert tests[1]["test"][0]["matches"] == "^(get|list)$"
+    assert tests[1]["test"][1]["field"] == ".objectRef.resource"
+    assert tests[1]["test"][1]["notMatches"] == "^secrets$"
+    user = tests[2]["test"][0]
     assert user["field"] == ".user.username"
     assert "serviceaccount:openshift-.*" in user["matches"]
 
     kube = filters["kube-api-audit-policy"]
     assert kube["type"] == "kubeAPIAudit"
-    none_verbs = kube["kubeAPIAudit"]["rules"][0]["verbs"]
-    assert none_verbs == ["get", "list", "watch"]
+    rules = kube["kubeAPIAudit"]["rules"]
+    # System accounts dropped first, then secret reads kept, then blanket drop.
+    assert rules[0]["level"] == "None"  # system account drop
+    assert "system:node*" in rules[0]["users"]
+    assert rules[1]["level"] == "Metadata"  # secret reads kept
+    assert rules[1]["resources"][0]["resources"] == ["secrets"]
+    assert rules[2]["level"] == "None"  # blanket get/list/watch drop
+    assert rules[2]["verbs"] == ["get", "list", "watch"]
 
     outputs = {o["name"]: o for o in spec["outputs"]}
     loki = outputs["local-loki"]

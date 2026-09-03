@@ -113,25 +113,46 @@ spec:
         omitStages:
           - RequestReceived
         rules:
-          - level: None
-            verbs:
-              - get
-              - list
-              - watch
+          # Drop: system accounts first (they're always noise).
           - level: None
             users:
               - "system:node*"
               - "system:serviceaccount:kube-system:*"
               - "system:serviceaccount:openshift-*"
+          # Keep: human users reading secrets (credential access detection).
+          # This rule MUST precede the blanket get/list/watch drop so
+          # secret reads by real users (IAM, admin, developer) are retained.
+          - level: Metadata
+            verbs:
+              - get
+              - list
+            resources:
+              - group: ""
+                resources:
+                  - secrets
+          # Drop: all other read-only operations (high volume, low value).
+          - level: None
+            verbs:
+              - get
+              - list
+              - watch
+          # Keep: everything else at Metadata level (mutations, etc.)
           - level: Metadata
     # Vector drop filter as a second gate. Tests in one drop[] entry are OR'd;
     # conditions inside a single test[] are AND'd. Missing fields evaluate false.
     - name: drop-audit-noise
       type: drop
       drop:
+        # Drop watch (always noise).
         - test:
             - field: .verb
-              matches: '^(get|list|watch)$'
+              matches: '^watch$'
+        # Drop get/list EXCEPT secrets (human secret reads are kept by policy).
+        - test:
+            - field: .verb
+              matches: '^(get|list)$'
+            - field: .objectRef.resource
+              notMatches: '^secrets$'
         - test:
             - field: .user.username
               matches: '^system:(node|serviceaccount:kube-system|serviceaccount:openshift-.*)'

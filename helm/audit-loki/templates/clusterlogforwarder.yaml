@@ -125,21 +125,43 @@ spec:
         omitStages:
           {{- toYaml .Values.clusterLogForwarder.kubeAPIAudit.omitStages | nindent 10 }}
         rules:
+          # Drop system accounts first (always noise).
+          - level: None
+            users:
+              {{- toYaml .Values.clusterLogForwarder.kubeAPIAudit.dropUsers | nindent 14 }}
+          {{- if .Values.clusterLogForwarder.keepSecretReads }}
+          # Keep: human users reading secrets (credential access detection).
+          - level: Metadata
+            verbs:
+              - get
+              - list
+            resources:
+              - group: ""
+                resources:
+                  - secrets
+          {{- end }}
+          # Drop all other read-only operations (high volume, low value).
           - level: None
             verbs:
               - get
               - list
               - watch
-          - level: None
-            users:
-              {{- toYaml .Values.clusterLogForwarder.kubeAPIAudit.dropUsers | nindent 14 }}
           - level: Metadata
     - name: drop-audit-noise
       type: drop
       drop:
+        # Drop watch (always noise).
         - test:
             - field: .verb
-              matches: {{ .Values.clusterLogForwarder.drop.verbPattern | quote }}
+              matches: '^watch$'
+        # Drop get/list except secrets (human secret reads kept by policy).
+        - test:
+            - field: .verb
+              matches: '^(get|list)$'
+            {{- if .Values.clusterLogForwarder.keepSecretReads }}
+            - field: .objectRef.resource
+              notMatches: '^secrets$'
+            {{- end }}
         - test:
             - field: .user.username
               matches: {{ .Values.clusterLogForwarder.drop.usernamePattern | quote }}
