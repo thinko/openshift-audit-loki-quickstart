@@ -490,54 +490,8 @@
     {
       "datasource": "Prometheus",
       "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "fillOpacity": 80,
-            "lineWidth": 1
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "namespace"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 200
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "pod"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 300
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Value"
-            },
-            "properties": [
-              {
-                "id": "displayName",
-                "value": "Restarts/hr"
-              },
-              {
-                "id": "custom.width",
-                "value": 120
-              }
-            ]
-          }
-        ]
+        "defaults": {},
+        "overrides": []
       },
       "gridPos": {
         "h": 7,
@@ -547,15 +501,13 @@
       },
       "id": 9,
       "options": {
-        "orientation": "horizontal",
-        "barWidth": 0.7,
-        "showValue": "auto",
-        "tooltip": {
-          "mode": "single"
-        },
-        "legend": {
-          "displayMode": "hidden"
-        }
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "Value",
+            "desc": true
+          }
+        ]
       },
       "targets": [
         {
@@ -568,18 +520,17 @@
         }
       ],
       "title": "Pod Restarts Top 10",
-      "type": "barchart",
+      "type": "table",
       "transformations": [
         {
-          "id": "organize",
+          "id": "sortBy",
           "options": {
-            "excludeByName": {
-              "Time": true
-            },
-            "indexByName": {},
-            "renameByName": {
-              "Value": "Restarts/hr"
-            }
+            "sort": [
+              {
+                "field": "Value",
+                "desc": true
+              }
+            ]
           }
         }
       ]
