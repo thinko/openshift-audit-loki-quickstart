@@ -1,0 +1,29 @@
+# values-prod.yaml — Production environment (30+ nodes, hundreds of projects)
+# Usage: helm upgrade --install audit-loki ./helm/audit-loki \
+#          -f helm/audit-loki/values.yaml \
+#          -f helm/audit-loki/values-prod.yaml
+
+lokiStack:
+  size: 1x.medium
+  # Total resource footprint: 54 vCPU, 139 Gi memory, 590 Gi disk
+  # Supports: 2 TB/day ingest, 25-75 QPS at 200ms
+  retentionDays: 30
+  auditRetentionDays: 90
+  queryLimits:
+    maxEntriesLimitPerQuery: 20000
+    maxChunksPerQuery: 8000000
+    maxQuerySeries: 2000
+  ingestionLimits:
+    ingestionRate: 16
+    ingestionBurstSize: 24
+
+infrastructure:
+  enabled: true
+  retentionDays: 30
+  dropProbeNoise: true
+  dropDnsNoise: true
+
+# Enable application logging in production if teams opt in.
+application:
+  enabled: false
+  retentionDays: 14

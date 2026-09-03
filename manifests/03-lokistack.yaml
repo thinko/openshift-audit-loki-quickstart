@@ -35,6 +35,17 @@ spec:
     global:
       retention:
         days: 7
+      queries:
+        maxEntriesLimitPerQuery: 5000
+        maxChunksPerQuery: 2000000
+        maxQuerySeries: 500
+      ingestion:
+        ingestionRate: 4
+        ingestionBurstSize: 6
+        maxLabelNameLength: 1024
+        maxLabelValueLength: 2048
+        maxLabelNamesPerSeries: 30
+        maxGlobalStreamsPerTenant: 0
     tenants:
       audit:
         retention:
@@ -42,4 +53,7 @@ spec:
       infrastructure:
         retention:
           days: 7
+        queries:
+          maxEntriesLimitPerQuery: 5000
+          maxQuerySeries: 500
       # Application tenant intentionally excluded — out of customer scope.

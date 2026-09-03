@@ -23,6 +23,10 @@ operator:
 lokiStack:
   name: logging-loki
   namespace: openshift-logging
+  # Size profiles (cannot change the 1x prefix):
+  #   1x.extra-small  — 100 GB/day, 14 vCPU, 31 Gi  (sandbox / ≤10 nodes)
+  #   1x.small        — 500 GB/day, 34 vCPU, 67 Gi  (test / 10-30 nodes)
+  #   1x.medium       — 2 TB/day,   54 vCPU, 139 Gi (prod / 30+ nodes)
   size: 1x.extra-small
   storageClassName: managed-csi
   retentionDays: 7
@@ -30,6 +34,19 @@ lokiStack:
   schema:
     version: v13
     effectiveDate: "2024-10-01"
+  # Query limits protect the querier from OOM on wide time-range queries.
+  queryLimits:
+    maxEntriesLimitPerQuery: 5000
+    maxChunksPerQuery: 2000000
+    maxQuerySeries: 500
+  # Ingestion limits prevent a single tenant from overwhelming the cluster.
+  ingestionLimits:
+    ingestionRate: 4
+    ingestionBurstSize: 6
+    maxLabelNameLength: 1024
+    maxLabelValueLength: 2048
+    maxLabelNamesPerSeries: 30
+    maxGlobalStreamsPerTenant: 0
 
 # Object storage for Loki (Azure Blob). Prefer existingSecret in GitOps.
 azure:
