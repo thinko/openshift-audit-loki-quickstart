@@ -69,7 +69,8 @@
         }
       ],
       "title": "RBAC Changes",
-      "type": "logs"
+      "type": "logs",
+      "maxDataPoints": 50
     },
     {
       "datasource": "Loki (Audit)",
@@ -105,7 +106,8 @@
         }
       ],
       "title": "Pod Exec / Attach",
-      "type": "logs"
+      "type": "logs",
+      "maxDataPoints": 50
     },
     {
       "collapsed": false,
@@ -153,7 +155,8 @@
         }
       ],
       "title": "Failed Authorization (403s)",
-      "type": "logs"
+      "type": "logs",
+      "maxDataPoints": 50
     },
     {
       "datasource": "Loki (Audit)",
@@ -189,7 +192,8 @@
         }
       ],
       "title": "Secret Access by Humans",
-      "type": "logs"
+      "type": "logs",
+      "maxDataPoints": 50
     },
     {
       "collapsed": false,
@@ -248,7 +252,8 @@
         }
       ],
       "title": "Activity Histogram",
-      "type": "timeseries"
+      "type": "timeseries",
+      "maxDataPoints": 30
     },
     {
       "datasource": "Loki (Audit)",
@@ -300,7 +305,8 @@
         }
       ],
       "title": "Events by Verb",
-      "type": "piechart"
+      "type": "piechart",
+      "maxDataPoints": 30
     },
     {
       "collapsed": false,
@@ -348,7 +354,8 @@
         }
       ],
       "title": "Resource Deletions by Humans",
-      "type": "logs"
+      "type": "logs",
+      "maxDataPoints": 50
     },
     {
       "datasource": "Loki (Audit)",
@@ -389,7 +396,8 @@
         }
       ],
       "title": "Privilege Escalation & Impersonation",
-      "type": "logs"
+      "type": "logs",
+      "maxDataPoints": 50
     }
   ],
   "schemaVersion": 39,
