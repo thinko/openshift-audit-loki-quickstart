@@ -47,21 +47,17 @@ oc create configmap grafana-datasource-provisioning \
 
 # ── Step 4: Create dashboards ConfigMap from JSON files ──
 echo "==> Building dashboards ConfigMap from JSON files..."
-DASHBOARD_ARGS=""
-for dashboard_file in "${ROOT}"/dashboards/grafana-*.json; do
-  [ -f "${dashboard_file}" ] || continue
-  filename=$(basename "${dashboard_file}")
-  echo "    Adding: ${filename}"
-  DASHBOARD_ARGS="${DASHBOARD_ARGS} --from-file=${filename}=${dashboard_file}"
-done
-
-if [ -n "${DASHBOARD_ARGS}" ]; then
-  eval oc create configmap grafana-dashboards \
-    -n "${GRAFANA_NAMESPACE}" \
-    ${DASHBOARD_ARGS} \
-    --dry-run=client -o yaml | oc apply -f -
-else
+mapfile -t DASHBOARD_FILES < <(find "${ROOT}/dashboards" -maxdepth 1 -name 'grafana-*.json' -print | sort)
+if [ "${#DASHBOARD_FILES[@]}" -eq 0 ]; then
   echo "    WARN: No grafana-*.json files found in dashboards/"
+else
+  CM_ARGS=(create configmap grafana-dashboards -n "${GRAFANA_NAMESPACE}")
+  for dashboard_file in "${DASHBOARD_FILES[@]}"; do
+    filename=$(basename "${dashboard_file}")
+    echo "    Adding: ${filename}"
+    CM_ARGS+=(--from-file="${filename}=${dashboard_file}")
+  done
+  oc "${CM_ARGS[@]}" --dry-run=client -o yaml | oc apply -f -
 fi
 
 # ── Step 5: Set the image and apply the Deployment + Service + Route ──
