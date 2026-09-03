@@ -241,15 +241,14 @@
         {
           "datasource": "Loki (Audit)",
           "editorMode": "code",
-          "expr": "sum(count_over_time({log_type=\"audit\"} |~ \"(create|update|patch|delete)\" | json | verb=~\"(create|update|patch|delete)\" [$__interval]))",
+          "expr": "sum(count_over_time({log_type=\"audit\"} |~ \"(create|update|patch|delete)\" | json verb=\"verb\" | verb=~\"(create|update|patch|delete)\" [5m]))",
           "legendFormat": "mutations/5m",
           "queryType": "range",
           "refId": "A"
         }
       ],
       "title": "Activity Histogram",
-      "type": "timeseries",
-      "interval": "5m"
+      "type": "timeseries"
     },
     {
       "datasource": "Loki (Audit)",
@@ -294,15 +293,14 @@
         {
           "datasource": "Loki (Audit)",
           "editorMode": "code",
-          "expr": "sum by (verb) (count_over_time({log_type=\"audit\"} | json [$__interval]))",
+          "expr": "sum by (verb) (count_over_time({log_type=\"audit\"} | json verb=\"verb\" [5m]))",
           "legendFormat": "{{verb}}",
           "queryType": "range",
           "refId": "A"
         }
       ],
       "title": "Events by Verb",
-      "type": "piechart",
-      "interval": "5m"
+      "type": "piechart"
     },
     {
       "collapsed": false,

@@ -448,14 +448,13 @@
       "targets": [
         {
           "datasource": "Loki (Infrastructure)",
-          "expr": "sum by (kubernetes_namespace_name) (count_over_time({log_type=\"infrastructure\", kubernetes_namespace_name=~\"openshift-.*\"} [$__interval]))",
+          "expr": "sum by (kubernetes_namespace_name) (count_over_time({log_type=\"infrastructure\", kubernetes_namespace_name=~\"openshift-.*\"} [5m]))",
           "legendFormat": "{{kubernetes_namespace_name}}",
           "refId": "A"
         }
       ],
       "title": "Operator Log Volume by Namespace",
-      "type": "timeseries",
-      "interval": "5m"
+      "type": "timeseries"
     },
     {
       "datasource": "Loki (Infrastructure)",
@@ -493,14 +492,13 @@
       "targets": [
         {
           "datasource": "Loki (Infrastructure)",
-          "expr": "topk(15, sum by (kubernetes_namespace_name) (count_over_time({log_type=\"infrastructure\", kubernetes_namespace_name=~\"openshift-.*\"} |~ \"(?i)error\" [$__interval])))",
+          "expr": "topk(15, sum by (kubernetes_namespace_name) (count_over_time({log_type=\"infrastructure\", kubernetes_namespace_name=~\"openshift-.*\"} |~ \"(?i)error\" [5m])))",
           "legendFormat": "{{kubernetes_namespace_name}}",
           "refId": "A"
         }
       ],
       "title": "Namespace Error Rate",
-      "type": "timeseries",
-      "interval": "15m"
+      "type": "timeseries"
     },
     {
       "collapsed": false,
