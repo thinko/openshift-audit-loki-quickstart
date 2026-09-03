@@ -352,7 +352,7 @@
     },
     {
       "datasource": "Loki (Audit)",
-      "description": "Privilege escalation attempts \u2014 bind, escalate, impersonate verbs",
+      "description": "Detects: (1) any API request using impersonation (--as), (2) human users creating/modifying cluster-level RBAC roles and bindings. Both are privilege escalation vectors.",
       "fieldConfig": {
         "defaults": {},
         "overrides": []
@@ -377,13 +377,18 @@
       "targets": [
         {
           "datasource": "Loki (Audit)",
-          "editorMode": "code",
-          "expr": "{log_type=\"audit\"} | json | verb=~\"(bind|escalate|impersonate)\" | line_format \"{{.verb | ToUpper}} by {{.user_username}}: {{.objectRef_resource}}/{{.objectRef_name}} [{{.responseStatus_code}}]\"",
-          "queryType": "range",
-          "refId": "A"
+          "refId": "A",
+          "expr": "{log_type=\"audit\"} | json | impersonatedUser_username!=\"\" | line_format \"IMPERSONATE {{.user_username}} acting as {{.impersonatedUser_username}}: {{.verb}} {{.objectRef_resource}} [{{.responseStatus_code}}]\"",
+          "legendFormat": ""
+        },
+        {
+          "datasource": "Loki (Audit)",
+          "refId": "B",
+          "expr": "{log_type=\"audit\"} | json | verb=~\"(create|update|patch)\" | objectRef_resource=~\"(clusterroles|clusterrolebindings)\" | user_username!~\"system:.*\" | line_format \"RBAC-GRANT {{.verb | ToUpper}} {{.objectRef_resource}}/{{.objectRef_name}} by {{.user_username}} [{{.responseStatus_code}}]\"",
+          "legendFormat": ""
         }
       ],
-      "title": "Privilege Escalation",
+      "title": "Privilege Escalation & Impersonation",
       "type": "logs"
     }
   ],
