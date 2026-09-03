@@ -102,6 +102,51 @@ Azure Blob Storage costs scale with retention and ingest volume:
 Use Azure Lifecycle Management policies to automatically tier or delete
 objects past the retention window as a safety net.
 
+## Alerting
+
+### Alert Categories
+
+Alerts are split into two groups that avoid duplicating built-in OCP alerts:
+
+| Group | Alerts | Purpose |
+|-------|--------|---------|
+| `lokistack-health` | LokiIngesterNotReady, LokiQuerierNotReady, LokiCompactorNotReady, LokiHighRequestErrorRate, LokiPVCNearlyFull, LokiComponentRestarting | Detects Loki component failures, disk pressure, and crash loops |
+| `audit-pipeline-health` | AuditLogIngestionStopped, InfraLogIngestionStopped, AuditFilterEffectivenessLow, AuditIngestionSpike | Detects pipeline breaks, filter drift, and unusual activity |
+
+### Threshold Scaling
+
+| Threshold | Sandbox | Test | Prod | Why |
+|-----------|---------|------|------|-----|
+| `componentNotReadyFor` | 10m | 5m | 5m | Sandbox has fewer resources, slower recovery |
+| `errorRatePercent` | 10% | 5% | 3% | Tighter in prod where reliability matters |
+| `pvcUsagePercent` | 85% | 85% | 80% | Earlier warning in prod for capacity planning |
+| `ingestionStoppedFor` | 30m | 15m | 10m | Faster detection in prod |
+| `ingestionSpikeMultiplier` | 3x | 3x | 2x | Lower threshold catches anomalies sooner in prod |
+
+### Notification Routing
+
+The `AlertmanagerConfig` resource is disabled by default. To enable:
+
+1. Set `alerting.receiver.enabled: true` in the environment values file
+2. Configure `alerting.receiver.webhookUrl` with a PagerDuty, Slack, or
+   Teams webhook endpoint
+3. Deploy with `make deploy-alerting` or via Helm upgrade
+
+Critical alerts (severity=critical) repeat at `criticalRepeatInterval`
+(default 1h); warnings repeat at `repeatInterval` (default 4h).
+
+### Avoiding Duplicate Alerts
+
+The following alert types are already covered by built-in OCP monitoring
+and should NOT be added to our PrometheusRule:
+
+- `KubeDeploymentReplicasMismatch` — covers general deployment health
+- `KubeContainerWaiting` — covers stuck containers
+- `KubePodNotReady` — covers pod readiness
+- `KubeDeploymentRolloutStuck` — covers rollout failures
+- `KubePodCrashLooping` — covers crash loops (our `LokiComponentRestarting`
+  is Loki-specific with a different threshold)
+
 ## Pre-deployment Checklist
 
 Before deploying to a new environment:

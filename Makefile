@@ -14,7 +14,7 @@ endef
 
 .PHONY: help deploy deploy-operators destroy test test-attribution enable-console-plugin \
 	helm-lint helm-template secret azure-storage status preflight apply-rbac check-egress \
-	deploy-grafana destroy-grafana deploy-console-dashboards lint
+	deploy-grafana destroy-grafana deploy-console-dashboards deploy-alerting lint
 
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*##"; printf "\nTargets:\n"} /^[a-zA-Z0-9_.-]+:.*##/ { printf "  %-24s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -110,5 +110,9 @@ destroy-grafana: ## Remove standalone Grafana deployment and associated resource
 deploy-console-dashboards: ## Deploy Prometheus dashboards to OCP Console (Observe > Dashboards)
 	oc apply -f "$(ROOT)/manifests/11-console-dashboards.yaml"
 	@echo "==> Console dashboards deployed to Observe > Dashboards"
+
+deploy-alerting: ## Deploy PrometheusRule and AlertmanagerConfig for LokiStack alerts
+	oc apply -f "$(ROOT)/manifests/12-alerting.yaml"
+	@echo "==> Alerting rules deployed. Verify: oc -n openshift-logging get prometheusrule,alertmanagerconfig"
 
 lint: test ## Alias for test

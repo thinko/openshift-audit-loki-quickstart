@@ -119,5 +119,35 @@ consolePlugin:
   enabled: false
   name: logging-view-plugin
 
+# ── Alerting ──────────────────────────────────────────────────────
+# PrometheusRule alerts for LokiStack health and audit pipeline.
+# These target conditions unique to this deployment; built-in OCP
+# alerts (KubeDeployment*, KubePodNotReady, etc.) are not duplicated.
+alerting:
+  enabled: true
+  thresholds:
+    # Duration before a Loki component down triggers critical.
+    componentNotReadyFor: 5m
+    # Loki 5xx error rate percentage threshold.
+    errorRatePercent: 5
+    # PVC usage percentage before warning.
+    pvcUsagePercent: 85
+    # Restart count in 30 minutes before warning.
+    restartCount: 3
+    # Duration of zero ingestion before alert fires.
+    ingestionStoppedFor: 15m
+    # Minimum audit filter effectiveness (percentage).
+    filterEffectivenessMinPercent: 50
+    # Multiplier over 1h average that constitutes an ingestion spike.
+    ingestionSpikeMultiplier: 3
+  # AlertmanagerConfig receiver (for notification routing).
+  # Disabled by default — enable and configure per environment.
+  receiver:
+    enabled: false
+    name: loki-audit-webhook
+    webhookUrl: "http://placeholder.example.com/webhook"
+    repeatInterval: 4h
+    criticalRepeatInterval: 1h
+
 # Extra labels applied to all rendered resources.
 labels: {}

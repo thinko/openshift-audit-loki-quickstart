@@ -25,3 +25,11 @@ infrastructure:
 # Applications out of scope for sandbox.
 application:
   enabled: false
+
+# Alerting enabled with relaxed thresholds for sandbox.
+alerting:
+  enabled: true
+  thresholds:
+    componentNotReadyFor: 10m
+    errorRatePercent: 10
+    ingestionStoppedFor: 30m

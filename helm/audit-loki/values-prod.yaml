@@ -27,3 +27,22 @@ infrastructure:
 application:
   enabled: false
   retentionDays: 14
+
+# Production alerting with tighter thresholds and notification routing.
+alerting:
+  enabled: true
+  thresholds:
+    componentNotReadyFor: 5m
+    errorRatePercent: 3
+    pvcUsagePercent: 80
+    restartCount: 2
+    ingestionStoppedFor: 10m
+    filterEffectivenessMinPercent: 60
+    ingestionSpikeMultiplier: 2
+  # Uncomment and configure for production notifications:
+  # receiver:
+  #   enabled: true
+  #   name: loki-audit-pagerduty
+  #   webhookUrl: "https://events.pagerduty.com/generic/..."
+  #   repeatInterval: 4h
+  #   criticalRepeatInterval: 30m
