@@ -237,7 +237,7 @@
       "targets": [
         {
           "datasource": "Loki (Infrastructure)",
-          "expr": "{log_type=\"infrastructure\", kubernetes_namespace_name=\"openshift-etcd\"} |~ \"(?i)(slow|took too long|overloaded|leader changed|compaction|snapshot|apply request took)\" | json message=\"message\" | line_format \"{{.message}}\"",
+          "expr": "{log_type=\"infrastructure\", kubernetes_namespace_name=\"openshift-etcd\"} |~ \"(?i)(slow|took too long|overloaded|leader changed|compaction|snapshot|apply request took)\" | json message=\"message\" | line_format \"{{ .kubernetes_pod_name }}: {{ .message | trunc 200 }}\"",
           "refId": "A"
         }
       ],
@@ -381,7 +381,7 @@
       "options": {
         "showTime": true,
         "sortOrder": "Descending",
-        "enableLogDetails": false,
+        "enableLogDetails": true,
         "wrapLogMessage": true,
         "dedupStrategy": "signature",
         "prettifyLogMessage": false
@@ -389,7 +389,7 @@
       "targets": [
         {
           "datasource": "Loki (Infrastructure)",
-          "expr": "{log_type=\"infrastructure\", kubernetes_namespace_name=~\"openshift-.*\"} |~ \"(?i)(error|fail|exception|panic)\" != \"healthz\" != \"readyz\" != \"livez\" != \"metrics\" != \"error_count=0\" | json message=\"message\", namespace=\"kubernetes_namespace_name\", pod=\"kubernetes_pod_name\" | line_format \"{{.namespace}}/{{.pod}}: {{.message}}\"",
+          "expr": "{log_type=\"infrastructure\", kubernetes_namespace_name=~\"openshift-.*\"} |~ \"(?i)(error|fail|exception|panic)\" != \"healthz\" != \"readyz\" != \"livez\" != \"metrics\" != \"error_count=0\" | json message=\"message\" | line_format \"{{ .kubernetes_namespace_name }}/{{ .kubernetes_container_name }}: {{ .message | trunc 200 }}\"",
           "refId": "A"
         }
       ],
@@ -536,7 +536,7 @@
       "targets": [
         {
           "datasource": "Loki (Infrastructure)",
-          "expr": "{log_type=\"infrastructure\", kubernetes_namespace_name=\"openshift-dns\"} |~ \"(?i)(SERVFAIL|NXDOMAIN|error|timeout|refused)\" != \"NOERROR\" | json message=\"message\", pod=\"kubernetes_pod_name\" | line_format \"{{.pod}}: {{.message}}\"",
+          "expr": "{log_type=\"infrastructure\", kubernetes_namespace_name=\"openshift-dns\"} |~ \"(?i)(SERVFAIL|NXDOMAIN|error|timeout|refused)\" != \"NOERROR\" | json message=\"message\" | line_format \"{{ .kubernetes_pod_name }}: {{ .message | trunc 200 }}\"",
           "refId": "A"
         }
       ],
