@@ -85,6 +85,7 @@ metadata:
     argocd.argoproj.io/sync-wave: "3"
 spec:
   replicas: 1
+  revisionHistoryLimit: 2
   selector:
     matchLabels:
       app: loki-grafana
