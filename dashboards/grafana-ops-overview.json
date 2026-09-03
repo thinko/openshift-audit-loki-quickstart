@@ -623,7 +623,7 @@
     },
     {
       "datasource": "Loki (Audit)",
-      "description": "Combined security event feed \u2014 RBAC changes, exec/attach, privilege escalation",
+      "description": "Unified security event feed: RBAC mutations, pod exec/attach, and impersonation requests.",
       "fieldConfig": {
         "defaults": {},
         "overrides": []
@@ -648,10 +648,21 @@
       "targets": [
         {
           "datasource": "Loki (Audit)",
-          "editorMode": "code",
-          "expr": "{log_type=\"audit\"} |~ \"(rolebinding|clusterrole|exec|attach|bind|escalate|impersonate)\" | json | verb=~\"(create|update|patch|delete|bind|escalate|impersonate)\" | line_format \"{{.verb | ToUpper}} {{.objectRef_resource}}/{{.objectRef_name}} by {{.user_username}}\"",
-          "queryType": "range",
-          "refId": "A"
+          "refId": "A",
+          "expr": "{log_type=\"audit\"} | json | verb=~\"(create|update|patch|delete)\" | objectRef_resource=~\"(rolebindings|clusterrolebindings|clusterroles|roles)\" | user_username!~\"system:.*\" | line_format \"RBAC {{.verb | ToUpper}} {{.objectRef_resource}}/{{.objectRef_name}} by {{.user_username}} [{{.responseStatus_code}}]\"",
+          "legendFormat": ""
+        },
+        {
+          "datasource": "Loki (Audit)",
+          "refId": "B",
+          "expr": "{log_type=\"audit\"} |~ \"exec|attach\" | json | verb=~\"(create)\" | objectRef_subresource=~\"(exec|attach)\" | line_format \"{{.objectRef_subresource | ToUpper}} {{.objectRef_namespace}}/{{.objectRef_name}} by {{.user_username}} [{{.responseStatus_code}}]\"",
+          "legendFormat": ""
+        },
+        {
+          "datasource": "Loki (Audit)",
+          "refId": "C",
+          "expr": "{log_type=\"audit\"} | json | impersonatedUser_username!=\"\" | line_format \"IMPERSONATE {{.user_username}} as {{.impersonatedUser_username}}: {{.verb}} {{.objectRef_resource}} [{{.responseStatus_code}}]\"",
+          "legendFormat": ""
         }
       ],
       "title": "Security Event Feed",
