@@ -64,9 +64,26 @@ subjects:
     name: logging-collector
     namespace: openshift-logging
 ---
-# Application log collection RBAC is intentionally omitted.
-# Customer scope covers audit + infrastructure only.
-# To add later, uncomment and apply collect-application-logs CRB.
+# Application logs are collected and immediately dropped (not stored in Loki).
+# This RBAC + drop pipeline silences the
+# ClusterLogForwarderRuntimeConfigurationMissingUnmatched alert
+# that fires when a log type exists on the cluster with no matching pipeline.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: logging-collector-application-logs
+  labels:
+    app.kubernetes.io/name: clusterlogforwarder
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: collect-application-logs
+subjects:
+  - kind: ServiceAccount
+    name: logging-collector
+    namespace: openshift-logging
 ---
 # OpenShift Logging 6.x (OpenShift 4.14+ / 4.20): observability.openshift.io/v1.
 # The older logging.openshift.io/v1 ClusterLogForwarder API is removed in 6.x.
@@ -102,7 +119,11 @@ spec:
         sources:
           - container
           - node
-    # Application logs intentionally excluded — out of customer scope.
+    # Application logs are acknowledged but dropped to silence the
+    # ClusterLogForwarderRuntimeConfigurationMissingUnmatched alert.
+    - name: app-logs
+      type: application
+      application: {}
   filters:
     # kubeAPIAudit understands kube-apiserver JSON natively (wildcards, verbs).
     # Metadata (not RequestResponse) keeps user/verb/objectRef without bodies
@@ -189,6 +210,15 @@ spec:
               matches: '(tokenreview|authenticate).*success'
             - field: .kubernetes.container_name
               matches: '^kube-rbac-proxy'
+    # Catch-all drop for application logs — prevents storage in Loki
+    # while satisfying the operator's requirement that every log type
+    # has a matching pipeline.
+    - name: drop-all-app
+      type: drop
+      drop:
+        - test:
+            - field: .message
+              matches: '.'
   outputs:
     - name: local-loki
       type: lokiStack
@@ -220,4 +250,12 @@ spec:
         - drop-infra-noise
       outputRefs:
         - local-loki
-    # app-to-loki pipeline intentionally excluded — out of customer scope.
+    # Application logs are collected and dropped — nothing reaches Loki.
+    # This pipeline exists solely to silence the MissingUnmatched alert.
+    - name: app-drop
+      inputRefs:
+        - app-logs
+      filterRefs:
+        - drop-all-app
+      outputRefs:
+        - local-loki

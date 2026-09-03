@@ -55,8 +55,9 @@ def test_clusterlogforwarder_edge_filters(repo_root: Path):
     assert inputs["audit-logs"]["type"] == "audit"
     assert inputs["infra-logs"]["type"] == "infrastructure"
     assert inputs["infra-logs"]["infrastructure"]["sources"] == ["container", "node"]
-    # Application logs are intentionally excluded from customer scope.
-    assert "app-logs" not in inputs
+    # Application logs are collected but dropped to silence the
+    # ClusterLogForwarderRuntimeConfigurationMissingUnmatched alert.
+    assert inputs["app-logs"]["type"] == "application"
 
     filters = {f["name"]: f for f in spec["filters"]}
     drop = filters["drop-audit-noise"]
@@ -90,10 +91,23 @@ def test_clusterlogforwarder_edge_filters(repo_root: Path):
     assert loki["lokiStack"]["target"]["name"] == "logging-loki"
     assert loki["tls"]["ca"]["configMapName"] == "openshift-service-ca.crt"
 
-    pipeline = spec["pipelines"][0]
-    assert pipeline["inputRefs"] == ["audit-logs"]
-    assert pipeline["filterRefs"] == ["kube-api-audit-policy", "drop-audit-noise"]
-    assert pipeline["outputRefs"] == ["local-loki"]
+    # Verify drop-all-app filter exists (catches all app logs).
+    drop_all = filters["drop-all-app"]
+    assert drop_all["type"] == "drop"
+    assert drop_all["drop"][0]["test"][0]["field"] == ".message"
+    assert drop_all["drop"][0]["test"][0]["matches"] == "."
+
+    pipelines = {p["name"]: p for p in spec["pipelines"]}
+    audit = pipelines["audit-to-loki"]
+    assert audit["inputRefs"] == ["audit-logs"]
+    assert audit["filterRefs"] == ["kube-api-audit-policy", "drop-audit-noise"]
+    assert audit["outputRefs"] == ["local-loki"]
+
+    # App-drop pipeline: collects application logs and drops them all.
+    app_drop = pipelines["app-drop"]
+    assert app_drop["inputRefs"] == ["app-logs"]
+    assert app_drop["filterRefs"] == ["drop-all-app"]
+    assert app_drop["outputRefs"] == ["local-loki"]
 
 
 def test_no_legacy_logging_api(repo_root: Path):
@@ -115,7 +129,9 @@ def test_collector_rbac_present(repo_root: Path):
     assert "collect-audit-logs" in roles
     assert "logging-collector-logs-writer" in roles
     assert "collect-infrastructure-logs" in roles
-    # collect-application-logs intentionally excluded from customer scope.
+    # collect-application-logs is required for the app-drop pipeline
+    # (silences the MissingUnmatched alert).
+    assert "collect-application-logs" in roles
 
 
 def test_grafana_loki_gateway_rbac(repo_root: Path):
