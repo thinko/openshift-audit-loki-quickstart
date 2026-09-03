@@ -214,13 +214,14 @@
         "defaults": {
           "unit": "short",
           "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 40,
+            "lineWidth": 0,
+            "fillOpacity": 80,
             "showPoints": "never",
             "drawStyle": "bars",
             "barAlignment": 0,
             "stacking": {
-              "mode": "none"
+              "mode": "normal",
+              "group": "A"
             }
           }
         },
@@ -235,17 +236,19 @@
       "id": 5,
       "options": {
         "tooltip": {
-          "mode": "single"
+          "mode": "multi",
+          "sort": "desc"
         },
         "legend": {
-          "displayMode": "hidden"
+          "displayMode": "list",
+          "placement": "bottom"
         }
       },
       "targets": [
         {
           "datasource": "Loki (Audit)",
           "editorMode": "code",
-          "expr": "sum(count_over_time({log_type=\"audit\"} |~ \"(create|update|patch|delete)\" | json verb=\"verb\" | verb=~\"(create|update|patch|delete)\" [5m]))",
+          "expr": "sum by (verb) (count_over_time({log_type=\"audit\"} | json verb=\"verb\" | verb=~\"create|update|patch|delete\" [5m]))",
           "legendFormat": "mutations/5m",
           "queryType": "range",
           "refId": "A"
