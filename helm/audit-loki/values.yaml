@@ -57,8 +57,7 @@ azure:
   accountName: ""
   accountKey: ""
   container: loki-audit
-  # GitOps: token (Entra MI/app + federated credentials). Sandbox: static (account key).
-  # token-cco is only for clusters where CCO already mints Azure WIF.
+  # static (account key) | token (Entra Workload ID). token-cco is CCO-managed WIF.
   # Loki Operator does not accept client_secret.
   credentialMode: static
 

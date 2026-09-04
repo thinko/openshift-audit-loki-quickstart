@@ -22,7 +22,6 @@ def test_gitops_runbook_topics(repo_root: Path):
         "namespaces/openshift-logging",
         "REPLACE_ME_CLUSTER",
         "logging-loki-azure",
-        "client_id",
         "make enable-console-plugin",
         "1x.medium",
         "OperatorGroup",

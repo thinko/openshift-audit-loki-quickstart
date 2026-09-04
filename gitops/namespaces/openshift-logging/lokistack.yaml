@@ -1,6 +1,8 @@
 # 1x.medium: ~54 vCPU / 139 Gi / 590 Gi WAL (operator profile).
-# Object storage is Azure Blob via out-of-band secret logging-loki-azure
-# (Entra workload identity / service principal, credentialMode token).
+# Object storage is Azure Blob via out-of-band secret logging-loki-azure.
+# credentialMode static: operator-valid secret (account_name + account_key).
+# Some ARO tenants have neither a real account key nor Workload ID; Azure
+# auth is then patched out of band (do not commit client_secret).
 # Retention: 60 days for audit and infrastructure tenants.
 ---
 apiVersion: loki.grafana.com/v1
@@ -23,9 +25,7 @@ spec:
     secret:
       name: logging-loki-azure
       type: azure
-      # token = Entra app or user-assigned MI with federated credentials.
-      # Loki Operator does not accept client_secret. Do not use account_key here.
-      credentialMode: token
+      credentialMode: static
   storageClassName: managed-csi
   tenants:
     mode: openshift-logging

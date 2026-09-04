@@ -21,15 +21,17 @@ Do **not** copy `azure-cloud-credentials` (cluster identity).
 
 Optional tags: `purpose=loki-audit`, `workload=openshift-logging`.
 
-## Identity (GitOps / ARO)
+## Identity (optional — Entra Workload ID)
 
 Loki Operator **does not** support a Service Principal *password*
 (`client_secret`) in the object storage secret. Upstream Loki can;
 the operator closed that path in favor of Entra Workload Identity.
 
-Use a **dedicated** Entra identity (user-assigned managed identity, or an
-app registration with **federated credentials and no client secret**).
-Azure still calls the app a service principal (`client_id`).
+If the cluster has Workload ID, use a **dedicated** Entra identity
+(user-assigned managed identity, or an app registration with **federated
+credentials and no client secret**). Skip this section when the platform
+has neither a usable account key nor Workload ID — the operator cannot
+manage Azure auth in that case.
 
 1. Create the identity in the same tenant as the cluster.
 2. Assign **Storage Blob Data Contributor** on the storage account, or
@@ -52,47 +54,37 @@ Azure still calls the app a service principal (`client_id`).
 
 ## Deliver back to the OpenShift installers
 
-GitOps LokiStack uses `credentialMode: token`. Create this secret (no
-`account_key`, no `client_secret`):
+One of:
 
-```bash
-oc create secret generic logging-loki-azure \
-  -n openshift-logging \
-  --from-literal=environment=AzureGlobal \
-  --from-literal=account_name="${AZURE_STORAGE_ACCOUNT_NAME}" \
-  --from-literal=container="${AZURE_CONTAINER_NAME}" \
-  --from-literal=client_id="${AZURE_CLIENT_ID}" \
-  --from-literal=tenant_id="${AZURE_TENANT_ID}" \
-  --from-literal=subscription_id="${AZURE_SUBSCRIPTION_ID}" \
-  --from-literal=audience=api://AzureADTokenExchange
-```
+1. **Account name, account key, container name** (and cloud environment:
+   `AzureGlobal` unless China/US Gov/Germany). This matches GitOps
+   `credentialMode: static`. Installers run:
 
-| Secret key | Maps to |
-| --- | --- |
-| `account_name` | Storage account name |
-| `container` | Blob container |
-| `environment` | `AzureGlobal` unless China/US Gov/Germany |
-| `client_id` | Application (client) ID of the MI or app |
-| `tenant_id` | Entra tenant ID |
-| `subscription_id` | Subscription that holds the identity |
-| `audience` | `api://AzureADTokenExchange` |
+   ```bash
+   export AZURE_STORAGE_ACCOUNT_NAME='...'
+   export AZURE_STORAGE_ACCOUNT_KEY='...'
+   export AZURE_CONTAINER_NAME='...'
+   export AZURE_ENVIRONMENT='AzureGlobal'
+   make deploy
+   ```
 
-Then sync / `make deploy` with no Azure account key.
+   Or an Opaque Secret in `openshift-logging` named `logging-loki-azure`:
 
-### Sandbox fallback (account key)
+   | Secret key | Maps to |
+   | --- | --- |
+   | `account_name` | Storage account name |
+   | `account_key` | Key1 (or Key2) |
+   | `container` | Blob container |
+   | `environment` | `AzureGlobal` |
 
-Laptop `make deploy` still accepts `account_name` + `account_key` and
-`manifests/03-lokistack.yaml` stays `credentialMode: static`. Use that
-only when shared-key access is allowed. If the account has **Allow
-storage account key access** disabled, static mode cannot work.
+2. **Workload ID only** — if federated credentials are in place, omit
+   `account_key`, set LokiStack `credentialMode: token`, and use
+   `client_id` / `tenant_id` / `subscription_id` as in the identity
+   section above.
 
-```bash
-export AZURE_STORAGE_ACCOUNT_NAME='...'
-export AZURE_STORAGE_ACCOUNT_KEY='...'
-export AZURE_CONTAINER_NAME='...'
-export AZURE_ENVIRONMENT='AzureGlobal'
-make deploy
-```
+If the account has **Allow storage account key access** disabled and
+Workload ID is not available, static mode cannot work and token mode
+cannot work. That is a Loki Operator gap, not a missing kit flag.
 
 ## Network connectivity (critical)
 

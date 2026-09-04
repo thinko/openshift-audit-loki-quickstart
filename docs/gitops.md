@@ -61,21 +61,19 @@ needs its **own container**. Sharing a storage account across clusters is fine
 when each stack has a unique container. Never point two stacks at the same
 container.
 
-GitOps LokiStack uses `credentialMode: token` (Entra app or user-assigned MI
-with federated credentials). Loki Operator does **not** accept `client_secret`.
-See [azure-blob-request.md](azure-blob-request.md). Do not put `account_key`
-in this secret.
+GitOps LokiStack uses `credentialMode: static`. The operator will only accept
+the secret if it has `account_name`, `account_key`, `container`, and
+`environment`. It does **not** accept `client_secret`. Workload ID (`token`)
+is the other supported mode when the cluster actually has it. See
+[azure-blob-request.md](azure-blob-request.md).
 
 ```bash
 oc create secret generic logging-loki-azure \
   -n openshift-logging \
   --from-literal=environment=AzureGlobal \
   --from-literal=account_name="${AZURE_STORAGE_ACCOUNT_NAME}" \
-  --from-literal=container="${AZURE_CONTAINER_NAME}" \
-  --from-literal=client_id="${AZURE_CLIENT_ID}" \
-  --from-literal=tenant_id="${AZURE_TENANT_ID}" \
-  --from-literal=subscription_id="${AZURE_SUBSCRIPTION_ID}" \
-  --from-literal=audience=api://AzureADTokenExchange
+  --from-literal=account_key="${AZURE_STORAGE_ACCOUNT_KEY}" \
+  --from-literal=container="${AZURE_CONTAINER_NAME}"
 ```
 
 After LokiStack is Ready:

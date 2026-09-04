@@ -15,8 +15,7 @@ Sandbox installs still use `make deploy` from a laptop.
 3. Confirm `oc get operatorgroup -n openshift-logging` is empty (this folder
    creates one OperatorGroup). A second group breaks OLM.
 4. Create secret `logging-loki-azure` in `openshift-logging` out of band
-   with Entra `client_id` / `tenant_id` / `subscription_id` (token mode).
-   See [docs/gitops.md](../../../docs/gitops.md). Never commit secrets.
+   (see [docs/gitops.md](../../../docs/gitops.md)). Never commit secrets.
 5. Omit CatalogSource, ImageContentSourcePolicy, MachineConfigPool, and
    KubeletConfig — those are for mirrored IBM catalogs / dedicated node pools,
    not Red Hat Loki.
