@@ -420,21 +420,19 @@ function openInConsole(query, isPromql, consoleSearch, tenant) {
 
   const rangeMs = getTimeRange();
   const now = Date.now();
-  const start = new Date(now - rangeMs).toISOString();
-  const end = new Date(now).toISOString();
 
   if (isPromql) {
     const params = new URLSearchParams();
     params.set('query0', query);
-    params.set('endTime', end);
-    params.set('timeRange', String(Math.floor(rangeMs / 1000)));
+    params.set('endTime', String(now));
+    params.set('timeRange', String(rangeMs));
     window.open(base + '/monitoring/query-browser?' + params.toString(), '_blank');
   } else {
     const params = new URLSearchParams();
     params.set('q', query);
     params.set('tenant', tenant || 'audit');
-    params.set('start', start);
-    params.set('end', end);
+    params.set('start', String(now - rangeMs));
+    params.set('end', String(now));
     if (consoleSearch) params.set('text', consoleSearch);
     window.open(base + '/monitoring/logs?' + params.toString(), '_blank');
   }
