@@ -43,6 +43,8 @@ def test_common_has_operatorgroup_helpers(repo_root: Path):
     assert "ensure_single_operatorgroup" in text
     assert "check_failed_csvs" in text
     assert "check_unapproved_installplans" in text
+    assert "azure_secret_has_token_keys" in text
+    assert "client_id" in text
 
 
 def test_namespace_manifest_omits_logging_operatorgroup(repo_root: Path):

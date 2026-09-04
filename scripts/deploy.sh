@@ -15,8 +15,10 @@ Deploys Loki Operator + Cluster Logging Operator, an Azure-backed LokiStack
 enables the OpenShift console logging-view-plugin.
 
 Azure Blob is required for LokiStack (not for operator install):
-  AZURE_STORAGE_ACCOUNT_NAME and AZURE_STORAGE_ACCOUNT_KEY
-  or an existing Secret openshift-logging/logging-loki-azure with Loki keys.
+  Entra token: AZURE_STORAGE_ACCOUNT_NAME, AZURE_CLIENT_ID, AZURE_TENANT_ID,
+    AZURE_SUBSCRIPTION_ID (GitOps / credentialMode token)
+  or sandbox static: AZURE_STORAGE_ACCOUNT_NAME and AZURE_STORAGE_ACCOUNT_KEY
+  or an existing Secret openshift-logging/logging-loki-azure with matching keys.
 
 Optional environment:
   AZURE_CONTAINER_NAME     Azure Blob container (default: loki-audit)

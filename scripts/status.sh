@@ -79,10 +79,12 @@ echo "== Azure Blob secret ${NAMESPACE}/${SECRET_NAME} =="
 if oc get secret "${SECRET_NAME}" -n "${NAMESPACE}" >/dev/null 2>&1; then
   echo "keys:"
   list_secret_key_names | sed 's/^/  /'
-  if azure_secret_has_required_keys; then
-    echo "Loki keys: complete (values not printed)"
+  if azure_secret_has_token_keys; then
+    echo "Loki keys: complete (Entra token mode; values not printed)"
+  elif azure_secret_has_static_keys; then
+    echo "Loki keys: complete (account key; values not printed)"
   else
-    echo "Loki keys: INCOMPLETE (need account_name, account_key, container, environment)"
+    echo "Loki keys: INCOMPLETE (need token keys client_id/tenant_id/subscription_id or account_key)"
   fi
 else
   echo "not found — LokiStack cannot start yet"

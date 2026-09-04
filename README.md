@@ -77,11 +77,14 @@ TLS 1.2, public blob access off, hierarchical namespace off) in the resource
 group's region and writes gitignored `.env.azure`. It does **not** create the
 OpenShift secret; `make deploy` creates `logging-loki-azure`.
 
-Alternatively set `AZURE_STORAGE_ACCOUNT_NAME`, `AZURE_STORAGE_ACCOUNT_KEY`,
-and `AZURE_CONTAINER_NAME` yourself. For Entra Workload ID / CCO, omit the
-account key and switch LokiStack `credentialMode` to `token-cco`.
+Alternatively set `AZURE_STORAGE_ACCOUNT_NAME` plus either Entra token
+vars (`AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`) or
+`AZURE_STORAGE_ACCOUNT_KEY`. GitOps LokiStack uses **token** mode (service
+principal / user-assigned MI with federated credentials — **no**
+`client_secret`). Sandbox `make deploy` still accepts an account key and
+`credentialMode: static`.
 
-See [docs/azure-blob-request.md](docs/azure-blob-request.md) for a paste-ready
+See [docs/azure-blob-request.md](docs/azure-blob-request.md) for the paste-ready
 request if a cloud team must create the account (do not reuse ARO cluster or
 image-registry accounts; do not use `azure-cloud-credentials`).
 
@@ -130,14 +133,37 @@ make deploy
 1. Create `openshift-operators-redhat` and `openshift-logging` namespaces
 2. **Pre-flight**: verify exactly one OperatorGroup per namespace (create if missing, error if duplicates)
 3. Subscribe to the Loki and Cluster Logging operators and wait for CRDs
-4. Create secret `logging-loki-azure` from the environment (the key is never printed)
+4. Create secret `logging-loki-azure` from the environment (credentials are never printed)
 5. Apply `LokiStack` and wait until `Ready=True`
 6. Apply collector RBAC **then** the `ClusterLogForwarder`
 7. Append `logging-view-plugin` to `consoles.operator.openshift.io/cluster` without replacing other plugins
 
 ## Quickstart (Helm / GitOps)
 
-Prefer an existing secret so credentials never land in Helm history:
+Prefer an existing secret so credentials never land in Helm history. GitOps
+uses Entra token keys (`client_id`, `tenant_id`, `subscription_id`) and
+`lokiStack` / `azure.credentialMode: token`. Sandbox Helm can still use an
+account key with `credentialMode: static`:
+
+```bash
+# GitOps / ARO (token mode)
+oc create secret generic logging-loki-azure \
+  -n openshift-logging \
+  --from-literal=environment=AzureGlobal \
+  --from-literal=account_name="${AZURE_STORAGE_ACCOUNT_NAME}" \
+  --from-literal=container=loki-audit \
+  --from-literal=client_id="${AZURE_CLIENT_ID}" \
+  --from-literal=tenant_id="${AZURE_TENANT_ID}" \
+  --from-literal=subscription_id="${AZURE_SUBSCRIPTION_ID}" \
+  --from-literal=audience=api://AzureADTokenExchange
+
+helm upgrade --install audit-loki ./helm/audit-loki \
+  --namespace openshift-logging \
+  --set azure.existingSecret=logging-loki-azure \
+  --set azure.credentialMode=token
+```
+
+Sandbox account-key secret (only with `credentialMode: static`):
 
 ```bash
 oc create secret generic logging-loki-azure \

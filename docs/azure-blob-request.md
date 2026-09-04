@@ -3,6 +3,7 @@
 Use this when a cloud team must provision object storage instead of
 `scripts/create-azure-storage.sh`. Paste the fields below into the change
 ticket. Do **not** reuse the ARO cluster or image-registry storage accounts.
+Do **not** copy `azure-cloud-credentials` (cluster identity).
 
 ## Ask for
 
@@ -20,38 +21,84 @@ ticket. Do **not** reuse the ARO cluster or image-registry storage accounts.
 
 Optional tags: `purpose=loki-audit`, `workload=openshift-logging`.
 
+## Identity (GitOps / ARO)
+
+Loki Operator **does not** support a Service Principal *password*
+(`client_secret`) in the object storage secret. Upstream Loki can;
+the operator closed that path in favor of Entra Workload Identity.
+
+Use a **dedicated** Entra identity (user-assigned managed identity, or an
+app registration with **federated credentials and no client secret**).
+Azure still calls the app a service principal (`client_id`).
+
+1. Create the identity in the same tenant as the cluster.
+2. Assign **Storage Blob Data Contributor** on the storage account, or
+   only on the Loki container.
+3. Add **two** federated credentials (Kubernetes accessing Azure resources):
+
+   | Subject | Name suggestion |
+   | --- | --- |
+   | `system:serviceaccount:openshift-logging:logging-loki` | `lokistack` |
+   | `system:serviceaccount:openshift-logging:logging-loki-ruler` | `lokistack-ruler` |
+
+   - **Issuer:** `oc get authentication cluster -o jsonpath='{.spec.serviceAccountIssuer}'`
+     Must be an `https://` URL Azure can fetch (not `https://kubernetes.default.svc`).
+     If it is empty or in-cluster only, enable Workload ID / a public OIDC issuer
+     on the cluster before LokiStack can use `credentialMode: token`.
+   - **Audience:** `api://AzureADTokenExchange`
+
+4. Same identity can serve multiple clusters if you add a federated-credential
+   pair per cluster issuer. Still use **one container per LokiStack**.
+
 ## Deliver back to the OpenShift installers
 
-One of:
+GitOps LokiStack uses `credentialMode: token`. Create this secret (no
+`account_key`, no `client_secret`):
 
-1. **Account name, account key, container name** (and cloud environment: `AzureGlobal` unless China/US Gov/Germany). Installers run:
+```bash
+oc create secret generic logging-loki-azure \
+  -n openshift-logging \
+  --from-literal=environment=AzureGlobal \
+  --from-literal=account_name="${AZURE_STORAGE_ACCOUNT_NAME}" \
+  --from-literal=container="${AZURE_CONTAINER_NAME}" \
+  --from-literal=client_id="${AZURE_CLIENT_ID}" \
+  --from-literal=tenant_id="${AZURE_TENANT_ID}" \
+  --from-literal=subscription_id="${AZURE_SUBSCRIPTION_ID}" \
+  --from-literal=audience=api://AzureADTokenExchange
+```
 
-   ```bash
-   export AZURE_STORAGE_ACCOUNT_NAME='...'
-   export AZURE_STORAGE_ACCOUNT_KEY='...'
-   export AZURE_CONTAINER_NAME='...'
-   export AZURE_ENVIRONMENT='AzureGlobal'
-   make deploy
-   ```
+| Secret key | Maps to |
+| --- | --- |
+| `account_name` | Storage account name |
+| `container` | Blob container |
+| `environment` | `AzureGlobal` unless China/US Gov/Germany |
+| `client_id` | Application (client) ID of the MI or app |
+| `tenant_id` | Entra tenant ID |
+| `subscription_id` | Subscription that holds the identity |
+| `audience` | `api://AzureADTokenExchange` |
 
-2. **Or** an Opaque Secret in `openshift-logging` named `logging-loki-azure`:
+Then sync / `make deploy` with no Azure account key.
 
-   | Secret key | Maps to |
-   | --- | --- |
-   | `account_name` | Storage account name |
-   | `account_key` | Key1 (or Key2) |
-   | `container` | Blob container |
-   | `environment` | `AzureGlobal` |
+### Sandbox fallback (account key)
 
-   Then installers run `make deploy` with no Azure env vars.
+Laptop `make deploy` still accepts `account_name` + `account_key` and
+`manifests/03-lokistack.yaml` stays `credentialMode: static`. Use that
+only when shared-key access is allowed. If the account has **Allow
+storage account key access** disabled, static mode cannot work.
 
-Do not copy `azure-cloud-credentials` from `openshift-azure-operator` or
-`kube-system`. Those are the cluster service principal, not Blob keys.
+```bash
+export AZURE_STORAGE_ACCOUNT_NAME='...'
+export AZURE_STORAGE_ACCOUNT_KEY='...'
+export AZURE_CONTAINER_NAME='...'
+export AZURE_ENVIRONMENT='AzureGlobal'
+make deploy
+```
 
 ## Network connectivity (critical)
 
 Loki pods in `openshift-logging` must be able to **resolve and reach**
-`<account>.blob.core.windows.net` over HTTPS (port 443).
+`<account>.blob.core.windows.net` over HTTPS (port 443). Token mode also
+needs Entra token endpoints (`login.microsoftonline.com` for AzureGlobal).
 
 ### Private ARO clusters
 

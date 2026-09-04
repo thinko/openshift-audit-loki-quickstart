@@ -68,6 +68,9 @@ def test_secret_template_keeps_placeholders(repo_root: Path):
     )
     for needle in (
         "<AZURE_STORAGE_ACCOUNT_NAME>",
+        "<AZURE_CLIENT_ID>",
+        "<AZURE_TENANT_ID>",
+        "<AZURE_SUBSCRIPTION_ID>",
         "<AZURE_STORAGE_ACCOUNT_KEY>",
         "<CONTAINER_NAME>",
     ):

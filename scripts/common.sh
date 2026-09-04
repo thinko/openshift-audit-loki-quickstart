@@ -190,13 +190,31 @@ check_unapproved_installplans() {
   return 0
 }
 
-azure_secret_has_required_keys() {
+azure_secret_data_key() {
+  local key="$1"
+  oc get secret "${SECRET_NAME}" -n "${NAMESPACE}" -o jsonpath="{.data.${key}}" 2>/dev/null || true
+}
+
+azure_secret_has_static_keys() {
   oc get secret "${SECRET_NAME}" -n "${NAMESPACE}" >/dev/null 2>&1 || return 1
   local key
   for key in account_name account_key container environment; do
-    [[ -n "$(oc get secret "${SECRET_NAME}" -n "${NAMESPACE}" -o jsonpath="{.data.${key}}" 2>/dev/null || true)" ]] || return 1
+    [[ -n "$(azure_secret_data_key "${key}")" ]] || return 1
   done
   return 0
+}
+
+azure_secret_has_token_keys() {
+  oc get secret "${SECRET_NAME}" -n "${NAMESPACE}" >/dev/null 2>&1 || return 1
+  local key
+  for key in account_name client_id tenant_id subscription_id container environment; do
+    [[ -n "$(azure_secret_data_key "${key}")" ]] || return 1
+  done
+  return 0
+}
+
+azure_secret_has_required_keys() {
+  azure_secret_has_token_keys || azure_secret_has_static_keys
 }
 
 list_secret_key_names() {
@@ -207,24 +225,42 @@ list_secret_key_names() {
 apply_azure_secret() {
   local account_name="${AZURE_STORAGE_ACCOUNT_NAME:-}"
   local account_key="${AZURE_STORAGE_ACCOUNT_KEY:-}"
+  local client_id="${AZURE_CLIENT_ID:-}"
+  local tenant_id="${AZURE_TENANT_ID:-}"
+  local subscription_id="${AZURE_SUBSCRIPTION_ID:-}"
   local container="${AZURE_CONTAINER_NAME:-${AZURE_STORAGE_CONTAINER:-loki-audit}}"
   local environment="${AZURE_ENVIRONMENT:-AzureGlobal}"
+  local audience="${AZURE_AUDIENCE:-api://AzureADTokenExchange}"
+  local token_ready=0
+  local static_ready=0
 
-  if [[ -z "${account_name}" && -z "${account_key}" ]] && azure_secret_has_required_keys; then
-    log "Reusing existing Secret ${NAMESPACE}/${SECRET_NAME} (keys are not printed)"
+  if [[ -n "${account_name}" && -n "${client_id}" && -n "${tenant_id}" && -n "${subscription_id}" ]]; then
+    token_ready=1
+  fi
+  if [[ -n "${account_name}" && -n "${account_key}" ]]; then
+    static_ready=1
+  fi
+
+  if (( token_ready == 0 && static_ready == 0 )) && azure_secret_has_required_keys; then
+    if azure_secret_has_token_keys; then
+      log "Reusing existing Secret ${NAMESPACE}/${SECRET_NAME} (Entra token keys; values not printed)"
+    else
+      log "Reusing existing Secret ${NAMESPACE}/${SECRET_NAME} (account key; values not printed)"
+    fi
     return 0
   fi
 
-  if [[ -z "${account_name}" || -z "${account_key}" ]]; then
+  if (( token_ready == 0 && static_ready == 0 )); then
     die "Azure Blob credentials are not available yet.
 
 LokiStack cannot start without object storage. Either:
-  * wait for the storage account, then set AZURE_STORAGE_ACCOUNT_NAME and AZURE_STORAGE_ACCOUNT_KEY
-  * or have the cloud team create Secret ${NAMESPACE}/${SECRET_NAME} with keys
-    account_name, account_key, container, environment
+  * Entra token mode (GitOps): set AZURE_STORAGE_ACCOUNT_NAME, AZURE_CLIENT_ID,
+    AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID (no account_key, no client_secret)
+  * or sandbox static mode: set AZURE_STORAGE_ACCOUNT_NAME and AZURE_STORAGE_ACCOUNT_KEY
+  * or have the cloud team create Secret ${NAMESPACE}/${SECRET_NAME}
   * meanwhile: make deploy-operators
 
-See docs/azure-blob-request.md for the storage request fields.
+See docs/azure-blob-request.md.
 Optionally set AZURE_CONTAINER_NAME (default: loki-audit) and AZURE_ENVIRONMENT (default: AzureGlobal)."
   fi
 
@@ -233,7 +269,25 @@ Optionally set AZURE_CONTAINER_NAME (default: loki-audit) and AZURE_ENVIRONMENT 
     *) die "AZURE_ENVIRONMENT must be AzureGlobal, AzureChinaCloud, AzureGermanCloud, or AzureUSGovernment" ;;
   esac
 
-  log "Applying Azure Blob secret ${SECRET_NAME} in ${NAMESPACE} (key is not printed)"
+  if (( token_ready == 1 )); then
+    if (( static_ready == 1 )); then
+      log "AZURE_CLIENT_ID is set; creating token-mode secret (account_key is ignored)"
+    fi
+    log "Applying Azure Blob secret ${SECRET_NAME} in ${NAMESPACE} (Entra token; values not printed)"
+    oc create secret generic "${SECRET_NAME}" \
+      --namespace "${NAMESPACE}" \
+      --from-literal=environment="${environment}" \
+      --from-literal=account_name="${account_name}" \
+      --from-literal=container="${container}" \
+      --from-literal=client_id="${client_id}" \
+      --from-literal=tenant_id="${tenant_id}" \
+      --from-literal=subscription_id="${subscription_id}" \
+      --from-literal=audience="${audience}" \
+      --dry-run=client -o yaml | oc apply -f -
+    return 0
+  fi
+
+  log "Applying Azure Blob secret ${SECRET_NAME} in ${NAMESPACE} (account key; values not printed)"
   oc create secret generic "${SECRET_NAME}" \
     --namespace "${NAMESPACE}" \
     --from-literal=environment="${environment}" \
@@ -245,7 +299,7 @@ Optionally set AZURE_CONTAINER_NAME (default: loki-audit) and AZURE_ENVIRONMENT 
 
 assert_placeholders_absent() {
   local file="$1"
-  if grep -E '<AZURE_STORAGE_ACCOUNT_(NAME|KEY)>|<CONTAINER_NAME>' "${file}" >/dev/null 2>&1; then
+  if grep -E '<AZURE_STORAGE_ACCOUNT_(NAME|KEY)>|<AZURE_CLIENT_ID>|<AZURE_TENANT_ID>|<AZURE_SUBSCRIPTION_ID>|<CONTAINER_NAME>' "${file}" >/dev/null 2>&1; then
     die "File ${file} still contains placeholders. Fill credentials via environment variables instead of committing secrets."
   fi
 }

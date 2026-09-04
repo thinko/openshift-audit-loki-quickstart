@@ -73,6 +73,7 @@ def test_gitops_lokistack_test_profile(repo_root: Path):
     assert spec["size"] == "1x.medium"
     assert spec["storage"]["secret"]["name"] == "logging-loki-azure"
     assert spec["storage"]["secret"]["type"] == "azure"
+    assert spec["storage"]["secret"]["credentialMode"] == "token"
     assert spec["limits"]["tenants"]["audit"]["retention"]["days"] == 60
     assert spec["limits"]["tenants"]["infrastructure"]["retention"]["days"] == 60
     assert spec["limits"]["global"]["retention"]["days"] == 60

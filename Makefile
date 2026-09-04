@@ -80,15 +80,7 @@ azure-storage: ## Create a dedicated Azure Blob account and container (AZURE_RES
 	"$(ROOT)/scripts/create-azure-storage.sh"
 
 secret: ## Create/update the Azure Blob secret from environment variables
-	@$(_load_env); test -n "$${AZURE_STORAGE_ACCOUNT_NAME:-}" || (echo "AZURE_STORAGE_ACCOUNT_NAME is required" >&2; exit 1)
-	@$(_load_env); test -n "$${AZURE_STORAGE_ACCOUNT_KEY:-}" || (echo "AZURE_STORAGE_ACCOUNT_KEY is required" >&2; exit 1)
-	oc create secret generic logging-loki-azure \
-		--namespace openshift-logging \
-		--from-literal=environment="$${AZURE_ENVIRONMENT:-AzureGlobal}" \
-		--from-literal=account_name="$${AZURE_STORAGE_ACCOUNT_NAME}" \
-		--from-literal=account_key="$${AZURE_STORAGE_ACCOUNT_KEY}" \
-		--from-literal=container="$${AZURE_CONTAINER_NAME:-loki-audit}" \
-		--dry-run=client -o yaml | oc apply -f -
+	$(_load_env); "$(ROOT)/scripts/apply-azure-secret.sh"
 
 deploy-grafana: ## Deploy standalone Grafana with datasources and dashboards
 	$(_load_env); "$(ROOT)/scripts/deploy-grafana.sh"

@@ -58,16 +58,24 @@ If that is empty, the `redhat-operators` CatalogSource is missing or not READY. 
 
 Create the Azure Blob secret before LokiStack can become Ready. Each LokiStack
 needs its **own container**. Sharing a storage account across clusters is fine
-if `account_name` / `account_key` match and `container` is unique. Never point
-two stacks at the same container.
+when each stack has a unique container. Never point two stacks at the same
+container.
+
+GitOps LokiStack uses `credentialMode: token` (Entra app or user-assigned MI
+with federated credentials). Loki Operator does **not** accept `client_secret`.
+See [azure-blob-request.md](azure-blob-request.md). Do not put `account_key`
+in this secret.
 
 ```bash
 oc create secret generic logging-loki-azure \
   -n openshift-logging \
   --from-literal=environment=AzureGlobal \
   --from-literal=account_name="${AZURE_STORAGE_ACCOUNT_NAME}" \
-  --from-literal=account_key="${AZURE_STORAGE_ACCOUNT_KEY}" \
-  --from-literal=container="${AZURE_CONTAINER_NAME}"
+  --from-literal=container="${AZURE_CONTAINER_NAME}" \
+  --from-literal=client_id="${AZURE_CLIENT_ID}" \
+  --from-literal=tenant_id="${AZURE_TENANT_ID}" \
+  --from-literal=subscription_id="${AZURE_SUBSCRIPTION_ID}" \
+  --from-literal=audience=api://AzureADTokenExchange
 ```
 
 After LokiStack is Ready:
