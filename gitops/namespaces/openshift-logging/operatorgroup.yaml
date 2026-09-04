@@ -1,0 +1,16 @@
+# Greenfield only. A second OperatorGroup in openshift-logging breaks OLM
+# (Manual InstallPlans, CSV install loops). Check first:
+#   oc get operatorgroup -n openshift-logging
+#
+# Both operator Subscriptions in this folder install into this namespace so
+# a single-destination ApplicationSet does not need openshift-operators-redhat.
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: openshift-logging
+  namespace: openshift-logging
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  upgradeStrategy: Default

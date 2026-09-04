@@ -1,0 +1,7 @@
+# Destination cluster key as used by the namespace ApplicationSet.
+# Replace REPLACE_ME_CLUSTER with the same `name:` value other
+# namespaces/*/clusters.yaml files use for the target cluster.
+# Do not commit a real cluster name back to this public kit.
+---
+clusters:
+  - name: REPLACE_ME_CLUSTER

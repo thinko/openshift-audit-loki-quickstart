@@ -59,3 +59,34 @@ def test_helm_template_renders_forwarder(repo_root: Path):
     clf = next(d for d in docs if d["kind"] == "ClusterLogForwarder")
     assert clf["apiVersion"] == "observability.openshift.io/v1"
     assert clf["spec"]["pipelines"][0]["inputRefs"] == ["audit-logs"]
+
+
+@pytest.mark.skipif(shutil.which("helm") is None, reason="helm not installed")
+def test_helm_test_overlay_existing_secret(repo_root: Path):
+    chart = repo_root / "helm" / "audit-loki"
+    result = subprocess.run(
+        [
+            "helm",
+            "template",
+            "audit-loki",
+            str(chart),
+            "-f",
+            str(chart / "values.yaml"),
+            "-f",
+            str(chart / "values-test.yaml"),
+            "--set",
+            "azure.existingSecret=logging-loki-azure",
+            "--set",
+            "operator.createOperatorGroups=true",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    docs = [d for d in yaml.safe_load_all(result.stdout) if d]
+    kinds = {d["kind"] for d in docs}
+    assert "Secret" not in kinds
+    assert "OperatorGroup" in kinds
+    stack = next(d for d in docs if d["kind"] == "LokiStack")
+    assert stack["spec"]["size"] == "1x.small"
+    assert stack["spec"]["storage"]["secret"]["name"] == "logging-loki-azure"

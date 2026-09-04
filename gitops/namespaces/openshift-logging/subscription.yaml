@@ -1,0 +1,33 @@
+# Loki Operator is colocated in openshift-logging (not openshift-operators-redhat)
+# so this folder stays inside one Application destination namespace.
+# Channel must match Cluster Logging. Confirm:
+#   oc get packagemanifest loki-operator -n openshift-marketplace \
+#     -o jsonpath='{range .status.channels[*]}{.name}{"\n"}{end}'
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: loki-operator
+  namespace: openshift-logging
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  channel: stable-6.5
+  installPlanApproval: Automatic
+  name: loki-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: cluster-logging
+  namespace: openshift-logging
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  channel: stable-6.5
+  installPlanApproval: Automatic
+  name: cluster-logging
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace

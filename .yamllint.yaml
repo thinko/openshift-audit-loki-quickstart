@@ -3,6 +3,7 @@ extends: default
 ignore: |
   **/templates/**
   **/11-console-dashboards.yaml
+  **/README.md
 
 rules:
   line-length:

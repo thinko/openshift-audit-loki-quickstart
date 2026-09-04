@@ -1,0 +1,148 @@
+# OpenShift Logging 6.x: observability.openshift.io/v1.
+# Pipeline: kube/openshift/ovn audit -> edge filters -> in-cluster LokiStack.
+# Bind collector RBAC (collector-rbac.yaml) before this object.
+---
+apiVersion: observability.openshift.io/v1
+kind: ClusterLogForwarder
+metadata:
+  name: loki-audit
+  namespace: openshift-logging
+  labels:
+    app.kubernetes.io/name: clusterlogforwarder
+    app.kubernetes.io/part-of: openshift-logging
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  managementState: Managed
+  serviceAccount:
+    name: logging-collector
+  inputs:
+    - name: audit-logs
+      type: audit
+      audit:
+        sources:
+          - kubeAPI
+          - openshiftAPI
+          - ovn
+    - name: infra-logs
+      type: infrastructure
+      infrastructure:
+        sources:
+          - container
+          - node
+    # Application logs are acknowledged but dropped to silence the
+    # ClusterLogForwarderRuntimeConfigurationMissingUnmatched alert.
+    - name: app-logs
+      type: application
+      application: {}
+  filters:
+    - name: kube-api-audit-policy
+      type: kubeAPIAudit
+      kubeAPIAudit:
+        omitStages:
+          - RequestReceived
+        rules:
+          - level: None
+            users:
+              - "system:node*"
+              - "system:serviceaccount:kube-system:*"
+              - "system:serviceaccount:openshift-*"
+          - level: Metadata
+            verbs:
+              - get
+              - list
+            resources:
+              - group: ""
+                resources:
+                  - secrets
+          - level: None
+            verbs:
+              - get
+              - list
+              - watch
+          - level: Metadata
+    - name: drop-audit-noise
+      type: drop
+      drop:
+        - test:
+            - field: .verb
+              matches: '^watch$'
+        - test:
+            - field: .verb
+              matches: '^(get|list)$'
+            - field: .objectRef.resource
+              notMatches: '^secrets$'
+        - test:
+            - field: .user.username
+              matches: '^system:(node|serviceaccount:kube-system|serviceaccount:openshift-.*)'
+    - name: drop-infra-noise
+      type: drop
+      drop:
+        - test:
+            - field: .message
+              matches: '(healthz|readyz|livez).*200'
+        - test:
+            - field: .message
+              matches: 'Syncing proxy rules'
+        - test:
+            - field: .kubernetes.container_name
+              matches: '^dns$'
+            - field: .message
+              matches: '^\d+\.\d+\.\d+\.\d+.*NOERROR'
+        - test:
+            - field: .kubernetes.container_name
+              matches: '^kube-rbac-proxy'
+            - field: .message
+              matches: 'TLS handshake error'
+        - test:
+            - field: .message
+              matches: 'successfully (renewed|acquired) lease'
+        - test:
+            - field: .message
+              matches: '(tokenreview|authenticate).*success'
+            - field: .kubernetes.container_name
+              matches: '^kube-rbac-proxy'
+    - name: drop-all-app
+      type: drop
+      drop:
+        - test:
+            - field: .message
+              matches: '.'
+  outputs:
+    - name: local-loki
+      type: lokiStack
+      lokiStack:
+        dataModel: Viaq
+        target:
+          name: logging-loki
+          namespace: openshift-logging
+        authentication:
+          token:
+            from: serviceAccount
+      tls:
+        ca:
+          key: service-ca.crt
+          configMapName: openshift-service-ca.crt
+  pipelines:
+    - name: audit-to-loki
+      inputRefs:
+        - audit-logs
+      filterRefs:
+        - kube-api-audit-policy
+        - drop-audit-noise
+      outputRefs:
+        - local-loki
+    - name: infra-to-loki
+      inputRefs:
+        - infra-logs
+      filterRefs:
+        - drop-infra-noise
+      outputRefs:
+        - local-loki
+    - name: app-drop
+      inputRefs:
+        - app-logs
+      filterRefs:
+        - drop-all-app
+      outputRefs:
+        - local-loki
