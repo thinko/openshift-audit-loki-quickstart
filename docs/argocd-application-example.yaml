@@ -103,11 +103,13 @@ spec:
       kind: Grafana
       jsonPointers:
         - /status
-    # Loki Operator mutates LokiStack status
+    # Loki Operator mutates LokiStack status. Ignore managementState if
+    # Azure auth is patched out of band (Unmanaged freeze); otherwise omit it.
     - group: loki.grafana.com
       kind: LokiStack
       jsonPointers:
         - /status
+        # - /spec/managementState
 
 ---
 # ApplicationSet example for multi-environment deployment.

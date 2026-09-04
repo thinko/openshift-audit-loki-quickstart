@@ -2,7 +2,9 @@
 # Object storage is Azure Blob via out-of-band secret logging-loki-azure.
 # credentialMode static: operator-valid secret (account_name + account_key).
 # Some ARO tenants have neither a real account key nor Workload ID; Azure
-# auth is then patched out of band (do not commit client_secret).
+# auth is then patched out of band (do not commit client_secret). Freeze
+# with spec.managementState: Unmanaged after that patch — do not scale
+# the OLM operator Deployment (Argo/OLM will restore replicas).
 # Retention: 60 days for audit and infrastructure tenants.
 ---
 apiVersion: loki.grafana.com/v1

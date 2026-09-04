@@ -63,9 +63,14 @@ container.
 
 GitOps LokiStack uses `credentialMode: static`. The operator will only accept
 the secret if it has `account_name`, `account_key`, `container`, and
-`environment`. It does **not** accept `client_secret`. Workload ID (`token`)
-is the other supported mode when the cluster actually has it. See
-[azure-blob-request.md](azure-blob-request.md).
+`environment`. It does **not** accept `client_secret` (including on
+`stable-6.6`). Workload ID (`token`) is the other supported mode when the
+cluster actually has it. See [azure-blob-request.md](azure-blob-request.md).
+
+If Azure auth must be patched outside the operator, freeze the stack with
+`spec.managementState: Unmanaged` after the first reconcile. Leave the Loki
+Operator Deployment at one replica. Ignore `/spec/managementState` in Argo
+so self-heal does not flip it back to Managed.
 
 ```bash
 oc create secret generic logging-loki-azure \
