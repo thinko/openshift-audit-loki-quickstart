@@ -6,7 +6,9 @@ nameOverride: ""
 fullnameOverride: ""
 
 # OLM channels must match between Loki and Cluster Logging Operators.
-# List channels: oc get packagemanifest loki-operator -n openshift-marketplace
+# List channels (redhat-operators only; unqualified get returns community alpha):
+#   oc get packagemanifest -n openshift-marketplace -l catalog=redhat-operators \
+#     -o jsonpath='{range .items[?(@.metadata.name=="loki-operator")].status.channels[*]}{.name}{"\n"}{end}'
 operator:
   channel: stable-6.5
   source: redhat-operators

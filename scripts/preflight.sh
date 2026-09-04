@@ -58,18 +58,19 @@ else
 fi
 
 echo
-echo "== Operator catalog =="
+echo "== Operator catalog (redhat-operators) =="
+# loki-operator is published in both catalogs. Unqualified
+# `oc get packagemanifest loki-operator` returns the community package
+# (default channel alpha). Subscriptions in this kit use redhat-operators.
 for pkg in loki-operator cluster-logging; do
-  if oc get packagemanifest "${pkg}" -n openshift-marketplace >/dev/null 2>&1; then
-    channel_csv="$(oc get packagemanifest "${pkg}" -n openshift-marketplace \
-      -o jsonpath='{range .status.channels[?(@.name=="stable-6.5")]}{.currentCSV}{end}' 2>/dev/null)"
-    if [[ -n "${channel_csv}" ]]; then
-      pass "${pkg}: stable-6.5 -> ${channel_csv}"
-    else
-      fail "${pkg}: stable-6.5 channel not found in catalog"
-    fi
+  channel_csv="$(oc get packagemanifest -n openshift-marketplace \
+    -l catalog=redhat-operators \
+    -o jsonpath="{range .items[?(@.metadata.name==\"${pkg}\")].status.channels[?(@.name==\"stable-6.5\")]}{.currentCSV}{end}" \
+    2>/dev/null || true)"
+  if [[ -n "${channel_csv}" ]]; then
+    pass "${pkg}: redhat-operators stable-6.5 -> ${channel_csv}"
   else
-    fail "${pkg}: package manifest not in openshift-marketplace"
+    fail "${pkg}: stable-6.5 not in redhat-operators (do not use community-operators; that loki-operator is channel alpha)"
   fi
 done
 

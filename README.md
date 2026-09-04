@@ -48,8 +48,9 @@ Azure Blob can arrive later. Operators do not need it; LokiStack does.
 Confirm the operator channel exists on your cluster:
 
 ```bash
-oc get packagemanifest loki-operator -n openshift-marketplace \
-  -o jsonpath='{range .status.channels[*]}{.name}{"\n"}{end}'
+# Both catalogs publish loki-operator. Unqualified get returns community (alpha).
+oc get packagemanifest -n openshift-marketplace -l catalog=redhat-operators \
+  -o jsonpath='{range .items[?(@.metadata.name=="loki-operator")].status.channels[*]}{.name}{"\n"}{end}'
 ```
 
 Both operators in this repo use `stable-6.5`. Change the channel in `manifests/01-loki-operator-subscription.yaml` or Helm `operator.channel` so Loki and Cluster Logging stay on the same minor version.

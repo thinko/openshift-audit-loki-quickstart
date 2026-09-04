@@ -45,6 +45,15 @@ This differs from the sandbox `make deploy` path, which puts the Loki Operator i
 oc get operatorgroup -n openshift-logging
 ```
 
+`loki-operator` is published in **both** `redhat-operators` and `community-operators`. Unqualified `oc get packagemanifest loki-operator` returns the community package (default channel `alpha`). The Subscriptions in this folder already set `source: redhat-operators` — do not change that. Confirm the Red Hat package before merge:
+
+```bash
+oc get packagemanifest -n openshift-marketplace -l catalog=redhat-operators \
+  -o jsonpath='{range .items[?(@.metadata.name=="loki-operator")].status.channels[*]}{.name}{"\n"}{end}'
+```
+
+If that is empty, the `redhat-operators` CatalogSource is missing or not READY. Re-enable it on OperatorHub; do not point the Subscription at community-operators.
+
 ## Out of band (not in git)
 
 Create the Azure Blob secret before LokiStack can become Ready. Each LokiStack

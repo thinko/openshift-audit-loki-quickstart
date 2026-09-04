@@ -1,8 +1,10 @@
 # Loki Operator is colocated in openshift-logging (not openshift-operators-redhat)
 # so this folder stays inside one Application destination namespace.
-# Channel must match Cluster Logging. Confirm:
-#   oc get packagemanifest loki-operator -n openshift-marketplace \
-#     -o jsonpath='{range .status.channels[*]}{.name}{"\n"}{end}'
+# Channel must match Cluster Logging. Confirm Red Hat catalog (not community):
+#   oc get packagemanifest -n openshift-marketplace -l catalog=redhat-operators \
+#     -o jsonpath='{range .items[?(@.metadata.name=="loki-operator")].status.channels[*]}{.name}{"\n"}{end}'
+# Unqualified `oc get packagemanifest loki-operator` returns community-operators
+# (channel alpha). Do not change spec.source to community-operators.
 ---
 apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
