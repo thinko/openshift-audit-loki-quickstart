@@ -47,7 +47,10 @@ oc get operatorgroup -n openshift-logging
 
 ## Out of band (not in git)
 
-Create the Azure Blob secret before LokiStack can become Ready. Use a **new** storage account for this cluster; do not reuse sandbox credentials.
+Create the Azure Blob secret before LokiStack can become Ready. Each LokiStack
+needs its **own container**. Sharing a storage account across clusters is fine
+if `account_name` / `account_key` match and `container` is unique. Never point
+two stacks at the same container.
 
 ```bash
 oc create secret generic logging-loki-azure \
@@ -55,7 +58,7 @@ oc create secret generic logging-loki-azure \
   --from-literal=environment=AzureGlobal \
   --from-literal=account_name="${AZURE_STORAGE_ACCOUNT_NAME}" \
   --from-literal=account_key="${AZURE_STORAGE_ACCOUNT_KEY}" \
-  --from-literal=container=loki-audit
+  --from-literal=container="${AZURE_CONTAINER_NAME}"
 ```
 
 After LokiStack is Ready:
