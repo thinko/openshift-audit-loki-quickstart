@@ -1,0 +1,80 @@
+# Collector identity. Bind cluster roles before creating the ClusterLogForwarder.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: logging-collector
+  namespace: openshift-logging
+  labels:
+    app.kubernetes.io/name: clusterlogforwarder
+    app.kubernetes.io/component: collector
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: logging-collector-audit-logs
+  labels:
+    app.kubernetes.io/name: clusterlogforwarder
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: collect-audit-logs
+subjects:
+  - kind: ServiceAccount
+    name: logging-collector
+    namespace: openshift-logging
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: logging-collector-logs-writer
+  labels:
+    app.kubernetes.io/name: clusterlogforwarder
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: logging-collector-logs-writer
+subjects:
+  - kind: ServiceAccount
+    name: logging-collector
+    namespace: openshift-logging
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: logging-collector-infrastructure-logs
+  labels:
+    app.kubernetes.io/name: clusterlogforwarder
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: collect-infrastructure-logs
+subjects:
+  - kind: ServiceAccount
+    name: logging-collector
+    namespace: openshift-logging
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: logging-collector-application-logs
+  labels:
+    app.kubernetes.io/name: clusterlogforwarder
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: collect-application-logs
+subjects:
+  - kind: ServiceAccount
+    name: logging-collector
+    namespace: openshift-logging

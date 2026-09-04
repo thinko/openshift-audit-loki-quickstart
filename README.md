@@ -166,32 +166,10 @@ helm upgrade --install audit-loki ./helm/audit-loki \
   -f /secure/path/azure-values.yaml
 ```
 
-Argo CD example (secret created out of band or via External Secrets):
-
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: audit-loki
-  namespace: openshift-gitops
-spec:
-  project: default
-  source:
-    repoURL: https://github.com/thinko/openshift-audit-loki-quickstart.git
-    targetRevision: main
-    path: helm/audit-loki
-    helm:
-      values: |
-        azure:
-          existingSecret: logging-loki-azure
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: openshift-logging
-  syncPolicy:
-    automated:
-      prune: false
-      selfHeal: true
-```
+For Argo CD on a cluster whose GitOps already watches an internal
+namespaces repository, copy `gitops/namespaces/openshift-logging/` into
+that repo (see [docs/gitops.md](docs/gitops.md)). Do not point Argo at
+this public GitHub URL. Helm remains valid for laptop installs.
 
 After Helm/Argo install, enable the console plugin:
 
@@ -323,9 +301,10 @@ Console plugins are left as-is on destroy.
 
 ```text
 manifests/     oc apply path used by make deploy
-helm/          parameterized chart for Helm / Argo CD
+helm/          parameterized chart for Helm / laptop GitOps
+gitops/        copy-ready namespaces/openshift-logging folder (see docs/gitops.md)
 scripts/       deploy, operators-only, status, Azure bootstrap, destroy
-docs/          LogQL cheat sheet and Azure Blob request fields
+docs/          LogQL cheat sheet, Azure Blob request, GitOps handoff
 tests/         schema and leak checks (no live cluster required)
 ```
 

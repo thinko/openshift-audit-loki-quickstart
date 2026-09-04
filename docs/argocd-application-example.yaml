@@ -1,7 +1,11 @@
-# ArgoCD Application example for deploying the Audit LokiStack.
+# Helm Application example (laptop / generic Argo).
 #
-# This file is a REFERENCE — do not apply it directly. Copy and adapt
-# it into your ArgoCD app-of-apps or ApplicationSet configuration.
+# Clusters whose Argo CD already watches an internal namespaces git repo
+# should copy gitops/namespaces/openshift-logging/ into that repo
+# instead of applying this file. See docs/gitops.md.
+#
+# This file is a REFERENCE — do not apply it directly.
+# Do not set repoURL to this public GitHub repository on a customer cluster.
 #
 # Prerequisites:
 #   1. The Azure Blob secret must exist in openshift-logging before sync.

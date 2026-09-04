@@ -16,6 +16,19 @@ def test_logql_cheatsheet_topics(repo_root: Path):
         assert needle in text, f"missing {needle}"
 
 
+def test_gitops_runbook_topics(repo_root: Path):
+    text = (repo_root / "docs" / "gitops.md").read_text(encoding="utf-8")
+    for needle in (
+        "namespaces/openshift-logging",
+        "REPLACE_ME_CLUSTER",
+        "logging-loki-azure",
+        "make enable-console-plugin",
+        "1x.small",
+        "OperatorGroup",
+    ):
+        assert needle in text, f"missing {needle}"
+
+
 def test_azure_blob_request_doc(repo_root: Path):
     text = (repo_root / "docs" / "azure-blob-request.md").read_text(encoding="utf-8")
     for needle in (

@@ -1,0 +1,53 @@
+# Test / pre-prod profile (1x.small). Object storage is Azure Blob via the
+# out-of-band secret logging-loki-azure — do not commit account keys.
+# storageClassName is block storage for ingester/compactor PVCs (managed-csi on ARO).
+---
+apiVersion: loki.grafana.com/v1
+kind: LokiStack
+metadata:
+  name: logging-loki
+  namespace: openshift-logging
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+  labels:
+    app.kubernetes.io/name: lokistack
+    app.kubernetes.io/part-of: openshift-logging
+spec:
+  managementState: Managed
+  size: 1x.small
+  storage:
+    schemas:
+      - version: v13
+        effectiveDate: "2024-10-01"
+    secret:
+      name: logging-loki-azure
+      type: azure
+      credentialMode: static
+  storageClassName: managed-csi
+  tenants:
+    mode: openshift-logging
+  limits:
+    global:
+      retention:
+        days: 14
+      queries:
+        maxEntriesLimitPerQuery: 10000
+        maxChunksPerQuery: 4000000
+        maxQuerySeries: 1000
+      ingestion:
+        ingestionRate: 8
+        ingestionBurstSize: 12
+        maxLabelNameLength: 1024
+        maxLabelValueLength: 2048
+        maxLabelNamesPerSeries: 30
+        maxGlobalStreamsPerTenant: 0
+    tenants:
+      audit:
+        retention:
+          days: 30
+      infrastructure:
+        retention:
+          days: 14
+        queries:
+          maxEntriesLimitPerQuery: 10000
+          maxQuerySeries: 1000

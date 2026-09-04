@@ -44,7 +44,7 @@ destroy: ## Remove the forwarder, LokiStack, and collector RBAC (asks for confir
 test: ## Run local validation (pytest, yamllint, shell syntax, helm lint)
 	$(PYTHON) -m pytest tests/ -v --tb=short --junitxml="$(ROOT)/test-results.xml"
 	@if command -v yamllint >/dev/null 2>&1; then \
-		yamllint -c "$(ROOT)/.yamllint.yaml" "$(ROOT)/manifests" "$(ROOT)/helm/audit-loki/Chart.yaml" "$(ROOT)/helm/audit-loki/values.yaml" "$(ROOT)/.onedev-buildspec.yml"; \
+		yamllint -c "$(ROOT)/.yamllint.yaml" "$(ROOT)/manifests" "$(ROOT)/helm/audit-loki/Chart.yaml" "$(ROOT)/helm/audit-loki/values.yaml" "$(ROOT)/gitops/namespaces/openshift-logging" "$(ROOT)/.onedev-buildspec.yml"; \
 	else \
 		echo "yamllint not on PATH; pytest still parsed the YAML"; \
 	fi

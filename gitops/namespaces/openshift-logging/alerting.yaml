@@ -1,0 +1,224 @@
+# PrometheusRule: LokiStack and Audit Pipeline health alerts.
+# These alerts focus on components unique to this deployment and
+# avoid duplicating built-in OpenShift alerts (KubeDeployment*,
+# KubeContainerWaiting, KubePodNotReady, etc.).
+#
+# GitOps copy: PrometheusRule only (no AlertmanagerConfig webhook).
+# Verify: oc -n openshift-logging get prometheusrule loki-audit-alerts
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: loki-audit-alerts
+  namespace: openshift-logging
+  labels:
+    app.kubernetes.io/name: loki-audit
+    app.kubernetes.io/part-of: openshift-logging
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  groups:
+    # ── LokiStack Component Health ────────────────────────────────────
+    - name: lokistack-health
+      rules:
+        - alert: LokiIngesterNotReady
+          annotations:
+            summary: LokiStack ingester has zero ready replicas.
+            description: >-
+              The ingester StatefulSet {{ $labels.statefulset }} in
+              {{ $labels.namespace }} has 0 ready replicas. Log ingestion
+              is completely stalled.
+            runbook_url: https://github.com/thinko/openshift-audit-loki-quickstart/blob/main/docs/scaling-guide.md
+          expr: |
+            kube_statefulset_status_replicas_ready{
+              namespace="openshift-logging",
+              statefulset=~"logging-loki-ingester.*"
+            } == 0
+          for: 5m
+          labels:
+            severity: critical
+
+        - alert: LokiQuerierNotReady
+          annotations:
+            summary: LokiStack querier has zero ready replicas.
+            description: >-
+              All querier replicas are down — dashboard and console log
+              queries will fail until at least one replica recovers.
+            runbook_url: https://github.com/thinko/openshift-audit-loki-quickstart/blob/main/docs/scaling-guide.md
+          expr: |
+            kube_statefulset_status_replicas_ready{
+              namespace="openshift-logging",
+              statefulset=~"logging-loki-querier.*"
+            } == 0
+          for: 5m
+          labels:
+            severity: critical
+
+        - alert: LokiCompactorNotReady
+          annotations:
+            summary: LokiStack compactor has zero ready replicas.
+            description: >-
+              Compaction and retention enforcement are stalled.
+              Old data will not be cleaned up and index files will grow.
+            runbook_url: https://github.com/thinko/openshift-audit-loki-quickstart/blob/main/docs/scaling-guide.md
+          expr: |
+            kube_statefulset_status_replicas_ready{
+              namespace="openshift-logging",
+              statefulset=~"logging-loki-compactor.*"
+            } == 0
+          for: 10m
+          labels:
+            severity: warning
+
+        - alert: LokiHighRequestErrorRate
+          annotations:
+            summary: LokiStack request error rate exceeds 5%.
+            description: >-
+              {{ $value | humanizePercentage }} of Loki HTTP requests are
+              returning 5xx errors. Queries or ingestion may be degraded.
+          expr: |
+            (
+              sum(rate(loki_request_duration_seconds_count{
+                namespace="openshift-logging",
+                status_code=~"5.."
+              }[15m]))
+              /
+              sum(rate(loki_request_duration_seconds_count{
+                namespace="openshift-logging"
+              }[15m]))
+            ) > 0.05
+          for: 15m
+          labels:
+            severity: warning
+
+        - alert: LokiPVCNearlyFull
+          annotations:
+            summary: "LokiStack PVC {{ $labels.persistentvolumeclaim }} is above 85% full."
+            description: >-
+              PVC {{ $labels.persistentvolumeclaim }} in
+              {{ $labels.namespace }} is at
+              {{ $value | humanizePercentage }} capacity. The ingester WAL
+              or compactor storage may run out of space.
+          expr: |
+            (
+              kubelet_volume_stats_used_bytes{
+                namespace="openshift-logging",
+                persistentvolumeclaim=~"storage-logging-loki-.*|wal-logging-loki-.*"
+              }
+              /
+              kubelet_volume_stats_capacity_bytes{
+                namespace="openshift-logging",
+                persistentvolumeclaim=~"storage-logging-loki-.*|wal-logging-loki-.*"
+              }
+            ) > 0.85
+          for: 30m
+          labels:
+            severity: warning
+
+        - alert: LokiComponentRestarting
+          annotations:
+            summary: A Loki component is restarting frequently.
+            description: >-
+              Pod {{ $labels.pod }} has restarted more than 3 times in the
+              last 30 minutes. This may indicate OOM kills, storage
+              credential issues, or crash loops.
+          expr: |
+            increase(
+              kube_pod_container_status_restarts_total{
+                namespace="openshift-logging",
+                pod=~"logging-loki-.*"
+              }[30m]
+            ) > 3
+          for: 0m
+          labels:
+            severity: warning
+
+    # ── Audit & Logging Pipeline Health ───────────────────────────────
+    - name: audit-pipeline-health
+      rules:
+        - alert: AuditLogIngestionStopped
+          annotations:
+            summary: No audit logs ingested for 15 minutes.
+            description: >-
+              Loki has received zero audit log lines for 15 minutes. The
+              ClusterLogForwarder audit pipeline may be broken or the
+              collector pods may not be running.
+          expr: |
+            sum(rate(
+              loki_distributor_lines_received_total{
+                namespace="openshift-logging",
+                tenant="audit"
+              }[5m]
+            )) == 0
+          for: 15m
+          labels:
+            severity: critical
+
+        - alert: InfraLogIngestionStopped
+          annotations:
+            summary: No infrastructure logs ingested for 15 minutes.
+            description: >-
+              Loki has received zero infrastructure log lines for
+              15 minutes. Check the CLF infra-to-loki pipeline and
+              collector pod health.
+          expr: |
+            sum(rate(
+              loki_distributor_lines_received_total{
+                namespace="openshift-logging",
+                tenant="infrastructure"
+              }[5m]
+            )) == 0
+          for: 15m
+          labels:
+            severity: warning
+
+        - alert: AuditFilterEffectivenessLow
+          annotations:
+            summary: Audit filter effectiveness has dropped below 50%.
+            description: >-
+              The edge filter is passing more than half of all API server
+              events to Loki (effectiveness {{ $value | humanizePercentage }}).
+              This may indicate a filter misconfiguration, or an unusual
+              spike in mutating API traffic.
+          expr: |
+            (
+              1 - (
+                sum(rate(
+                  loki_distributor_lines_received_total{
+                    namespace="openshift-logging",
+                    tenant="audit"
+                  }[15m]
+                ))
+                /
+                sum(rate(apiserver_request_total[15m]))
+              )
+            ) < 0.5
+          for: 30m
+          labels:
+            severity: warning
+
+        - alert: AuditIngestionSpike
+          annotations:
+            summary: Audit log ingestion rate has spiked.
+            description: >-
+              Audit log ingestion is more than 3x the 1-hour average.
+              This could indicate an attack, a runaway controller, or
+              a bulk operation.
+          expr: |
+            sum(rate(
+              loki_distributor_lines_received_total{
+                namespace="openshift-logging",
+                tenant="audit"
+              }[5m]
+            ))
+            >
+            3 * sum(avg_over_time(
+              rate(
+                loki_distributor_lines_received_total{
+                  namespace="openshift-logging",
+                  tenant="audit"
+                }[5m]
+              )[1h:]
+            ))
+          for: 10m
+          labels:
+            severity: warning
