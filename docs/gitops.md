@@ -88,4 +88,4 @@ Grafana is not in the first GitOps sync (datasource tokens need ServiceAccounts 
 
 ## Helm chart
 
-`helm/audit-loki` remains for local `helm template` / `helm upgrade` and CI. It is not the Argo source for the copy-into-namespaces path. Size numbers in the GitOps LokiStack (`1x.small`, 30-day audit retention) match `helm/audit-loki/values-test.yaml`.
+`helm/audit-loki` remains for local `helm template` / `helm upgrade` and CI. It is not the Argo source for the copy-into-namespaces path. The GitOps LokiStack is `1x.small` with **60-day** audit and infrastructure retention (longer than `helm/audit-loki/values-test.yaml`).

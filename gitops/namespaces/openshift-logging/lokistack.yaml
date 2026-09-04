@@ -1,6 +1,7 @@
 # Test / pre-prod profile (1x.small). Object storage is Azure Blob via the
 # out-of-band secret logging-loki-azure — do not commit account keys.
 # storageClassName is block storage for ingester/compactor PVCs (managed-csi on ARO).
+# Retention: 60 days for audit and infrastructure tenants.
 ---
 apiVersion: loki.grafana.com/v1
 kind: LokiStack
@@ -29,7 +30,7 @@ spec:
   limits:
     global:
       retention:
-        days: 14
+        days: 60
       queries:
         maxEntriesLimitPerQuery: 10000
         maxChunksPerQuery: 4000000
@@ -44,10 +45,10 @@ spec:
     tenants:
       audit:
         retention:
-          days: 30
+          days: 60
       infrastructure:
         retention:
-          days: 14
+          days: 60
         queries:
           maxEntriesLimitPerQuery: 10000
           maxQuerySeries: 1000
