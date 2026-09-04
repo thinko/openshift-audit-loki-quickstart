@@ -419,22 +419,22 @@ function openInConsole(query, isPromql, consoleSearch, tenant) {
   if (!base) { alert('Set your Console URL first.'); return; }
 
   const rangeMs = getTimeRange();
-  const endMs = Date.now();
-  const startMs = endMs - rangeMs;
+  const now = Date.now();
+  const start = new Date(now - rangeMs).toISOString();
+  const end = new Date(now).toISOString();
 
   if (isPromql) {
     const params = new URLSearchParams();
     params.set('query0', query);
-    params.set('endTime', String(endMs));
-    params.set('timeRange', String(rangeMs));
+    params.set('endTime', end);
+    params.set('timeRange', String(Math.floor(rangeMs / 1000)));
     window.open(base + '/monitoring/query-browser?' + params.toString(), '_blank');
   } else {
     const params = new URLSearchParams();
     params.set('q', query);
     params.set('tenant', tenant || 'audit');
-    params.set('start', String(startMs * 1000000));
-    params.set('end', String(endMs * 1000000));
-    params.set('timeRange', String(rangeMs));
+    params.set('start', start);
+    params.set('end', end);
     if (consoleSearch) params.set('text', consoleSearch);
     window.open(base + '/monitoring/logs?' + params.toString(), '_blank');
   }
