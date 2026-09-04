@@ -105,6 +105,35 @@
     background: var(--code-bg); padding: 1px 5px; border-radius: 3px;
     font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; color: var(--text);
   }
+  .var-bar {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 12px;
+  }
+  .var-bar h3 { font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .var-fields { display: flex; gap: 12px; flex-wrap: wrap; }
+  .var-field { display: flex; align-items: center; gap: 6px; }
+  .var-field label { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .var-field input {
+    width: 200px; background: var(--code-bg); border: 1px solid var(--border);
+    color: var(--text); padding: 5px 8px; border-radius: 4px; font-size: 12px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+  .var-field input:focus { border-color: var(--accent); outline: none; }
+  .var-field input::placeholder { color: var(--border); }
+
+  .card-overrides {
+    padding: 8px 0; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+  }
+  .card-overrides label { color: var(--orange); font-size: 11px; font-weight: 500; white-space: nowrap; }
+  .card-overrides input {
+    width: 180px; background: var(--bg); border: 1px solid var(--border);
+    color: var(--text); padding: 4px 7px; border-radius: 4px; font-size: 12px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+  .card-overrides input:focus { border-color: var(--orange); outline: none; }
+  .card-overrides input::placeholder { color: var(--border); font-style: italic; }
+  .card-overrides .override-hint { color: var(--muted); font-size: 11px; font-style: italic; }
+
   footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; }
 </style>
 </head>
@@ -139,13 +168,32 @@
   <span class="time-indicator" id="timeDisplay">Queries will cover the <strong>last 24 hours</strong></span>
 </div>
 
+<div class="var-bar">
+  <h3>Query Variables (global defaults)</h3>
+  <div class="var-fields">
+    <div class="var-field">
+      <label for="globalUsername">Username:</label>
+      <input type="text" id="globalUsername" placeholder="e.g. jane@example.com" oninput="saveGlobalVars()">
+    </div>
+    <div class="var-field">
+      <label for="globalNamespace">Namespace:</label>
+      <input type="text" id="globalNamespace" placeholder="e.g. openshift-logging" oninput="saveGlobalVars()">
+    </div>
+    <div class="var-field">
+      <label for="globalName">Resource Name:</label>
+      <input type="text" id="globalName" placeholder="e.g. my-deployment" oninput="saveGlobalVars()">
+    </div>
+  </div>
+</div>
+
 <div class="instructions">
   <h3>How to use</h3>
   <ol>
-    <li>Set your Console URL and Grafana URL above (saved in your browser).</li>
-    <li><strong>Copy</strong> &mdash; copies the LogQL/PromQL query to your clipboard.</li>
-    <li><strong>Open Logs / Open Metrics</strong> &mdash; opens the OpenShift Console with the query and time range pre-filled.</li>
-    <li><strong>Explore</strong> &mdash; opens Grafana Explore with the query loaded (supports full LogQL including <code>| json</code> and <code>| line_format</code>).</li>
+    <li>Set your Console URL, Grafana URL, and global query variables above (all saved in your browser).</li>
+    <li>Queries that need a username, namespace, or resource name use the <strong>global defaults</strong> above. You can <strong>override per-query</strong> using the inline fields shown when you expand a card.</li>
+    <li><strong>Copy</strong> &mdash; copies the resolved query (with your variables filled in) to your clipboard.</li>
+    <li><strong>Open Logs / Open Metrics</strong> &mdash; opens the OpenShift Console with the resolved query and time range.</li>
+    <li><strong>Explore</strong> &mdash; opens Grafana Explore with the resolved query.</li>
     <li>The Console query box only supports stream selectors. For <code>| json</code> and <code>| line_format</code> queries, use <strong>Explore</strong> in Grafana.</li>
   </ol>
 </div>
@@ -374,6 +422,12 @@ const TIME_LABELS = {
   '1209600000': 'last 14 days'
 };
 
+const VAR_MAP = {
+  'REPLACE_WITH_USERNAME': { global: 'globalUsername', label: 'Username' },
+  'REPLACE_WITH_NAMESPACE': { global: 'globalNamespace', label: 'Namespace' },
+  'REPLACE_WITH_NAME': { global: 'globalName', label: 'Resource Name' }
+};
+
 function saveConsoleUrl() {
   const url = document.getElementById('consoleUrl').value.replace(/\/+$/, '');
   localStorage.setItem('ocp-console-url', url);
@@ -391,6 +445,12 @@ function saveTimeRange() {
     'Queries will cover the <strong>' + (TIME_LABELS[val] || val) + '</strong>';
 }
 
+function saveGlobalVars() {
+  localStorage.setItem('ocp-var-username', document.getElementById('globalUsername').value);
+  localStorage.setItem('ocp-var-namespace', document.getElementById('globalNamespace').value);
+  localStorage.setItem('ocp-var-name', document.getElementById('globalName').value);
+}
+
 function loadSettings() {
   const savedUrl = localStorage.getItem('ocp-console-url') || '';
   document.getElementById('consoleUrl').value = savedUrl;
@@ -400,13 +460,47 @@ function loadSettings() {
   document.getElementById('timeRange').value = savedTime;
   document.getElementById('timeDisplay').innerHTML =
     'Queries will cover the <strong>' + (TIME_LABELS[savedTime] || savedTime) + '</strong>';
+  document.getElementById('globalUsername').value = localStorage.getItem('ocp-var-username') || '';
+  document.getElementById('globalNamespace').value = localStorage.getItem('ocp-var-namespace') || '';
+  document.getElementById('globalName').value = localStorage.getItem('ocp-var-name') || '';
 }
 
 function getTimeRange() {
   return parseInt(document.getElementById('timeRange').value, 10);
 }
 
-function copyQuery(btn, query) {
+function findVarsInQuery(query) {
+  const found = [];
+  for (const token of Object.keys(VAR_MAP)) {
+    if (query.includes(token)) found.push(token);
+  }
+  return found;
+}
+
+function resolveQuery(rawQuery, cardId) {
+  let query = rawQuery;
+  for (const [token, cfg] of Object.entries(VAR_MAP)) {
+    if (!query.includes(token)) continue;
+    const overrideEl = document.getElementById('override-' + cardId + '-' + token);
+    const overrideVal = overrideEl ? overrideEl.value.trim() : '';
+    const globalVal = document.getElementById(cfg.global).value.trim();
+    const resolved = overrideVal || globalVal;
+    if (resolved) {
+      query = query.split(token).join(resolved);
+    }
+  }
+  return query;
+}
+
+function hasUnresolvedVars(query) {
+  return Object.keys(VAR_MAP).some(token => query.includes(token));
+}
+
+function copyQuery(btn, rawQuery, cardId) {
+  const query = resolveQuery(rawQuery, cardId);
+  if (hasUnresolvedVars(query)) {
+    if (!confirm('Some variables are not filled in. Copy anyway with placeholders?')) return;
+  }
   navigator.clipboard.writeText(query).then(() => {
     btn.classList.add('copied');
     btn.textContent = 'Copied!';
@@ -414,12 +508,17 @@ function copyQuery(btn, query) {
   });
 }
 
-function openInConsole(query, isPromql, consoleSearch, tenant) {
+function openInConsole(rawQuery, isPromql, consoleSearch, tenant, cardId) {
+  const query = resolveQuery(rawQuery, cardId);
+  if (hasUnresolvedVars(query)) {
+    alert('Fill in the required variables (globally or in the card) before opening.'); return;
+  }
   const base = document.getElementById('consoleUrl').value.replace(/\/+$/, '');
   if (!base) { alert('Set your Console URL first.'); return; }
 
   const rangeMs = getTimeRange();
   const now = Date.now();
+  const resolvedSearch = resolveQuery(consoleSearch, cardId);
 
   if (isPromql) {
     const params = new URLSearchParams();
@@ -433,12 +532,16 @@ function openInConsole(query, isPromql, consoleSearch, tenant) {
     params.set('tenant', tenant || 'audit');
     params.set('start', String(now - rangeMs));
     params.set('end', String(now));
-    if (consoleSearch) params.set('text', consoleSearch);
+    if (resolvedSearch) params.set('text', resolvedSearch);
     window.open(base + '/monitoring/logs?' + params.toString(), '_blank');
   }
 }
 
-function openInGrafana(query, isPromql, tenant) {
+function openInGrafana(rawQuery, isPromql, tenant, cardId) {
+  const query = resolveQuery(rawQuery, cardId);
+  if (hasUnresolvedVars(query)) {
+    alert('Fill in the required variables (globally or in the card) before opening.'); return;
+  }
   const base = document.getElementById('grafanaUrl').value.replace(/\/+$/, '');
   if (!base) { alert('Set your Grafana URL first.'); return; }
 
@@ -477,11 +580,28 @@ function renderQueries() {
       const id = 'card-' + (cardId++);
       const isMetrics = cat.badge === 'metrics';
       const tenant = item.tenant || 'audit';
+      const vars = findVarsInQuery(item.query);
       const card = document.createElement('div');
       card.className = 'query-card';
       const qAttr = JSON.stringify(item.query).replace(/"/g, '&quot;');
       const sAttr = JSON.stringify(item.console_search || '').replace(/"/g, '&quot;');
       const tAttr = JSON.stringify(tenant).replace(/"/g, '&quot;');
+
+      let overridesHtml = '';
+      if (vars.length > 0) {
+        const fields = vars.map(token => {
+          const cfg = VAR_MAP[token];
+          const inputId = 'override-' + id + '-' + token;
+          return `<label for="${inputId}">${cfg.label}:</label>
+            <input type="text" id="${inputId}" placeholder="use global default">`;
+        }).join('\n            ');
+        overridesHtml = `
+          <div class="card-overrides">
+            ${fields}
+            <span class="override-hint">Leave blank to use global default</span>
+          </div>`;
+      }
+
       card.innerHTML = `
         <div class="query-header" onclick="toggleBody('${id}')">
           <div>
@@ -489,12 +609,13 @@ function renderQueries() {
             <div class="query-desc">${item.desc}</div>
           </div>
           <div class="query-actions" onclick="event.stopPropagation()">
-            <button class="btn btn-copy" onclick="copyQuery(this, ${qAttr})">Copy</button>
-            <button class="btn btn-open" onclick="openInConsole(${qAttr}, ${isMetrics}, ${sAttr}, ${tAttr})">${isMetrics ? 'Open Metrics' : 'Open Logs'}</button>
-            <button class="btn btn-grafana" onclick="openInGrafana(${qAttr}, ${isMetrics}, ${tAttr})">Explore</button>
+            <button class="btn btn-copy" onclick="copyQuery(this, ${qAttr}, '${id}')">Copy</button>
+            <button class="btn btn-open" onclick="openInConsole(${qAttr}, ${isMetrics}, ${sAttr}, ${tAttr}, '${id}')">${isMetrics ? 'Open Metrics' : 'Open Logs'}</button>
+            <button class="btn btn-grafana" onclick="openInGrafana(${qAttr}, ${isMetrics}, ${tAttr}, '${id}')">Explore</button>
           </div>
         </div>
         <div class="query-body" id="${id}">
+          ${overridesHtml}
           <pre>${item.query.replace(/</g, '&lt;')}</pre>
           ${item.note ? `<div class="query-note">${item.note}</div>` : ''}
         </div>`;
