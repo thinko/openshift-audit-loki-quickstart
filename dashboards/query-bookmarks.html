@@ -105,6 +105,8 @@
     background: var(--code-bg); padding: 1px 5px; border-radius: 3px;
     font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; color: var(--text);
   }
+  .badge-input { background: rgba(210,153,34,0.15); color: var(--orange); cursor: help; }
+
   .card-overrides {
     padding: 8px 0; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
   }
@@ -592,7 +594,7 @@ function renderQueries() {
       card.innerHTML = `
         <div class="query-header" onclick="toggleBody('${id}')">
           <div>
-            <div class="query-title">${item.title}${tenant !== 'audit' ? ` <span class="badge badge-${cat.badge}" style="font-size:10px">${tenant}</span>` : ''}</div>
+            <div class="query-title">${item.title}${tenant !== 'audit' ? ` <span class="badge badge-${cat.badge}" style="font-size:10px">${tenant}</span>` : ''}${vars.length > 0 ? ` <span class="badge badge-input" style="font-size:10px" title="Expand to fill in ${vars.map(v => VAR_MAP[v].label.toLowerCase()).join(', ')}">&#9998; input</span>` : ''}</div>
             <div class="query-desc">${item.desc}</div>
           </div>
           <div class="query-actions" onclick="event.stopPropagation()">
