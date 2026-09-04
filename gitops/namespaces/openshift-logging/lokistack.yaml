@@ -1,6 +1,5 @@
-# Test / pre-prod profile (1x.small). Object storage is Azure Blob via the
-# out-of-band secret logging-loki-azure — do not commit account keys.
-# storageClassName is block storage for ingester/compactor PVCs (managed-csi on ARO).
+# 1x.medium: ~54 vCPU / 139 Gi / 590 Gi WAL (operator profile).
+# Object storage is Azure Blob via out-of-band secret logging-loki-azure.
 # Retention: 60 days for audit and infrastructure tenants.
 ---
 apiVersion: loki.grafana.com/v1
@@ -15,7 +14,7 @@ metadata:
     app.kubernetes.io/part-of: openshift-logging
 spec:
   managementState: Managed
-  size: 1x.small
+  size: 1x.medium
   storage:
     schemas:
       - version: v13
@@ -32,12 +31,12 @@ spec:
       retention:
         days: 60
       queries:
-        maxEntriesLimitPerQuery: 10000
-        maxChunksPerQuery: 4000000
-        maxQuerySeries: 1000
+        maxEntriesLimitPerQuery: 20000
+        maxChunksPerQuery: 8000000
+        maxQuerySeries: 2000
       ingestion:
-        ingestionRate: 8
-        ingestionBurstSize: 12
+        ingestionRate: 16
+        ingestionBurstSize: 24
         maxLabelNameLength: 1024
         maxLabelValueLength: 2048
         maxLabelNamesPerSeries: 30
@@ -50,5 +49,5 @@ spec:
         retention:
           days: 60
         queries:
-          maxEntriesLimitPerQuery: 10000
-          maxQuerySeries: 1000
+          maxEntriesLimitPerQuery: 20000
+          maxQuerySeries: 2000

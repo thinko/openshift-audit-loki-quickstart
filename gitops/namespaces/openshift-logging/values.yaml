@@ -6,7 +6,7 @@
 # Before the PR: set envs[0].name to the same cluster key as clusters.yaml
 # (do not commit the filled name back to this public kit).
 # Copy org annotations / AD groups from an existing namespaces/*/values.yaml,
-# and confirm spec_hard fits LokiStack 1x.small (~34 vCPU / 67 Gi requests).
+# and confirm spec_hard fits LokiStack 1x.medium (~54 vCPU / 139 Gi requests).
 project:
   name: openshift-logging
   labels:
@@ -32,10 +32,10 @@ envs:
     deployment_id: TBD
     spec_hard:
       requests:
-        cpu: 48
-        memory: 96Gi
+        cpu: 72
+        memory: 176Gi
       limits:
-        cpu: 48
-        memory: 96Gi
+        cpu: 72
+        memory: 176Gi
       count:
         persistentvolumeclaims: 20

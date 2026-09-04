@@ -23,7 +23,7 @@ def test_gitops_runbook_topics(repo_root: Path):
         "REPLACE_ME_CLUSTER",
         "logging-loki-azure",
         "make enable-console-plugin",
-        "1x.small",
+        "1x.medium",
         "OperatorGroup",
     ):
         assert needle in text, f"missing {needle}"

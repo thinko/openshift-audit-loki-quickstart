@@ -30,7 +30,7 @@ Namespace is hardcoded as `openshift-logging` on those objects (the ApplicationS
 
 1. Replace `REPLACE_ME_CLUSTER` in `clusters.yaml` and `values.yaml` `envs[0].name` with the cluster key used in other `namespaces/*/clusters.yaml` files. Do not commit the filled cluster name back to this public kit.
 2. Copy org annotations and AD edit/view groups from an existing namespace `values.yaml`. Do not invent group names.
-3. Keep `spec_hard` at least **48 CPU / 96Gi**. LokiStack `1x.small` requests about 34 vCPU / 67 Gi; a smaller quota will starve the stack. See [scaling-guide.md](scaling-guide.md).
+3. Keep `spec_hard` at least **72 CPU / 176Gi**. LokiStack `1x.medium` requests about 54 vCPU / 139 Gi; a smaller quota will starve the stack. See [scaling-guide.md](scaling-guide.md).
 4. Keep `openshift.io/node-selector: ""`. Do not copy a dedicated-node selector from another namespace folder.
 
 ## Operators in this folder
@@ -91,4 +91,4 @@ Grafana is not in the first GitOps sync (datasource tokens need ServiceAccounts 
 
 ## Helm chart
 
-`helm/audit-loki` remains for local `helm template` / `helm upgrade` and CI. It is not the Argo source for the copy-into-namespaces path. The GitOps LokiStack is `1x.small` with **60-day** audit and infrastructure retention (longer than `helm/audit-loki/values-test.yaml`).
+`helm/audit-loki` remains for local `helm template` / `helm upgrade` and CI. It is not the Argo source for the copy-into-namespaces path. The GitOps LokiStack is `1x.medium` with **60-day** audit and infrastructure retention.

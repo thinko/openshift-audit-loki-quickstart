@@ -42,10 +42,10 @@ def test_gitops_values_project_and_quota(repo_root: Path):
     assert values["project"]["annotations"]["openshift.io/node-selector"] == ""
     env = values["envs"][0]
     assert env["name"] == "REPLACE_ME_CLUSTER"
-    assert env["spec_hard"]["requests"]["cpu"] >= 48
+    assert env["spec_hard"]["requests"]["cpu"] >= 72
     mem = str(env["spec_hard"]["requests"]["memory"])
     assert mem.endswith("Gi")
-    assert int(mem.removesuffix("Gi")) >= 96
+    assert int(mem.removesuffix("Gi")) >= 176
 
 
 def test_gitops_no_db2_node_pool(repo_root: Path):
@@ -70,7 +70,7 @@ def test_gitops_lokistack_test_profile(repo_root: Path):
         if d["kind"] == "LokiStack"
     )
     spec = stack["spec"]
-    assert spec["size"] == "1x.small"
+    assert spec["size"] == "1x.medium"
     assert spec["storage"]["secret"]["name"] == "logging-loki-azure"
     assert spec["storage"]["secret"]["type"] == "azure"
     assert spec["limits"]["tenants"]["audit"]["retention"]["days"] == 60
