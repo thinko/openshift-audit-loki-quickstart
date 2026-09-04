@@ -223,11 +223,11 @@ const QUERIES = [
         note: "Tracks self-provisioner activity and environment lifecycle."
       },
       {
-        title: "All Changes in a Namespace",
-        desc: "Every mutation in a specific namespace (edit below)",
-        query: '{log_type="audit"} | json\n  | objectRef_namespace="REPLACE_WITH_NAMESPACE"\n  | verb=~"(create|update|patch|delete)"\n  | line_format `{{.user_username}} {{.verb}} {{.objectRef_resource}}/{{.objectRef_name}} [{{.responseStatus_code}}]`',
+        title: "All Changes in a Namespace (Human Only)",
+        desc: "Every human-initiated mutation in a specific namespace (edit below)",
+        query: '{log_type="audit"} | json\n  | objectRef_namespace="REPLACE_WITH_NAMESPACE"\n  | verb=~"(create|update|patch|delete)"\n  | user_username!~"system:.*"\n  | line_format `{{.user_username}} {{.verb}} {{.objectRef_resource}}/{{.objectRef_name}} [{{.responseStatus_code}}]`',
         console_search: "REPLACE_WITH_NAMESPACE",
-        note: "Use for namespace-scoped compliance reviews."
+        note: "Excludes system:serviceaccount and system:node noise. Use for namespace-scoped compliance reviews."
       },
       {
         title: "Non-Platform Service Account Activity",
