@@ -32,10 +32,10 @@ envs:
     deployment_id: TBD
     spec_hard:
       requests:
-        cpu: 72
-        memory: 176Gi
+        cpu: 100
+        memory: 256Gi
       limits:
-        cpu: 72
-        memory: 176Gi
+        cpu: 100
+        memory: 256Gi
       count:
         persistentvolumeclaims: 20
