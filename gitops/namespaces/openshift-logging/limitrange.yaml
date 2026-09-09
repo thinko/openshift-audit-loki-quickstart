@@ -2,6 +2,11 @@
 #! The Loki Operator CSV does not set limits.memory on its controller-manager
 #! container, which violates the namespace ResourceQuota. This LimitRange
 #! auto-injects defaults so OLM-managed pods pass quota admission.
+#!
+#! These defaults are intentionally generous because LokiStack components
+#! (ingester, compactor, querier) can need multi-GB memory for 1x.medium.
+#! The operator itself OOMs at 512Mi during initial reconciliation.
+#! Pods that specify their own limits in the PodSpec are unaffected.
 ---
 apiVersion: v1
 kind: LimitRange
@@ -17,8 +22,8 @@ spec:
   limits:
     - type: Container
       default:
-        memory: 512Mi
-        cpu: 500m
+        memory: 8Gi
+        cpu: "2"
       defaultRequest:
-        memory: 256Mi
-        cpu: 100m
+        memory: 1Gi
+        cpu: 250m
