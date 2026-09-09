@@ -1,12 +1,12 @@
 #@data/values
 ---
-# Namespace ApplicationSet input (ytt data values). Extra Loki/CLO
-# manifests in this folder are plain YAML and are not templated from here.
-#
-# Before the PR: set envs[0].name to the same cluster key as clusters.yaml
-# (do not commit the filled name back to this public kit).
-# Copy org annotations / AD groups from an existing namespaces/*/values.yaml,
-# and confirm spec_hard fits LokiStack 1x.medium (~54 vCPU / 139 Gi requests).
+#! Namespace ApplicationSet input (ytt data values). Extra Loki/CLO
+#! manifests in this folder are plain YAML and are not templated from here.
+#!
+#! Before the PR: set envs[0].name to the same cluster key as clusters.yaml
+#! (do not commit the filled name back to this public kit).
+#! Copy org annotations / AD groups from an existing namespaces/*/values.yaml,
+#! and confirm spec_hard fits LokiStack 1x.medium (~54 vCPU / 139 Gi requests).
 project:
   name: openshift-logging
   labels:
@@ -18,8 +18,8 @@ project:
     pod-security.kubernetes.io/audit: privileged
     pod-security.kubernetes.io/warn: privileged
   annotations:
-    # Empty selector: collectors and Loki pods must run on normal workers.
-    # Do not copy a dedicated-node selector from other namespace folders.
+    #! Empty selector: collectors and Loki pods must run on normal workers.
+    #! Do not copy a dedicated-node selector from other namespace folders.
     openshift.io/node-selector: ""
     openshift.io/description: "OpenShift Logging LokiStack (audit + infrastructure)"
     openshift.io/display-name: openshift-logging

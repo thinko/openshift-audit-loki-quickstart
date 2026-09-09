@@ -1,10 +1,10 @@
-# PrometheusRule: LokiStack and Audit Pipeline health alerts.
-# These alerts focus on components unique to this deployment and
-# avoid duplicating built-in OpenShift alerts (KubeDeployment*,
-# KubeContainerWaiting, KubePodNotReady, etc.).
-#
-# GitOps copy: PrometheusRule only (no AlertmanagerConfig webhook).
-# Verify: oc -n openshift-logging get prometheusrule loki-audit-alerts
+#! PrometheusRule: LokiStack and Audit Pipeline health alerts.
+#! These alerts focus on components unique to this deployment and
+#! avoid duplicating built-in OpenShift alerts (KubeDeployment*,
+#! KubeContainerWaiting, KubePodNotReady, etc.).
+#!
+#! GitOps copy: PrometheusRule only (no AlertmanagerConfig webhook).
+#! Verify: oc -n openshift-logging get prometheusrule loki-audit-alerts
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
@@ -17,7 +17,7 @@ metadata:
     argocd.argoproj.io/sync-wave: "5"
 spec:
   groups:
-    # ── LokiStack Component Health ────────────────────────────────────
+    #! ── LokiStack Component Health ────────────────────────────────────
     - name: lokistack-health
       rules:
         - alert: LokiIngesterNotReady
@@ -132,7 +132,7 @@ spec:
           labels:
             severity: warning
 
-    # ── Audit & Logging Pipeline Health ───────────────────────────────
+    #! ── Audit & Logging Pipeline Health ───────────────────────────────
     - name: audit-pipeline-health
       rules:
         - alert: AuditLogIngestionStopped

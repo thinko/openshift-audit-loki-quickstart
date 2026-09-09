@@ -9,8 +9,26 @@ source "${ROOT}/scripts/common.sh"
 
 GRAFANA_NAMESPACE="${NAMESPACE:-openshift-logging}"
 GRAFANA_IMAGE="${GRAFANA_IMAGE:-grafana/grafana:latest}"
+GRAFANA_ADMIN_USER="${GRAFANA_ADMIN_USER:-admin}"
+GRAFANA_ADMIN_PASSWORD="${GRAFANA_ADMIN_PASSWORD:-}"
 
 header "Standalone Grafana Deployment"
+
+# ── Pre-check: admin password must be set ──
+if [ -z "${GRAFANA_ADMIN_PASSWORD}" ]; then
+  err "GRAFANA_ADMIN_PASSWORD is not set."
+  err "Set it in .env or export it before running:"
+  err "  echo 'GRAFANA_ADMIN_PASSWORD=<your-password>' >> .env"
+  exit 1
+fi
+
+# ── Step 0: Create/update admin credentials secret ──
+echo "==> Creating grafana-admin-credentials secret..."
+oc create secret generic grafana-admin-credentials \
+  -n "${GRAFANA_NAMESPACE}" \
+  --from-literal="GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}" \
+  --from-literal="GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}" \
+  --dry-run=client -o yaml | oc apply -f -
 
 # ── Step 1: Apply RBAC (ServiceAccounts, ClusterRoles, ClusterRoleBindings) ──
 echo "==> Applying RBAC and base resources..."
@@ -87,7 +105,7 @@ ROUTE=$(oc get route loki-grafana -n "${GRAFANA_NAMESPACE}" \
 if [ -n "${ROUTE}" ]; then
   echo "Grafana URL: https://${ROUTE}"
   echo ""
-  echo "Default credentials: admin / REDACTED_SECRET"
+  echo "Credentials: ${GRAFANA_ADMIN_USER} / (from GRAFANA_ADMIN_PASSWORD in .env)"
   echo "(Change the password on first login)"
 else
   echo "Route not yet available. Check: oc get route -n ${GRAFANA_NAMESPACE}"

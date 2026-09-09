@@ -1,4 +1,4 @@
-# Collector identity. Bind cluster roles before creating the ClusterLogForwarder.
+#! Collector identity. Bind cluster roles before creating the ClusterLogForwarder.
 ---
 apiVersion: v1
 kind: ServiceAccount

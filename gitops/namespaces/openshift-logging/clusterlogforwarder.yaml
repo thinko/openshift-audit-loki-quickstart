@@ -1,6 +1,6 @@
-# OpenShift Logging 6.x: observability.openshift.io/v1.
-# Pipeline: kube/openshift/ovn audit -> edge filters -> in-cluster LokiStack.
-# Bind collector RBAC (collector-rbac.yaml) before this object.
+#! OpenShift Logging 6.x: observability.openshift.io/v1.
+#! Pipeline: kube/openshift/ovn audit -> edge filters -> in-cluster LokiStack.
+#! Bind collector RBAC (collector-rbac.yaml) before this object.
 ---
 apiVersion: observability.openshift.io/v1
 kind: ClusterLogForwarder
@@ -30,8 +30,8 @@ spec:
         sources:
           - container
           - node
-    # Application logs are acknowledged but dropped to silence the
-    # ClusterLogForwarderRuntimeConfigurationMissingUnmatched alert.
+    #! Application logs are acknowledged but dropped to silence the
+    #! ClusterLogForwarderRuntimeConfigurationMissingUnmatched alert.
     - name: app-logs
       type: application
       application: {}

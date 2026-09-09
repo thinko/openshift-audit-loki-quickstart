@@ -9,26 +9,16 @@
 #     <nexus-host>/docker-private/openshift-samples/grafana:11.3.0
 #
 # Admin credentials:
-#   Default user: admin / admin (change on first login)
-#   Or set via the grafana-admin-credentials Secret below.
+#   Set GRAFANA_ADMIN_PASSWORD in .env (required for make deploy-grafana).
+#   The Secret is created by deploy-grafana.sh, not stored in this manifest.
 #
 # Datasource provisioning is handled by ConfigMaps in 09-grafana-datasources.yaml.
 # Dashboard provisioning is handled by scripts/deploy-grafana.sh.
 ---
-apiVersion: v1
-kind: Secret
-metadata:
-  name: grafana-admin-credentials
-  namespace: openshift-logging
-  labels:
-    app.kubernetes.io/name: loki-grafana
-    app.kubernetes.io/part-of: openshift-logging
-  annotations:
-    argocd.argoproj.io/sync-wave: "3"
-type: Opaque
-stringData:
-  GF_SECURITY_ADMIN_USER: admin
-  GF_SECURITY_ADMIN_PASSWORD: REDACTED_SECRET
+# Grafana admin credentials are created by scripts/deploy-grafana.sh
+# from GRAFANA_ADMIN_USER and GRAFANA_ADMIN_PASSWORD environment variables
+# (set in .env or exported). The Secret is NOT in this manifest to avoid
+# committing credentials to the repository.
 ---
 apiVersion: v1
 kind: ConfigMap

@@ -1,9 +1,9 @@
-# Greenfield only. A second OperatorGroup in openshift-logging breaks OLM
-# (Manual InstallPlans, CSV install loops). Check first:
-#   oc get operatorgroup -n openshift-logging
-#
-# Both operator Subscriptions in this folder install into this namespace so
-# a single-destination ApplicationSet does not need openshift-operators-redhat.
+#! Greenfield only. A second OperatorGroup in openshift-logging breaks OLM
+#! (Manual InstallPlans, CSV install loops). Check first:
+#!   oc get operatorgroup -n openshift-logging
+#!
+#! Both operator Subscriptions in this folder install into this namespace so
+#! a single-destination ApplicationSet does not need openshift-operators-redhat.
 ---
 apiVersion: operators.coreos.com/v1
 kind: OperatorGroup
