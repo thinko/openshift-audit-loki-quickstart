@@ -1,0 +1,24 @@
+#! Default container resource limits for openshift-logging.
+#! The Loki Operator CSV does not set limits.memory on its controller-manager
+#! container, which violates the namespace ResourceQuota. This LimitRange
+#! auto-injects defaults so OLM-managed pods pass quota admission.
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: openshift-logging-defaults
+  namespace: openshift-logging
+  labels:
+    app.kubernetes.io/name: loki-audit
+    app.kubernetes.io/part-of: openshift-logging
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  limits:
+    - type: Container
+      default:
+        memory: 512Mi
+        cpu: 500m
+      defaultRequest:
+        memory: 256Mi
+        cpu: 100m
