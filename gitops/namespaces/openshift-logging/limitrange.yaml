@@ -1,12 +1,13 @@
 #! Default container resource limits for openshift-logging.
-#! The Loki Operator CSV does not set limits.memory on its controller-manager
-#! container, which violates the namespace ResourceQuota. This LimitRange
-#! auto-injects defaults so OLM-managed pods pass quota admission.
+#! The namespace ResourceQuota requires every container to declare
+#! limits.memory. This LimitRange injects generous defaults so
+#! OLM-managed pods (which omit limits) pass quota admission.
 #!
-#! These defaults are intentionally generous because LokiStack components
-#! (ingester, compactor, querier) can need multi-GB memory for 1x.medium.
-#! The operator itself OOMs at 512Mi during initial reconciliation.
-#! Pods that specify their own limits in the PodSpec are unaffected.
+#! These ceilings are intentionally high — the ResourceQuota enforces
+#! the aggregate total. Individual container limits must not be lower
+#! than the Loki Operator's own resource requests (e.g. query-frontend
+#! requests 4 cpu on 1x.small). Pods that set their own limits in
+#! their PodSpec are unaffected by these defaults.
 ---
 apiVersion: v1
 kind: LimitRange
@@ -22,8 +23,8 @@ spec:
   limits:
     - type: Container
       default:
-        memory: 8Gi
-        cpu: "2"
+        memory: 32Gi
+        cpu: "16"
       defaultRequest:
-        memory: 1Gi
-        cpu: 250m
+        memory: 256Mi
+        cpu: 100m
