@@ -5,14 +5,13 @@
 #!
 #! Defaults must satisfy two constraints simultaneously:
 #!   1. limit >= largest per-container REQUEST the Loki Operator sets
-#!      (query-frontend requests ~4 cpu / ~3Gi on 1x.small)
+#!      (ingester requests 13.25Gi memory, querier/query-frontend request 4 cpu)
 #!   2. total_containers × limit <= namespace ResourceQuota hard limit
-#!      (176Gi memory / 72 cpu on D05)
+#!      (256Gi memory / 100 cpu)
 #!
-#! With ~15 Loki containers + ~25 collector containers, 6Gi × 40 = 240Gi
-#! would exceed the quota. However, collector pods and most Loki pods
-#! set their own limits — the default only injects into the few that
-#! don't (operator controller-manager, possibly some sidecars).
+#! 1x.small has 14 pods. Worst case: 14 × 14Gi = 196Gi (under 256Gi quota).
+#! The Loki Operator only sets requests, not limits — the LimitRange injects
+#! limits into every Loki container. The quota was sized accordingly.
 ---
 apiVersion: v1
 kind: LimitRange
@@ -28,7 +27,7 @@ spec:
   limits:
     - type: Container
       default:
-        memory: 6Gi
+        memory: 14Gi
         cpu: "8"
       defaultRequest:
         memory: 256Mi

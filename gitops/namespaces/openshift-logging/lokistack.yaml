@@ -1,4 +1,4 @@
-#! 1x.small: ~14 vCPU / 22 Gi (operator profile). Suitable for test/staging.
+#! 1x.small: ~34 vCPU / 67 Gi requests (operator profile). Suitable for test/staging.
 #! Object storage is Azure Blob via out-of-band secret logging-loki-azure.
 #! credentialMode static: operator-valid secret (account_name + account_key).
 #! Some ARO tenants have neither a real account key nor Workload ID; Azure
