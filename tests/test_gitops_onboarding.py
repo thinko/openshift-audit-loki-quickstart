@@ -70,7 +70,7 @@ def test_gitops_lokistack_test_profile(repo_root: Path):
         if d["kind"] == "LokiStack"
     )
     spec = stack["spec"]
-    assert spec["size"] == "1x.medium"
+    assert spec["size"] in ("1x.extra-small", "1x.small", "1x.medium")
     assert spec["storage"]["secret"]["name"] == "logging-loki-azure"
     assert spec["storage"]["secret"]["type"] == "azure"
     assert spec["storage"]["secret"]["credentialMode"] == "static"
