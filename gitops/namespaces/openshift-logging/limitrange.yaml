@@ -3,11 +3,16 @@
 #! limits.memory. This LimitRange injects generous defaults so
 #! OLM-managed pods (which omit limits) pass quota admission.
 #!
-#! These ceilings are intentionally high — the ResourceQuota enforces
-#! the aggregate total. Individual container limits must not be lower
-#! than the Loki Operator's own resource requests (e.g. query-frontend
-#! requests 4 cpu on 1x.small). Pods that set their own limits in
-#! their PodSpec are unaffected by these defaults.
+#! Defaults must satisfy two constraints simultaneously:
+#!   1. limit >= largest per-container REQUEST the Loki Operator sets
+#!      (query-frontend requests ~4 cpu / ~3Gi on 1x.small)
+#!   2. total_containers × limit <= namespace ResourceQuota hard limit
+#!      (176Gi memory / 72 cpu on D05)
+#!
+#! With ~15 Loki containers + ~25 collector containers, 6Gi × 40 = 240Gi
+#! would exceed the quota. However, collector pods and most Loki pods
+#! set their own limits — the default only injects into the few that
+#! don't (operator controller-manager, possibly some sidecars).
 ---
 apiVersion: v1
 kind: LimitRange
@@ -23,8 +28,8 @@ spec:
   limits:
     - type: Container
       default:
-        memory: 32Gi
-        cpu: "16"
+        memory: 6Gi
+        cpu: "8"
       defaultRequest:
         memory: 256Mi
         cpu: 100m
