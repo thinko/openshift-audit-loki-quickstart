@@ -14,6 +14,7 @@ metadata:
   namespace: openshift-logging
   annotations:
     argocd.argoproj.io/sync-wave: "3"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
   labels:
     app.kubernetes.io/name: lokistack
     app.kubernetes.io/part-of: openshift-logging

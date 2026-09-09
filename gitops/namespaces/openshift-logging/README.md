@@ -22,3 +22,29 @@ Sandbox installs still use `make deploy` from a laptop.
 
 Layout matches other multi-manifest namespace folders: ytt `values.yaml` plus
 plain YAML siblings with the namespace hardcoded.
+
+## Sync behaviour
+
+The Loki Operator CRDs (`LokiStack`, `ClusterLogForwarder`) are installed by
+OLM via the `Subscription` resources in wave 1. Because CRD registration is
+asynchronous (OLM must pull the operator image and install its CSV), the first
+sync will typically fail on the wave 3/4 resources with _"API could not find
+LokiStack"_.
+
+These resources carry `SkipDryRunOnMissingResource=true` so ArgoCD won't
+reject them during dry-run. Configure the Application with a **retry policy**
+so it re-syncs automatically once the CRDs appear:
+
+```yaml
+spec:
+  syncPolicy:
+    retry:
+      limit: 5
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m
+```
+
+After the operator CSV reaches `Succeeded`, subsequent syncs will apply
+cleanly on the first attempt.
