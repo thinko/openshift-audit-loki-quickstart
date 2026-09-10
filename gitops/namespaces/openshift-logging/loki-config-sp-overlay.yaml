@@ -1,32 +1,55 @@
+#@ load("@ytt:data", "data")
+#@ load("@ytt:template", "template")
+
 #! Service Principal (SP) auth ConfigMap overlay for Loki.
 #!
+#! This overlay replaces the operator-generated ConfigMap with one that
+#! includes `use_service_principal: true` and populates the SP credentials
+#! directly in the config. Only needed when AllowSharedKeyAccess=false
+#! and WIF is unavailable.
+#!
 #! ╔══════════════════════════════════════════════════════════════════════╗
-#! ║  TODO: This file contains a PLACEHOLDER structure.                 ║
-#! ║  Before using SP auth, export the real ConfigMap from a running    ║
-#! ║  cluster where the operator has fully reconciled a LokiStack:     ║
+#! ║  TODO: This file contains a PLACEHOLDER config.yaml.               ║
+#! ║  Before using SP auth, export the real config from a running       ║
+#! ║  cluster where the operator has fully reconciled a LokiStack:      ║
 #! ║                                                                    ║
-#! ║    oc get configmap logging-loki-config \                          ║
-#! ║      -n openshift-logging -o yaml > /tmp/loki-config-export.yaml  ║
+#! ║    oc get configmap logging-loki-config -n openshift-logging \     ║
+#! ║      -o jsonpath='{.data.config\.yaml}' > /tmp/loki-config.yaml   ║
 #! ║                                                                    ║
-#! ║  Then replace the data section below with the exported content     ║
-#! ║  and patch every azure_storage_config block to add:               ║
-#! ║    use_service_principal: true                                     ║
+#! ║  Then replace the config.yaml block below with the exported        ║
+#! ║  content, and update every common.storage.azure /                  ║
+#! ║  azure_storage_config block to match the azure_block below.        ║
 #! ╚══════════════════════════════════════════════════════════════════════╝
 #!
-#! This overlay is only applied when using SP auth (AllowSharedKeyAccess=false
-#! and WIF unavailable). It replaces the operator-generated ConfigMap with one
-#! that includes `use_service_principal: true` in the azure_storage_config.
-#!
 #! Prerequisites:
-#!   1. LokiStack must have been reconciled at least once (Managed) so the
-#!      operator creates all StatefulSets, Services, and the base ConfigMap.
+#!   1. LokiStack reconciled at least once (Managed) to create base config.
 #!   2. Switch lokistack.yaml managementState to Unmanaged.
-#!   3. Create logging-loki-azure secret with SP credentials:
-#!        account_name, container, environment, client_id, client_secret, tenant_id
+#!   3. Create logging-loki-azure Secret (via Vault or out-of-band).
 #!   4. Apply this overlay, then restart Loki pods.
 #!
-#! See scripts/init-sp-auth.sh for the automated bootstrap process.
-#! See docs/gitops.md for the revert path when shared keys are approved.
+#! The config.yaml is operator-generated and varies by LokiStack size.
+#! You must export from a cluster running the same size profile.
+
+#@ azure = data.values.secrets.azure_storage
+#@ sp_enabled = azure.client_id != ""
+
+#! ── Azure block reference ──
+#! When filling in the exported config.yaml, every common.storage.azure
+#! and azure_storage_config section must contain these values:
+#!
+#!   azure:
+#!     environment:            <-- from secrets.azure_storage.environment
+#!     container_name:         <-- from secrets.azure_storage.container
+#!     account_name:           <-- from secrets.azure_storage.account_name
+#!     use_service_principal: true
+#!     client_id:              <-- from secrets.azure_storage.client_id
+#!     client_secret:          <-- from secrets.azure_storage.client_secret
+#!     tenant_id:              <-- from secrets.azure_storage.tenant_id
+
+#! Only render when SP auth values are populated (from Vault at render time).
+#! When empty, this template produces no output — SP overlay must be applied
+#! manually via init-sp-auth.sh.
+#@ if sp_enabled:
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -39,25 +62,40 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "4"
 data:
+  #! TODO: Replace this config.yaml with the full exported content.
+  #! The azure block below is correctly populated from Vault — replicate
+  #! it in every azure_storage_config section in the exported config.
   config.yaml: |
-    # TODO: Replace this entire config.yaml with the exported content from
-    # a running cluster's logging-loki-config ConfigMap, then patch the
-    # azure_storage_config sections to include:
-    #
-    #   azure_storage_config:
-    #     account_name: ${AZURE_STORAGE_ACCOUNT_NAME}
-    #     container_name: ${AZURE_CONTAINER_NAME}
-    #     use_service_principal: true
-    #
-    # The operator generates this config based on LokiStack size and tenant
-    # settings. It varies by size profile (1x.extra-small vs 1x.small vs
-    # 1x.medium) so you must export from a cluster running the same size.
-    #
-    # Export command:
-    #   oc get configmap logging-loki-config -n openshift-logging \
-    #     -o jsonpath='{.data.config\.yaml}' > /tmp/loki-config.yaml
+    ---
+    auth_enabled: true
+    chunk_store_config:
+      chunk_cache_config:
+        embedded_cache:
+          enabled: true
+          max_size_mb: 500
+    common:
+      storage:
+        azure:
+          environment: #@ azure.environment
+          container_name: #@ azure.container
+          account_name: #@ azure.account_name
+          use_service_principal: true
+          client_id: #@ azure.client_id
+          client_secret: #@ azure.client_secret
+          tenant_id: #@ azure.tenant_id
+      compactor_grpc_address: logging-loki-compactor-grpc.openshift-logging.svc.cluster.local:9095
+      ring:
+        kvstore:
+          store: memberlist
+    #! TODO: The rest of the config (limits_config, memberlist, querier,
+    #! query_range, schema_config, server, storage_config, tracing, etc.)
+    #! must come from the exported ConfigMap. Do not fabricate it.
+    #!
+    #! Export with:
+    #!   oc get configmap logging-loki-config -n openshift-logging \
+    #!     -o jsonpath='{.data.config\.yaml}'
   runtime-config.yaml: |
-    # TODO: Also export and include runtime-config.yaml if present.
-    # Export command:
-    #   oc get configmap logging-loki-config -n openshift-logging \
-    #     -o jsonpath='{.data.runtime-config\.yaml}'
+    #! TODO: Export and include if present:
+    #!   oc get configmap logging-loki-config -n openshift-logging \
+    #!     -o jsonpath='{.data.runtime-config\.yaml}'
+#@ end
