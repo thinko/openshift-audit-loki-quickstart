@@ -17,22 +17,27 @@
 #!   tolerations:
 #!     - key: node-role.kubernetes.io/infra
 #!       effect: NoSchedule
-#! ── Vault-sourced secrets ────────────────────────────────────────────
-#! These values are injected at render time from Vault (never committed).
+#! ── Vault-sourced secrets (Loki blob storage) ───────────────────────
+#! Credentials for the Azure Storage Account that holds Loki data.
+#! These are NOT cluster-level or group-sync credentials — they are scoped
+#! exclusively to the Loki blob storage account.
+#!
+#! Injected at render time from Vault (never committed to git).
 #! When account_name is empty, storage-secret.yaml produces no output and
 #! the Secret must be created out-of-band.
 #!
-#! Standard auth: fill account_name + account_key
+#! Standard auth: fill account_name + account_key (storage access key)
 #! SP auth:       fill account_name + client_id + client_secret + tenant_id
+#!                (SP with Storage Blob Data Contributor on the account)
 secrets:
-  azure:
+  azure_storage:
     account_name: ""
-    account_key: ""
+    account_key: ""               #! storage account access key (standard auth)
     container: "loki-audit"
     environment: "AzureGlobal"
-    client_id: ""
-    client_secret: ""
-    tenant_id: ""
+    client_id: ""                 #! SP app registration client ID (SP auth)
+    client_secret: ""             #! SP credential (SP auth)
+    tenant_id: ""                 #! Azure AD tenant for the SP (SP auth)
 
 node_placement:
   node_selector: {}
