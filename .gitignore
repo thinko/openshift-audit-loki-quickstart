@@ -38,7 +38,10 @@ _dev_docs/
 _dev_tests_/
 
 # Private customer overlays (cluster-specific configs, never in public repo)
-_overlays/
+# Template and README are committed; actual cluster overlays are not.
+_overlays/*
+!_overlays/_template/
+!_overlays/README.md
 
 # Local graphify output
 graphify-out/

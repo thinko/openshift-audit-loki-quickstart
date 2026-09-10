@@ -1,0 +1,5 @@
+#! Replace REPLACE_ME_CLUSTER with the cluster key from the internal repo's
+#! namespaces/*/clusters.yaml convention.
+---
+clusters:
+  - name: REPLACE_ME_CLUSTER
