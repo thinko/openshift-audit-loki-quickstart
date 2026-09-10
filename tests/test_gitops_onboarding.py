@@ -21,6 +21,7 @@ REQUIRED_FILES = (
     "uiplugin.yaml",
     "loki-config-sp-overlay.yaml",
     "storage-secret.yaml",
+    "grafana-secret.yaml",
 )
 
 
@@ -104,10 +105,11 @@ def test_gitops_lokistack_test_profile(repo_root: Path):
 
 
 def test_gitops_no_azure_secret_manifest(repo_root: Path):
-    """No hardcoded secrets. storage-secret.yaml is a ytt template (allowed)."""
+    """No hardcoded secrets. ytt-templated *-secret.yaml files are allowed."""
+    ytt_secret_templates = {"storage-secret.yaml", "grafana-secret.yaml"}
     folder = repo_root / GITOPS_NS
     for path in folder.glob("*.yaml"):
-        if path.name == "storage-secret.yaml":
+        if path.name in ytt_secret_templates:
             continue
         for doc in yaml.safe_load_all(path.read_text(encoding="utf-8")):
             if not doc:
@@ -233,7 +235,16 @@ def test_gitops_storage_secret_template(repo_root: Path):
     assert "logging-loki-azure" in content, "must target the logging-loki-azure secret"
     assert "client_id" in content, "must support SP auth fields"
     assert "account_key" in content, "must support standard auth fields"
-    assert "azure_storage" in content, "must use azure_storage (not generic azure)"
+    assert "azure_storage" in content, "must use azure_storage values key"
+
+
+def test_gitops_grafana_secret_template(repo_root: Path):
+    """grafana-secret.yaml must conditionally render admin credentials."""
+    content = (repo_root / GITOPS_NS / "grafana-secret.yaml").read_text()
+    assert "base64.encode" in content, "must use base64.encode for Secret data"
+    assert 'grafana_admin_password != ""' in content, "must guard on grafana_admin_password"
+    assert "grafana-admin-credentials" in content, "must target grafana-admin-credentials"
+    assert "azure_storage" in content, "must use azure_storage values key"
 
 
 def test_gitops_values_secrets_schema(repo_root: Path):
@@ -242,5 +253,6 @@ def test_gitops_values_secrets_schema(repo_root: Path):
     assert "secrets:" in content, "values.yaml must have secrets section"
     assert "azure_storage:" in content, "values.yaml must have secrets.azure_storage section"
     assert 'account_name: ""' in content, "account_name must default to empty"
+    assert 'grafana_admin_password: ""' in content, "grafana_admin_password must default to empty"
     assert "Storage Blob Data Contributor" in content or "blob storage" in content, \
         "must clarify credentials are storage-scoped"

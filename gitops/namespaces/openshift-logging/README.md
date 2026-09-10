@@ -14,11 +14,14 @@ Sandbox installs still use `make deploy` from a laptop.
    existing namespace folder. Leave `TBD` until those values are known.
 3. Confirm `oc get operatorgroup -n openshift-logging` is empty (this folder
    creates one OperatorGroup). A second group breaks OLM.
-4. **Storage Secret** — choose one:
-   - **Vault (recommended):** populate `secrets.azure.*` in `values.yaml` at
-     render time from Vault. `storage-secret.yaml` will template the Secret.
-   - **Out-of-band:** leave `secrets.azure.account_name` empty and create
+4. **Secrets** — all deployment secrets live in a single Vault path
+   (`secret/<team>/openshift/<cluster>/loki-storage`). Choose one:
+   - **Vault (recommended):** populate `secrets.azure_storage.*` in `values.yaml`
+     at render time from Vault. `storage-secret.yaml` and `grafana-secret.yaml`
+     will template the K8s Secrets automatically.
+   - **Out-of-band:** leave `secrets.azure_storage.account_name` empty and create
      `logging-loki-azure` manually (see [docs/gitops.md](../../../docs/gitops.md)).
+     Leave `grafana_admin_password` empty and the PostSync hook will auto-generate one.
    Never commit actual credentials to `values.yaml`.
 5. Confirm `spec_hard` in `values.yaml` matches the LokiStack size. The
    quota enforces **requests only** (no limits section). Sizing reference:
@@ -48,7 +51,7 @@ plain YAML siblings with the namespace hardcoded.
 | Wave | Resources |
 |------|-----------|
 | 1 | OperatorGroup, Subscriptions, namespace annotations from `values.yaml` |
-| 2 | Storage Secret (from Vault, if `secrets.azure` populated), Collector SA and ClusterRoleBindings |
+| 2 | Storage Secret (from Vault, if `secrets.azure_storage` populated), Collector SA and ClusterRoleBindings |
 | 3 | LokiStack (requires the Azure secret) |
 | 4 | ClusterLogForwarder, SP Config Overlay (if SP auth) |
 | 5 | Grafana (static), UIPlugin, PrometheusRules |
@@ -136,8 +139,9 @@ Previous iterations used a LimitRange with default limits, which caused:
 ## What this folder does not include
 
 - Azure account keys or SP credentials (injected from Vault at render time,
-  or created out-of-band). The `storage-secret.yaml` template is included but
-  produces no output unless `secrets.azure.account_name` is populated.
-- Grafana admin credentials Secret (created by PostSync hook or `deploy-grafana.sh`)
+  or created out-of-band). `storage-secret.yaml` and `grafana-secret.yaml`
+  produce no output unless `secrets.azure_storage` values are populated.
+- When Vault is not used: Grafana admin credentials are created by the PostSync
+  hook (random password) or `deploy-grafana.sh`
 - CatalogSource / ImageContentSourcePolicy
 - MachineConfigPool / KubeletConfig
