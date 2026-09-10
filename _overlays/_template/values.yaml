@@ -1,0 +1,50 @@
+#@data/values
+---
+#! Cluster-specific overlay for REPLACE_ME_CLUSTER.
+#! This file overwrites the generic values.yaml when synced to the internal repo.
+#!
+#! Sizing reference (requests-only, no limits enforcement):
+#!   1x.extra-small: spec_hard cpu=30,  memory=64Gi
+#!   1x.small:       spec_hard cpu=72,  memory=176Gi
+#!   1x.medium:      spec_hard cpu=100, memory=256Gi
+
+#! ── Node placement ─────────────────────────────────────────────────
+#! Uncomment to schedule Loki and Grafana pods on infra nodes.
+#! Leave empty to run on any worker (default).
+#! node_placement:
+#!   node_selector:
+#!     node-role.kubernetes.io/infra: ""
+#!   tolerations:
+#!     - key: node-role.kubernetes.io/infra
+#!       effect: NoSchedule
+node_placement:
+  node_selector: {}
+  tolerations: []
+
+project:
+  name: openshift-logging
+  labels:
+    kubernetes.io/metadata.name: openshift-logging
+    argocd.argoproj.io/managed-by: "openshift-gitops"
+    dt-monitoring: "true"
+    openshift.io/cluster-monitoring: "true"
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/audit: privileged
+    pod-security.kubernetes.io/warn: privileged
+  annotations:
+    openshift.io/node-selector: ""
+    openshift.io/description: "OpenShift Logging LokiStack (audit + infrastructure)"
+    openshift.io/display-name: openshift-logging
+    argocd.argoproj.io/sync-wave: "1"
+envs:
+  - name: REPLACE_ME_CLUSTER
+    rbac:
+      edit: REPLACE_ME_AD_GROUP_EDIT
+      view: REPLACE_ME_AD_GROUP_VIEW
+    deployment_id: REPLACE_ME_DEPLOYMENT_ID
+    spec_hard:
+      requests:
+        cpu: 72
+        memory: 176Gi
+      count:
+        persistentvolumeclaims: 20
