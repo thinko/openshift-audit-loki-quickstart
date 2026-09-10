@@ -14,8 +14,28 @@ is the instance count (fixed at 1) and the suffix determines capacity.
 
 > **Note**: CPU/memory are *total requests* across all Loki components
 > (ingester, querier, compactor, distributor, gateway, index-gateway,
-> query-frontend). Actual node footprint depends on `LimitRange` and
-> over-commit settings.
+> query-frontend). Actual node footprint depends on over-commit settings.
+
+## ResourceQuota Sizing
+
+The namespace quota enforces **requests only** — there is no `limits:`
+section and no `LimitRange`. The Loki Operator sets only requests (not
+limits) on its pods. Headroom above stack requests covers log collectors,
+Grafana, operators, and temporary extra pods during rolling upgrades.
+
+| LokiStack size | Stack requests | Recommended `spec_hard` |
+|----------------|----------------|------------------------|
+| `1x.extra-small` | 14 vCPU / 31 Gi | cpu=30, memory=64Gi |
+| `1x.small` | 34 vCPU / 67 Gi | cpu=72, memory=176Gi |
+| `1x.medium` | 54 vCPU / 139 Gi | cpu=100, memory=256Gi |
+
+> **Why no limits?** Previous iterations used a `LimitRange` to inject
+> default limits so pods passed quota admission on `limits.memory`. This
+> caused injected limits to conflict with operator-set requests (e.g.
+> ingester requests 20Gi but LimitRange injects 14Gi limit), massive
+> quota inflation (14Gi × 14 pods = 196Gi), and required a PR for every
+> adjustment. Removing both `LimitRange` and `limits:` from the quota
+> eliminates all of these issues.
 
 ## Environment Overlay Strategy
 

@@ -14,7 +14,8 @@ endef
 
 .PHONY: help deploy deploy-operators destroy test test-attribution enable-console-plugin \
 	helm-lint helm-template secret azure-storage status preflight apply-rbac check-egress \
-	deploy-grafana destroy-grafana deploy-console-dashboards deploy-alerting lint
+	deploy-grafana destroy-grafana deploy-console-dashboards deploy-alerting lint \
+	add-storage-subnet init-sp-auth
 
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*##"; printf "\nTargets:\n"} /^[a-zA-Z0-9_.-]+:.*##/ { printf "  %-24s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -59,6 +60,9 @@ test: ## Run local validation (pytest, yamllint, shell syntax, helm lint)
 	@bash -n "$(ROOT)/scripts/apply-rbac.sh"
 	@bash -n "$(ROOT)/scripts/check-egress.sh"
 	@bash -n "$(ROOT)/scripts/deploy-grafana.sh"
+	@bash -n "$(ROOT)/scripts/init-sp-auth.sh"
+	@bash -n "$(ROOT)/scripts/add-storage-subnet.sh"
+	@bash -n "$(ROOT)/scripts/sync-gitops-to-internal.sh"
 	@if command -v helm >/dev/null 2>&1; then helm lint "$(CHART)"; else echo "helm not on PATH; skip helm lint"; fi
 
 test-attribution: ## Create/delete a ConfigMap and print LogQL to verify user attribution
@@ -106,5 +110,11 @@ deploy-console-dashboards: ## Deploy Prometheus dashboards to OCP Console (Obser
 deploy-alerting: ## Deploy PrometheusRule and AlertmanagerConfig for LokiStack alerts
 	oc apply -f "$(ROOT)/manifests/12-alerting.yaml"
 	@echo "==> Alerting rules deployed. Verify: oc -n openshift-logging get prometheusrule,alertmanagerconfig"
+
+add-storage-subnet: ## Add ARO worker subnet to Azure storage account network ACL
+	$(_load_env); "$(ROOT)/scripts/add-storage-subnet.sh"
+
+init-sp-auth: ## Bootstrap service principal auth for Loki (AllowSharedKeyAccess=false workaround)
+	$(_load_env); "$(ROOT)/scripts/init-sp-auth.sh"
 
 lint: test ## Alias for test

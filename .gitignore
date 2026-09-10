@@ -37,5 +37,8 @@ Chart.lock
 _dev_docs/
 _dev_tests_/
 
+# Private customer overlays (cluster-specific configs, never in public repo)
+_overlays/
+
 # Local graphify output
 graphify-out/

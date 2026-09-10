@@ -1,0 +1,63 @@
+#! Service Principal (SP) auth ConfigMap overlay for Loki.
+#!
+#! ╔══════════════════════════════════════════════════════════════════════╗
+#! ║  TODO: This file contains a PLACEHOLDER structure.                 ║
+#! ║  Before using SP auth, export the real ConfigMap from a running    ║
+#! ║  cluster where the operator has fully reconciled a LokiStack:     ║
+#! ║                                                                    ║
+#! ║    oc get configmap logging-loki-config \                          ║
+#! ║      -n openshift-logging -o yaml > /tmp/loki-config-export.yaml  ║
+#! ║                                                                    ║
+#! ║  Then replace the data section below with the exported content     ║
+#! ║  and patch every azure_storage_config block to add:               ║
+#! ║    use_service_principal: true                                     ║
+#! ╚══════════════════════════════════════════════════════════════════════╝
+#!
+#! This overlay is only applied when using SP auth (AllowSharedKeyAccess=false
+#! and WIF unavailable). It replaces the operator-generated ConfigMap with one
+#! that includes `use_service_principal: true` in the azure_storage_config.
+#!
+#! Prerequisites:
+#!   1. LokiStack must have been reconciled at least once (Managed) so the
+#!      operator creates all StatefulSets, Services, and the base ConfigMap.
+#!   2. Switch lokistack.yaml managementState to Unmanaged.
+#!   3. Create logging-loki-azure secret with SP credentials:
+#!        account_name, container, environment, client_id, client_secret, tenant_id
+#!   4. Apply this overlay, then restart Loki pods.
+#!
+#! See scripts/init-sp-auth.sh for the automated bootstrap process.
+#! See docs/gitops.md for the revert path when shared keys are approved.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logging-loki-config
+  namespace: openshift-logging
+  labels:
+    app.kubernetes.io/name: lokistack
+    app.kubernetes.io/part-of: openshift-logging
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+data:
+  config.yaml: |
+    # TODO: Replace this entire config.yaml with the exported content from
+    # a running cluster's logging-loki-config ConfigMap, then patch the
+    # azure_storage_config sections to include:
+    #
+    #   azure_storage_config:
+    #     account_name: ${AZURE_STORAGE_ACCOUNT_NAME}
+    #     container_name: ${AZURE_CONTAINER_NAME}
+    #     use_service_principal: true
+    #
+    # The operator generates this config based on LokiStack size and tenant
+    # settings. It varies by size profile (1x.extra-small vs 1x.small vs
+    # 1x.medium) so you must export from a cluster running the same size.
+    #
+    # Export command:
+    #   oc get configmap logging-loki-config -n openshift-logging \
+    #     -o jsonpath='{.data.config\.yaml}' > /tmp/loki-config.yaml
+  runtime-config.yaml: |
+    # TODO: Also export and include runtime-config.yaml if present.
+    # Export command:
+    #   oc get configmap logging-loki-config -n openshift-logging \
+    #     -o jsonpath='{.data.runtime-config\.yaml}'

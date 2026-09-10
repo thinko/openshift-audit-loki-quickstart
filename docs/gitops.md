@@ -19,10 +19,19 @@ gitops/namespaces/openshift-logging/
 
 into `namespaces/openshift-logging/` on the Argo-watched git repo (folder name matches the destination namespace). Open a PR there.
 
+Use `scripts/sync-gitops-to-internal.sh` to automate copying with a
+cluster-specific overlay:
+
+```bash
+scripts/sync-gitops-to-internal.sh <overlay-name> <target-dir>
+```
+
+See `_overlays/README.md` for details on creating and using overlays.
+
 The folder follows the same mix used for other multi-manifest namespaces:
 
 - `clusters.yaml` and ytt `#@data/values` `values.yaml` — ApplicationSet inputs
-- Sibling **plain** YAML — OperatorGroup, Subscriptions, LokiStack, collector RBAC, ClusterLogForwarder, PrometheusRules
+- Sibling **plain** YAML — OperatorGroup, Subscriptions, LokiStack, collector RBAC, ClusterLogForwarder, Grafana, UIPlugin, PrometheusRules
 
 Namespace is hardcoded as `openshift-logging` on those objects (the ApplicationSet also creates/manages the namespace from `project.name`).
 
@@ -30,8 +39,29 @@ Namespace is hardcoded as `openshift-logging` on those objects (the ApplicationS
 
 1. Replace `REPLACE_ME_CLUSTER` in `clusters.yaml` and `values.yaml` `envs[0].name` with the cluster key used in other `namespaces/*/clusters.yaml` files. Do not commit the filled cluster name back to this public kit.
 2. Copy org annotations and AD edit/view groups from an existing namespace `values.yaml`. Do not invent group names.
-3. Keep `spec_hard` at least **72 CPU / 176Gi**. LokiStack `1x.medium` requests about 54 vCPU / 139 Gi; a smaller quota will starve the stack. See [scaling-guide.md](scaling-guide.md).
+3. Set `spec_hard` to match the LokiStack size. The quota enforces **requests only** (no limits section, no LimitRange). Sizing reference:
+
+   | LokiStack size | Recommended `spec_hard` | Stack requests |
+   |----------------|------------------------|----------------|
+   | `1x.extra-small` | cpu=30, memory=64Gi | 14 vCPU / 31 Gi |
+   | `1x.small` | cpu=72, memory=176Gi | 34 vCPU / 67 Gi |
+   | `1x.medium` | cpu=100, memory=256Gi | 54 vCPU / 139 Gi |
+
+   Headroom above stack requests covers log collectors, Grafana, operators, and temporary extra pods during upgrades.
+
 4. Keep `openshift.io/node-selector: ""`. Do not copy a dedicated-node selector from another namespace folder.
+
+## ResourceQuota design
+
+The quota enforces **requests only**. There is no `limits:` section and no
+`LimitRange` in the namespace. The Loki Operator sets only requests (not
+limits) on its pods, so they pass quota admission without any LimitRange
+intervention.
+
+Previous iterations used a LimitRange to inject default limits, which caused:
+- Injected limits conflicting with operator-set requests
+- Massive quota inflation (14Gi per container x 14 pods = 196Gi of limits)
+- Every LimitRange/quota adjustment required a PR through approval
 
 ## Operators in this folder
 
@@ -56,21 +86,12 @@ If that is empty, the `redhat-operators` CatalogSource is missing or not READY. 
 
 ## Out of band (not in git)
 
+### Azure Blob secret
+
 Create the Azure Blob secret before LokiStack can become Ready. Each LokiStack
 needs its **own container**. Sharing a storage account across clusters is fine
 when each stack has a unique container. Never point two stacks at the same
 container.
-
-GitOps LokiStack uses `credentialMode: static`. The operator will only accept
-the secret if it has `account_name`, `account_key`, `container`, and
-`environment`. It does **not** accept `client_secret` (including on
-`stable-6.6`). Workload ID (`token`) is the other supported mode when the
-cluster actually has it. See [azure-blob-request.md](azure-blob-request.md).
-
-If Azure auth must be patched outside the operator, freeze the stack with
-`spec.managementState: Unmanaged` after the first reconcile. Leave the Loki
-Operator Deployment at one replica. Ignore `/spec/managementState` in Argo
-so self-heal does not flip it back to Managed.
 
 ```bash
 oc create secret generic logging-loki-azure \
@@ -81,15 +102,72 @@ oc create secret generic logging-loki-azure \
   --from-literal=container="${AZURE_CONTAINER_NAME}"
 ```
 
-After LokiStack is Ready:
+GitOps LokiStack uses `credentialMode: static`. The operator will only accept
+the secret if it has `account_name`, `account_key`, `container`, and
+`environment`. It does **not** accept `client_secret` (including on
+`stable-6.6`). Workload ID (`token`) is the other supported mode when the
+cluster actually has it. See [azure-blob-request.md](azure-blob-request.md).
+
+### Service principal auth workaround
+
+If the Azure storage account has `AllowSharedKeyAccess=false` and Workload
+Identity Federation is not available, use SP auth:
+
+1. Let the operator reconcile the LokiStack at least once (Managed)
+2. Run `make init-sp-auth` which:
+   - Creates the secret with SP credentials (`client_id`, `client_secret`, `tenant_id`)
+   - Switches LokiStack to `Unmanaged`
+   - Applies the SP config overlay ConfigMap
+   - Restarts Loki pods
+
+See `scripts/init-sp-auth.sh` and `gitops/namespaces/openshift-logging/loki-config-sp-overlay.yaml`.
+
+**Revert path** (when shared key exception is approved):
 
 ```bash
-make enable-console-plugin
+# 1. Recreate secret with account_key
+oc create secret generic logging-loki-azure -n openshift-logging \
+  --from-literal=environment=AzureGlobal \
+  --from-literal=account_name=<ACCOUNT> \
+  --from-literal=account_key=<KEY> \
+  --from-literal=container=loki-audit \
+  --dry-run=client -o yaml | oc apply -f -
+
+# 2. Switch to Managed (operator takes over)
+oc patch lokistack logging-loki -n openshift-logging \
+  --type merge -p '{"spec":{"managementState":"Managed"}}'
+
+# 3. Delete the SP config overlay from gitops (ArgoCD syncs the deletion)
 ```
 
-Do **not** `oc apply -f manifests/05-enable-console-plugin.yaml` — that fragment replaces `spec.plugins` and disables other console plugins.
+### Azure storage subnet ACL
 
-Grafana is not in the first GitOps sync (datasource tokens need ServiceAccounts that exist only after sync). Use `make deploy-grafana` afterward if needed.
+If Loki pods cannot reach Azure Blob Storage, the ARO worker subnet may need
+to be added to the storage account's network rules:
+
+```bash
+make add-storage-subnet
+```
+
+See `scripts/add-storage-subnet.sh` for details and manual fallback.
+
+### Grafana
+
+Grafana static resources (Deployment, Service, Route, RBAC, ConfigMaps) are
+included in the sync at wave 5. After the sync completes, run:
+
+```bash
+make deploy-grafana
+```
+
+This creates the admin credentials Secret (from `GRAFANA_ADMIN_PASSWORD` in
+`.env`) and injects bearer tokens into the datasource ConfigMap.
+
+### Console plugin (UIPlugin)
+
+The `UIPlugin` CR for the Console Logs tab is included in the sync at wave 5.
+It requires the Cluster Observability Operator (COO) to be installed. If COO
+is not present, the UIPlugin will remain pending but will not block the sync.
 
 ## Sync waves
 
@@ -98,17 +176,16 @@ Grafana is not in the first GitOps sync (datasource tokens need ServiceAccounts 
 | 1 | OperatorGroup, Subscriptions, namespace annotations from `values.yaml` |
 | 2 | Collector ServiceAccount and ClusterRoleBindings |
 | 3 | LokiStack (requires the Azure secret) |
-| 4 | ClusterLogForwarder |
-| 5 | PrometheusRules |
+| 4 | ClusterLogForwarder, SP Config Overlay (if SP auth) |
+| 5 | Grafana (static), UIPlugin, PrometheusRules |
 
 ## What this folder does not include
 
 - Azure account keys or a Secret manifest
-- Grafana Operator / instance / datasource tokens
-- Console plugin patch
+- Grafana admin credentials or bearer tokens
 - CatalogSource / ImageContentSourcePolicy (Red Hat operators from `openshift-marketplace`)
 - MachineConfigPool / KubeletConfig
 
 ## Helm chart
 
-`helm/audit-loki` remains for local `helm template` / `helm upgrade` and CI. It is not the Argo source for the copy-into-namespaces path. The GitOps LokiStack is `1x.medium` with **60-day** audit and infrastructure retention.
+`helm/audit-loki` remains for local `helm template` / `helm upgrade` and CI. It is not the Argo source for the copy-into-namespaces path. The default GitOps LokiStack is `1x.small` with **60-day** audit and infrastructure retention; adjust `lokistack.yaml` and `values.yaml` for production sizing.
