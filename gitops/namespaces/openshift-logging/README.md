@@ -14,8 +14,12 @@ Sandbox installs still use `make deploy` from a laptop.
    existing namespace folder. Leave `TBD` until those values are known.
 3. Confirm `oc get operatorgroup -n openshift-logging` is empty (this folder
    creates one OperatorGroup). A second group breaks OLM.
-4. Create secret `logging-loki-azure` in `openshift-logging` out of band
-   (see [docs/gitops.md](../../../docs/gitops.md)). Never commit secrets.
+4. **Storage Secret** — choose one:
+   - **Vault (recommended):** populate `secrets.azure.*` in `values.yaml` at
+     render time from Vault. `storage-secret.yaml` will template the Secret.
+   - **Out-of-band:** leave `secrets.azure.account_name` empty and create
+     `logging-loki-azure` manually (see [docs/gitops.md](../../../docs/gitops.md)).
+   Never commit actual credentials to `values.yaml`.
 5. Confirm `spec_hard` in `values.yaml` matches the LokiStack size. The
    quota enforces **requests only** (no limits section). Sizing reference:
    - `1x.extra-small`: cpu=30, memory=64Gi
@@ -44,7 +48,7 @@ plain YAML siblings with the namespace hardcoded.
 | Wave | Resources |
 |------|-----------|
 | 1 | OperatorGroup, Subscriptions, namespace annotations from `values.yaml` |
-| 2 | Collector ServiceAccount and ClusterRoleBindings |
+| 2 | Storage Secret (from Vault, if `secrets.azure` populated), Collector SA and ClusterRoleBindings |
 | 3 | LokiStack (requires the Azure secret) |
 | 4 | ClusterLogForwarder, SP Config Overlay (if SP auth) |
 | 5 | Grafana (static), UIPlugin, PrometheusRules |
@@ -131,8 +135,9 @@ Previous iterations used a LimitRange with default limits, which caused:
 
 ## What this folder does not include
 
-- Azure account keys or a Secret manifest
-- Grafana admin credentials Secret (created by `deploy-grafana.sh`)
-- Grafana bearer tokens (created by `deploy-grafana.sh`)
+- Azure account keys or SP credentials (injected from Vault at render time,
+  or created out-of-band). The `storage-secret.yaml` template is included but
+  produces no output unless `secrets.azure.account_name` is populated.
+- Grafana admin credentials Secret (created by PostSync hook or `deploy-grafana.sh`)
 - CatalogSource / ImageContentSourcePolicy
 - MachineConfigPool / KubeletConfig

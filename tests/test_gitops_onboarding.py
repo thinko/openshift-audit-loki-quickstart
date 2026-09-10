@@ -20,6 +20,7 @@ REQUIRED_FILES = (
     "grafana-dashboards.yaml",
     "uiplugin.yaml",
     "loki-config-sp-overlay.yaml",
+    "storage-secret.yaml",
 )
 
 
@@ -103,8 +104,11 @@ def test_gitops_lokistack_test_profile(repo_root: Path):
 
 
 def test_gitops_no_azure_secret_manifest(repo_root: Path):
+    """No hardcoded secrets. storage-secret.yaml is a ytt template (allowed)."""
     folder = repo_root / GITOPS_NS
     for path in folder.glob("*.yaml"):
+        if path.name == "storage-secret.yaml":
+            continue
         for doc in yaml.safe_load_all(path.read_text(encoding="utf-8")):
             if not doc:
                 continue
@@ -219,3 +223,21 @@ def test_gitops_sp_overlay_exists(repo_root: Path):
     cm = next(d for d in docs if d["kind"] == "ConfigMap")
     assert cm["metadata"]["name"] == "logging-loki-config"
     assert cm["metadata"]["namespace"] == "openshift-logging"
+
+
+def test_gitops_storage_secret_template(repo_root: Path):
+    """storage-secret.yaml must be a ytt template with Vault-sourced conditional."""
+    content = (repo_root / GITOPS_NS / "storage-secret.yaml").read_text()
+    assert "base64.encode" in content, "must use base64.encode for Secret data"
+    assert 'azure.account_name != ""' in content, "must guard on account_name"
+    assert "logging-loki-azure" in content, "must target the logging-loki-azure secret"
+    assert "client_id" in content, "must support SP auth fields"
+    assert "account_key" in content, "must support standard auth fields"
+
+
+def test_gitops_values_secrets_schema(repo_root: Path):
+    """values.yaml must include secrets.azure schema with empty defaults."""
+    content = (repo_root / GITOPS_NS / "values.yaml").read_text()
+    assert "secrets:" in content, "values.yaml must have secrets section"
+    assert "azure:" in content, "values.yaml must have secrets.azure section"
+    assert 'account_name: ""' in content, "account_name must default to empty"
