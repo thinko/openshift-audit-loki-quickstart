@@ -1,0 +1,3459 @@
+#! Grafana dashboards ConfigMap — auto-generated from dashboards/*.json.
+#! Regenerate with: make generate-dashboard-configmap
+#!
+#! Do not edit dashboard JSON here; edit the source files in dashboards/
+#! and re-run the generator.
+---
+apiVersion: v1
+data:
+  grafana-audit-security.json: |
+    {
+      "__elements": {},
+      "annotations": {
+        "list": [
+          {
+            "builtIn": 1,
+            "datasource": {
+              "type": "grafana",
+              "uid": "-- Grafana --"
+            },
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "type": "dashboard"
+          }
+        ]
+      },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "liveNow": false,
+      "panels": [
+        {
+          "collapsed": false,
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 0
+          },
+          "id": 100,
+          "title": "Security Alerts",
+          "type": "row"
+        },
+        {
+          "datasource": "Loki (Audit)",
+          "description": "RBAC role and binding mutations \u2014 role/clusterrole/binding create, update, patch, delete events",
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 1
+          },
+          "id": 1,
+          "options": {
+            "showTime": true,
+            "sortOrder": "Descending",
+            "enableLogDetails": true,
+            "wrapLogMessage": true,
+            "dedupStrategy": "none",
+            "prettifyLogMessage": false,
+            "showCommonLabels": false,
+            "showLabels": false
+          },
+          "targets": [
+            {
+              "datasource": "Loki (Audit)",
+              "editorMode": "code",
+              "expr": "{log_type=\"audit\"} |~ \"(role|clusterrole)\" | json | objectRef_resource=~\"(roles|clusterroles|rolebindings|clusterrolebindings)\" | verb=~\"(create|update|patch|delete)\" | line_format \"{{.verb | ToUpper}} {{.objectRef_resource}}/{{.objectRef_name}} in {{.objectRef_namespace}} by {{.user_username}}\"",
+              "queryType": "range",
+              "refId": "A"
+            }
+          ],
+          "title": "RBAC Changes",
+          "type": "logs",
+          "maxDataPoints": 50
+        },
+        {
+          "datasource": "Loki (Audit)",
+          "description": "Pod exec and attach events \u2014 interactive shell access to running containers",
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 1
+          },
+          "id": 2,
+          "options": {
+            "showTime": true,
+            "sortOrder": "Descending",
+            "enableLogDetails": true,
+            "wrapLogMessage": true,
+            "dedupStrategy": "none",
+            "prettifyLogMessage": false,
+            "showCommonLabels": false,
+            "showLabels": false
+          },
+          "targets": [
+            {
+              "datasource": "Loki (Audit)",
+              "editorMode": "code",
+              "expr": "{log_type=\"audit\"} |~ \"(exec|attach)\" | json | objectRef_subresource=~\"(exec|attach)\" | line_format \"SHELL: {{.user_username}} -> pod/{{.objectRef_name}} in {{.objectRef_namespace}} [{{.responseStatus_code}}]\"",
+              "queryType": "range",
+              "refId": "A"
+            }
+          ],
+          "title": "Pod Exec / Attach",
+          "type": "logs",
+          "maxDataPoints": 50
+        },
+        {
+          "collapsed": false,
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 9
+          },
+          "id": 101,
+          "title": "Access Patterns",
+          "type": "row"
+        },
+        {
+          "datasource": "Loki (Audit)",
+          "description": "All 403 Forbidden responses \u2014 failed authorization attempts",
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 10
+          },
+          "id": 3,
+          "options": {
+            "showTime": true,
+            "sortOrder": "Descending",
+            "enableLogDetails": true,
+            "wrapLogMessage": true,
+            "dedupStrategy": "none",
+            "prettifyLogMessage": false,
+            "showCommonLabels": false,
+            "showLabels": false
+          },
+          "targets": [
+            {
+              "datasource": "Loki (Audit)",
+              "editorMode": "code",
+              "expr": "{log_type=\"audit\"} | json | responseStatus_code=\"403\" | line_format \"DENIED: {{.user_username}} tried to {{.verb}} {{.objectRef_resource}}/{{.objectRef_name}} in {{.objectRef_namespace}}\"",
+              "queryType": "range",
+              "refId": "A"
+            }
+          ],
+          "title": "Failed Authorization (403s)",
+          "type": "logs",
+          "maxDataPoints": 50
+        },
+        {
+          "datasource": "Loki (Audit)",
+          "description": "Non-system users accessing secrets \u2014 excludes system:* service accounts",
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 10
+          },
+          "id": 4,
+          "options": {
+            "showTime": true,
+            "sortOrder": "Descending",
+            "enableLogDetails": true,
+            "wrapLogMessage": true,
+            "dedupStrategy": "none",
+            "prettifyLogMessage": false,
+            "showCommonLabels": false,
+            "showLabels": false
+          },
+          "targets": [
+            {
+              "datasource": "Loki (Audit)",
+              "editorMode": "code",
+              "expr": "{log_type=\"audit\"} |~ \"secrets\" | json | objectRef_resource=\"secrets\" | verb=~\"(get|list|create|update|patch|delete)\" | user_username!~\"system:.*\" | line_format \"{{.verb | ToUpper}} {{.objectRef_namespace}}/{{.objectRef_name}} by {{.user_username}}\"",
+              "queryType": "range",
+              "refId": "A"
+            }
+          ],
+          "title": "Secret Access by Humans",
+          "type": "logs",
+          "maxDataPoints": 50
+        },
+        {
+          "collapsed": false,
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 18
+          },
+          "id": 102,
+          "title": "Activity Analysis",
+          "type": "row"
+        },
+        {
+          "datasource": "Loki (Audit)",
+          "description": "Count of mutation events (create/update/patch/delete) over 5-minute windows",
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "lineWidth": 0,
+                "fillOpacity": 80,
+                "showPoints": "never",
+                "drawStyle": "bars",
+                "barAlignment": 0,
+                "stacking": {
+                  "mode": "normal",
+                  "group": "A"
+                }
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 16,
+            "x": 0,
+            "y": 19
+          },
+          "id": 5,
+          "options": {
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "targets": [
+            {
+              "datasource": "Loki (Audit)",
+              "editorMode": "code",
+              "expr": "sum by (verb) (count_over_time({log_type=\"audit\"} | json verb=\"verb\" | verb=~\"create|update|patch|delete\" [5m]))",
+              "legendFormat": "mutations/5m",
+              "queryType": "range",
+              "refId": "A"
+            }
+          ],
+          "title": "Activity Histogram",
+          "type": "timeseries",
+          "maxDataPoints": 30
+        },
+        {
+          "datasource": "Loki (Audit)",
+          "description": "Distribution of audit events by API verb over the last hour",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 8,
+            "x": 16,
+            "y": 19
+          },
+          "id": 6,
+          "options": {
+            "pieType": "donut",
+            "reduceOptions": {
+              "calcs": [
+                "sum"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "values": [
+                "percent",
+                "value"
+              ]
+            },
+            "tooltip": {
+              "mode": "single"
+            }
+          },
+          "targets": [
+            {
+              "datasource": "Loki (Audit)",
+              "editorMode": "code",
+              "expr": "sum by (verb) (count_over_time({log_type=\"audit\"} | json verb=\"verb\" [5m]))",
+              "legendFormat": "{{verb}}",
+              "queryType": "range",
+              "refId": "A"
+            }
+          ],
+          "title": "Events by Verb",
+          "type": "piechart",
+          "maxDataPoints": 30
+        },
+        {
+          "collapsed": false,
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 26
+          },
+          "id": 103,
+          "title": "Compliance",
+          "type": "row"
+        },
+        {
+          "datasource": "Loki (Audit)",
+          "description": "Successful resource deletions by non-system users",
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 27
+          },
+          "id": 7,
+          "options": {
+            "showTime": true,
+            "sortOrder": "Descending",
+            "enableLogDetails": true,
+            "wrapLogMessage": true,
+            "dedupStrategy": "none",
+            "prettifyLogMessage": false,
+            "showCommonLabels": false,
+            "showLabels": false
+          },
+          "targets": [
+            {
+              "datasource": "Loki (Audit)",
+              "editorMode": "code",
+              "expr": "{log_type=\"audit\"} |~ \"delete\" | json | verb=\"delete\" | responseStatus_code=\"200\" | user_username!~\"system:.*\" | line_format \"{{.user_username}} deleted {{.objectRef_resource}}/{{.objectRef_name}} in {{.objectRef_namespace}}\"",
+              "queryType": "range",
+              "refId": "A"
+            }
+          ],
+          "title": "Resource Deletions by Humans",
+          "type": "logs",
+          "maxDataPoints": 50
+        },
+        {
+          "datasource": "Loki (Audit)",
+          "description": "Detects: (1) any API request using impersonation (--as), (2) human users creating/modifying cluster-level RBAC roles and bindings. Both are privilege escalation vectors.",
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 27
+          },
+          "id": 8,
+          "options": {
+            "showTime": true,
+            "sortOrder": "Descending",
+            "enableLogDetails": true,
+            "wrapLogMessage": true,
+            "dedupStrategy": "none",
+            "prettifyLogMessage": false,
+            "showCommonLabels": false,
+            "showLabels": false
+          },
+          "targets": [
+            {
+              "datasource": "Loki (Audit)",
+              "refId": "A",
+              "expr": "{log_type=\"audit\"} |~ \"impersonatedUser\" | json | impersonatedUser_username!=\"\" | line_format \"IMPERSONATE {{.user_username}} as {{.impersonatedUser_username}}: {{.verb}} {{.objectRef_resource}}\""
+            },
+            {
+              "datasource": "Loki (Audit)",
+              "refId": "B",
+              "expr": "{log_type=\"audit\"} |~ \"(clusterrole|clusterrolebinding)\" | json | verb=~\"(create|update|patch)\" | objectRef_resource=~\"(clusterroles|clusterrolebindings)\" | user_username!~\"system:.*\" | line_format \"RBAC-GRANT {{.verb}} {{.objectRef_resource}}/{{.objectRef_name}} by {{.user_username}}\""
+            }
+          ],
+          "title": "Privilege Escalation & Impersonation",
+          "type": "logs",
+          "maxDataPoints": 50
+        }
+      ],
+      "schemaVersion": 39,
+      "tags": [
+        "audit",
+        "security",
+        "compliance",
+        "loki"
+      ],
+      "templating": {
+        "list": []
+      },
+      "time": {
+        "from": "now-1h",
+        "to": "now"
+      },
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "Audit: Security & Compliance",
+      "uid": "audit-security",
+      "version": 1,
+      "weekStart": "",
+      "refresh": "",
+      "description": "RBAC changes, pod exec, failed auth, secret access, deletions, and privilege escalation from the audit log tenant."
+    }
+  grafana-loki-profiler.json: |
+    {
+      "annotations": {
+        "list": []
+      },
+      "editable": true,
+      "graphTooltip": 1,
+      "title": "LokiStack Query Profiler",
+      "uid": "loki-query-profiler",
+      "description": "Loki querier and query-frontend performance metrics. Use this to identify slow queries and resource bottlenecks.",
+      "time": {
+        "from": "now-1h",
+        "to": "now"
+      },
+      "refresh": "30s",
+      "panels": [
+        {
+          "type": "row",
+          "title": "Query Performance",
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 0
+          }
+        },
+        {
+          "title": "Query Latency (p99)",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 1
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.99, sum by (le, route) (rate(loki_request_duration_seconds_bucket{namespace=\"openshift-logging\"}[5m])))",
+              "legendFormat": "p99 {{route}}",
+              "refId": "A"
+            },
+            {
+              "expr": "topk(5, max by (route) (loki_request_duration_seconds{namespace=\"openshift-logging\", quantile=\"0.99\"}))",
+              "legendFormat": "p99 {{route}}",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 20
+              }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "title": "Query Rate by Route",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 1
+          },
+          "targets": [
+            {
+              "expr": "sum by (route) (rate(loki_request_duration_seconds_count{namespace=\"openshift-logging\"}[5m]))",
+              "legendFormat": "{{route}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 20,
+                "stacking": {
+                  "mode": "normal"
+                }
+              }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "title": "Query Errors by Route",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 9
+          },
+          "targets": [
+            {
+              "expr": "sum by (route, status_code) (rate(loki_request_duration_seconds_count{namespace=\"openshift-logging\", status_code!~\"2..\"}[5m]))",
+              "legendFormat": "{{status_code}} {{route}}",
+              "refId": "A"
+            },
+            {
+              "expr": "sum by (status_code) (rate(loki_request_duration_seconds_count{namespace=\"openshift-logging\", status_code=~\"(429|503|500)\"}[5m]))",
+              "legendFormat": "total {{status_code}}",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 30
+              },
+              "color": {
+                "mode": "palette-classic"
+              }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "title": "Active Queries (Inflight)",
+          "type": "stat",
+          "datasource": "Prometheus",
+          "gridPos": {
+            "h": 4,
+            "w": 6,
+            "x": 12,
+            "y": 9
+          },
+          "targets": [
+            {
+              "expr": "sum(loki_inflight_requests{namespace=\"openshift-logging\"})"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 5
+                  },
+                  {
+                    "color": "red",
+                    "value": 15
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "title": "Querier Queue Length",
+          "type": "stat",
+          "datasource": "Prometheus",
+          "gridPos": {
+            "h": 4,
+            "w": 6,
+            "x": 18,
+            "y": 9
+          },
+          "targets": [
+            {
+              "expr": "sum(loki_query_frontend_queue_length{namespace=\"openshift-logging\"})"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 10
+                  },
+                  {
+                    "color": "red",
+                    "value": 50
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "type": "row",
+          "title": "Querier Resources",
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 17
+          }
+        },
+        {
+          "title": "Querier Memory Usage",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 18
+          },
+          "targets": [
+            {
+              "expr": "sum by (pod) (container_memory_working_set_bytes{namespace=\"openshift-logging\", pod=~\"logging-loki-querier-.*\", container!=\"POD\", container!=\"\"})",
+              "legendFormat": "{{pod}}",
+              "refId": "A"
+            },
+            {
+              "expr": "max(kube_pod_container_resource_limits{namespace=\"openshift-logging\", pod=~\"logging-loki-querier-.*\", resource=\"memory\", container!=\"\"})",
+              "legendFormat": "limit",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 20
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "limit"
+                },
+                "properties": [
+                  {
+                    "id": "custom.lineStyle",
+                    "value": {
+                      "fill": "dash",
+                      "dash": [
+                        10,
+                        10
+                      ]
+                    }
+                  },
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "red",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "title": "Querier CPU Usage",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 18
+          },
+          "targets": [
+            {
+              "expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"openshift-logging\", pod=~\"logging-loki-querier-.*\", container!=\"POD\", container!=\"\"}[5m]))",
+              "legendFormat": "{{pod}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 20
+              }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "type": "row",
+          "title": "Ingestion Pipeline",
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 26
+          }
+        },
+        {
+          "title": "Chunk Bytes Stored",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 27
+          },
+          "targets": [
+            {
+              "expr": "sum by (tenant) (rate(loki_ingester_chunk_stored_bytes_total{namespace=\"openshift-logging\"}[5m]))",
+              "legendFormat": "{{tenant}}",
+              "refId": "A"
+            },
+            {
+              "expr": "sum by (tenant) (rate(loki_ingester_bytes_received_total{namespace=\"openshift-logging\"}[5m]))",
+              "legendFormat": "{{tenant}} (received)",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "Bps",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 30,
+                "stacking": {
+                  "mode": "normal"
+                }
+              }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "title": "Lines Ingested/s by Tenant",
+          "type": "timeseries",
+          "datasource": "Prometheus",
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 27
+          },
+          "targets": [
+            {
+              "expr": "sum by (tenant) (rate(loki_distributor_lines_received_total{namespace=\"openshift-logging\"}[5m]))",
+              "legendFormat": "{{tenant}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "cps",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 30,
+                "stacking": {
+                  "mode": "normal"
+                }
+              }
+            },
+            "overrides": []
+          }
+        }
+      ],
+      "schemaVersion": 39,
+      "version": 1
+    }
+  grafana-node-cluster-health.json: |
+    {
+      "__elements": {},
+      "annotations": {
+        "list": [
+          {
+            "builtIn": 1,
+            "datasource": {
+              "type": "grafana",
+              "uid": "-- Grafana --"
+            },
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "type": "dashboard"
+          }
+        ]
+      },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "liveNow": false,
+      "panels": [
+        {
+          "collapsed": false,
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 0
+          },
+          "id": 100,
+          "title": "Cluster Overview",
+          "type": "row"
+        },
+        {
+          "datasource": "Prometheus",
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "color": {
+                "mode": "thresholds"
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 0,
+            "y": 1
+          },
+          "id": 1,
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "value",
+            "graphMode": "none"
+          },
+          "targets": [
+            {
+              "datasource": "Prometheus",
+              "expr": "count(kube_node_info)",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "title": "Node Count",
+          "type": "stat"
+        },
+        {
+          "datasource": "Prometheus",
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 1
+                  }
+                ]
+              },
+              "color": {
+                "mode": "thresholds"
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 4,
+            "y": 1
+          },
+          "id": 2,
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "value",
+            "graphMode": "none"
+          },
+          "targets": [
+            {
+              "datasource": "Prometheus",
+              "expr": "count(kube_node_status_condition{condition=\"Ready\",status=\"true\"} == 0) OR on() vector(0)",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "title": "Not Ready Nodes",
+          "type": "stat"
+        },
+        {
+          "datasource": "Prometheus",
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 0.7
+                  },
+                  {
+                    "color": "red",
+                    "value": 0.85
+                  }
+                ]
+              },
+              "color": {
+                "mode": "thresholds"
+              },
+              "min": 0,
+              "max": 1
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 8,
+            "y": 1
+          },
+          "id": 3,
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "orientation": "auto",
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "targets": [
+            {
+              "datasource": "Prometheus",
+              "expr": "1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m]))",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "title": "CPU Utilization %",
+          "type": "gauge"
+        },
+        {
+          "datasource": "Prometheus",
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 0.75
+                  },
+                  {
+                    "color": "red",
+                    "value": 0.85
+                  }
+                ]
+              },
+              "color": {
+                "mode": "thresholds"
+              },
+              "min": 0,
+              "max": 1
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 12,
+            "y": 1
+          },
+          "id": 4,
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "orientation": "auto",
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true
+          },
+          "targets": [
+            {
+              "datasource": "Prometheus",
+              "expr": "1 - sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes)",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "title": "Memory Utilization %",
+          "type": "gauge"
+        },
+        {
+          "datasource": "Prometheus",
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 1
+                  },
+                  {
+                    "color": "red",
+                    "value": 2
+                  }
+                ]
+              },
+              "color": {
+                "mode": "thresholds"
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 16,
+            "y": 1
+          },
+          "id": 5,
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "value",
+            "graphMode": "none"
+          },
+          "targets": [
+            {
+              "datasource": "Prometheus",
+              "expr": "count(kube_node_status_condition{condition=\"DiskPressure\",status=\"true\"} == 1) OR on() vector(0)",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "title": "Disk Pressure Nodes",
+          "type": "stat"
+        },
+        {
+          "datasource": "Prometheus",
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 1
+                  }
+                ]
+              },
+              "color": {
+                "mode": "thresholds"
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 4,
+            "x": 20,
+            "y": 1
+          },
+          "id": 6,
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "value",
+            "graphMode": "none"
+          },
+          "targets": [
+            {
+              "datasource": "Prometheus",
+              "expr": "count(kube_node_status_condition{condition=\"PIDPressure\",status=\"true\"} == 1) OR on() vector(0)",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "title": "PID Pressure Nodes",
+          "type": "stat"
+        },
+        {
+          "collapsed": false,
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 5
+          },
+          "id": 101,
+          "title": "Resource Trends",
+          "type": "row"
+        },
+        {
+          "datasource": "Prometheus",
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 15,
+                "showPoints": "never",
+                "spanNulls": false
+              },
+              "color": {
+                "mode": "palette-classic"
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 6
+          },
+          "id": 7,
+          "options": {
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "calcs": []
+            }
+          },
+          "targets": [
+            {
+              "datasource": "Prometheus",
+              "expr": "1 - avg by (instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[5m]))",
+              "legendFormat": "{{instance}}",
+              "refId": "A"
+            }
+          ],
+          "title": "CPU Usage by Node",
+          "type": "timeseries"
+        },
+        {
+          "datasource": "Prometheus",
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 15,
+                "showPoints": "never",
+                "spanNulls": false
+              },
+              "color": {
+                "mode": "palette-classic"
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 12,
+            "y": 6
+          },
+          "id": 8,
+          "options": {
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "calcs": []
+            }
+          },
+          "targets": [
+            {
+              "datasource": "Prometheus",
+              "expr": "node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes",
+              "legendFormat": "{{instance}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Memory Usage by Node",
+          "type": "timeseries"
+        },
+        {
+          "collapsed": false,
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 13
+          },
+          "id": 102,
+          "title": "Pod Health",
+          "type": "row"
+        },
+        {
+          "datasource": "Prometheus",
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 14
+          },
+          "id": 9,
+          "options": {
+            "showHeader": true,
+            "sortBy": [
+              {
+                "displayName": "Value",
+                "desc": true
+              }
+            ]
+          },
+          "targets": [
+            {
+              "datasource": "Prometheus",
+              "expr": "topk(10, sum by (namespace, pod) (increase(kube_pod_container_status_restarts_total[1h])))",
+              "legendFormat": "",
+              "refId": "A",
+              "format": "table",
+              "instant": true
+            }
+          ],
+          "title": "Pod Restarts Top 10",
+          "type": "table",
+          "transformations": [
+            {
+              "id": "sortBy",
+              "options": {
+                "sort": [
+                  {
+                    "field": "Value",
+                    "desc": true
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "datasource": "Prometheus",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "align": "auto",
+                "displayMode": "auto"
+              },
+              "mappings": [
+                {
+                  "type": "value",
+                  "options": {
+                    "Pending": {
+                      "text": "Pending",
+                      "color": "yellow",
+                      "index": 0
+                    },
+                    "Failed": {
+                      "text": "Failed",
+                      "color": "red",
+                      "index": 1
+                    },
+                    "Unknown": {
+                      "text": "Unknown",
+                      "color": "orange",
+                      "index": 2
+                    }
+                  }
+                }
+              ]
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "phase"
+                },
+                "properties": [
+                  {
+                    "id": "custom.displayMode",
+                    "value": "color-background-solid"
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 12,
+            "y": 14
+          },
+          "id": 10,
+          "options": {
+            "showHeader": true,
+            "sortBy": [
+              {
+                "displayName": "namespace",
+                "desc": false
+              }
+            ]
+          },
+          "targets": [
+            {
+              "datasource": "Prometheus",
+              "expr": "kube_pod_status_phase{phase=~\"Pending|Failed|Unknown\"} == 1",
+              "legendFormat": "",
+              "refId": "A",
+              "format": "table",
+              "instant": true
+            }
+          ],
+          "title": "Pods Not Running",
+          "type": "table",
+          "transformations": [
+            {
+              "id": "organize",
+              "options": {
+                "excludeByName": {
+                  "Time": true,
+                  "Value": true,
+                  "__name__": true,
+                  "container": true,
+                  "endpoint": true,
+                  "instance": true,
+                  "job": true,
+                  "service": true,
+                  "uid": true
+                },
+                "indexByName": {},
+                "renameByName": {}
+              }
+            }
+          ]
+        },
+        {
+          "collapsed": false,
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 21
+          },
+          "id": 103,
+          "title": "Kernel & Node Logs",
+          "type": "row"
+        },
+        {
+          "datasource": "Loki (Infrastructure)",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 22
+          },
+          "id": 11,
+          "options": {
+            "showTime": true,
+            "sortOrder": "Descending",
+            "enableLogDetails": true,
+            "wrapLogMessage": true,
+            "dedupStrategy": "none",
+            "prettifyLogMessage": false
+          },
+          "targets": [
+            {
+              "datasource": "Loki (Infrastructure)",
+              "expr": "{log_type=\"infrastructure\"} |= \"OOM\" |~ \"(?i)(oom|kill|invoked)\" | json message=\"message\", host=\"hostname\" | line_format \"{{.host}}: {{.message}}\"",
+              "refId": "A"
+            }
+          ],
+          "title": "OOM Kill Events",
+          "type": "logs",
+          "maxDataPoints": 100
+        },
+        {
+          "datasource": "Loki (Infrastructure)",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 12,
+            "y": 22
+          },
+          "id": 12,
+          "options": {
+            "showTime": true,
+            "sortOrder": "Descending",
+            "enableLogDetails": true,
+            "wrapLogMessage": true,
+            "dedupStrategy": "none",
+            "prettifyLogMessage": false
+          },
+          "targets": [
+            {
+              "datasource": "Loki (Infrastructure)",
+              "expr": "{log_type=\"infrastructure\"} |~ \"(?i)(kernel|hardware|mce|edac)\" |~ \"(?i)(warn|error|fail|critical)\" | json message=\"message\", host=\"hostname\" | line_format \"{{.host}}: {{.message}}\"",
+              "refId": "A"
+            }
+          ],
+          "title": "Kernel Warnings",
+          "type": "logs",
+          "maxDataPoints": 100
+        },
+        {
+          "collapsed": false,
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 29
+          },
+          "id": 104,
+          "title": "Filesystem & Network",
+          "type": "row"
+        },
+        {
+          "datasource": "Prometheus",
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 15,
+                "showPoints": "never",
+                "spanNulls": false,
+                "thresholdsStyle": {
+                  "mode": "area"
+                }
+              },
+              "color": {
+                "mode": "palette-classic"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 0.8
+                  },
+                  {
+                    "color": "red",
+                    "value": 0.9
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 30
+          },
+          "id": 13,
+          "options": {
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "calcs": []
+            }
+          },
+          "targets": [
+            {
+              "datasource": "Prometheus",
+              "expr": "1 - node_filesystem_avail_bytes{mountpoint=\"/\",fstype!=\"tmpfs\"} / node_filesystem_size_bytes{mountpoint=\"/\",fstype!=\"tmpfs\"}",
+              "legendFormat": "{{instance}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Root Filesystem Usage %",
+          "type": "timeseries"
+        },
+        {
+          "datasource": "Prometheus",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 15,
+                "showPoints": "never",
+                "spanNulls": false
+              },
+              "color": {
+                "mode": "palette-classic"
+              },
+              "noValue": "0"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 12,
+            "y": 30
+          },
+          "id": 14,
+          "options": {
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "calcs": []
+            }
+          },
+          "targets": [
+            {
+              "datasource": "Prometheus",
+              "expr": "(sum by (instance) (rate(node_network_receive_errs_total[5m]) + rate(node_network_transmit_errs_total[5m]))) OR on() vector(0)",
+              "legendFormat": "{{instance}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Network Errors",
+          "type": "timeseries"
+        }
+      ],
+      "refresh": "1m",
+      "schemaVersion": 39,
+      "tags": [
+        "infrastructure",
+        "nodes",
+        "health",
+        "openshift"
+      ],
+      "templating": {
+        "list": []
+      },
+      "time": {
+        "from": "now-1h",
+        "to": "now"
+      },
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "Node & Cluster Health",
+      "uid": "node-cluster-health",
+      "version": 0,
+      "weekStart": "",
+      "description": "Node status, CPU/memory/disk utilization, pod health, kernel warnings, and network errors."
+    }
+  grafana-ops-overview.json: |
+    {
+      "__elements": {},
+      "annotations": {
+        "list": [
+          {
+            "builtIn": 1,
+            "datasource": {
+              "type": "grafana",
+              "uid": "-- Grafana --"
+            },
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "type": "dashboard"
+          }
+        ]
+      },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "liveNow": false,
+      "panels": [
+        {
+          "collapsed": false,
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 0
+          },
+          "id": 100,
+          "title": "Pipeline KPIs",
+          "type": "row"
+        },
+        {
+          "datasource": "Prometheus",
+          "description": "Percentage of API server audit events dropped by edge filters before reaching Loki. Uses tenant-scoped metric.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "max": 1,
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "red",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 0.8
+                  },
+                  {
+                    "color": "green",
+                    "value": 0.9
+                  }
+                ]
+              },
+              "unit": "percentunit"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 5,
+            "w": 4,
+            "x": 0,
+            "y": 1
+          },
+          "id": 1,
+          "options": {
+            "minVizHeight": 75,
+            "minVizWidth": 75,
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true,
+            "sizing": "auto"
+          },
+          "targets": [
+            {
+              "datasource": "Prometheus",
+              "editorMode": "code",
+              "expr": "1 - sum(rate(loki_distributor_lines_received_total{namespace=\"openshift-logging\", tenant=\"audit\"}[5m])) / sum(rate(apiserver_audit_event_total[5m]))",
+              "legendFormat": "filter %",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Audit Filter Effectiveness",
+          "type": "gauge"
+        },
+        {
+          "datasource": "Prometheus",
+          "description": "Rate of audit log lines ingested by Loki per minute",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 5,
+            "w": 4,
+            "x": 4,
+            "y": 1
+          },
+          "id": 2,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showPercentChange": false,
+            "textMode": "auto",
+            "wideLayout": true
+          },
+          "targets": [
+            {
+              "datasource": "Prometheus",
+              "editorMode": "code",
+              "expr": "sum(rate(loki_distributor_lines_received_total{namespace=\"openshift-logging\", tenant=\"audit\"}[5m])) * 60",
+              "legendFormat": "lines/min",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Audit Lines/min",
+          "type": "stat"
+        },
+        {
+          "datasource": "Prometheus",
+          "description": "Bytes per second ingested by Loki across all tenants",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "Bps"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 5,
+            "w": 4,
+            "x": 8,
+            "y": 1
+          },
+          "id": 3,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showPercentChange": false,
+            "textMode": "auto",
+            "wideLayout": true
+          },
+          "targets": [
+            {
+              "datasource": "Prometheus",
+              "editorMode": "code",
+              "expr": "sum(rate(loki_distributor_bytes_received_total{namespace=\"openshift-logging\"}[5m]))",
+              "legendFormat": "bytes/s",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Bytes/sec Ingested",
+          "type": "stat"
+        },
+        {
+          "datasource": "Prometheus",
+          "description": "Total active streams held in ingester memory",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 5,
+            "w": 4,
+            "x": 12,
+            "y": 1
+          },
+          "id": 4,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showPercentChange": false,
+            "textMode": "auto",
+            "wideLayout": true
+          },
+          "targets": [
+            {
+              "datasource": "Prometheus",
+              "editorMode": "code",
+              "expr": "sum(loki_ingester_memory_streams{namespace=\"openshift-logging\"})",
+              "legendFormat": "streams",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Active Streams",
+          "type": "stat"
+        },
+        {
+          "datasource": "Prometheus",
+          "description": "Rate of non-2xx Loki API responses \u2014 should stay near zero",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 0.1
+                  },
+                  {
+                    "color": "red",
+                    "value": 1
+                  }
+                ]
+              },
+              "unit": "ops"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 5,
+            "w": 4,
+            "x": 16,
+            "y": 1
+          },
+          "id": 5,
+          "options": {
+            "colorMode": "background",
+            "graphMode": "area",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showPercentChange": false,
+            "textMode": "auto",
+            "wideLayout": true
+          },
+          "targets": [
+            {
+              "datasource": "Prometheus",
+              "editorMode": "code",
+              "expr": "sum(rate(loki_request_duration_seconds_count{namespace=\"openshift-logging\", status_code!~\"2..\"}[5m]))",
+              "legendFormat": "errors/s",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Loki Error Rate",
+          "type": "stat"
+        },
+        {
+          "datasource": "Prometheus",
+          "description": "Most full Loki PVC \u2014 percentage of capacity used",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "max": 1,
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 0.75
+                  },
+                  {
+                    "color": "red",
+                    "value": 0.9
+                  }
+                ]
+              },
+              "unit": "percentunit"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 5,
+            "w": 4,
+            "x": 20,
+            "y": 1
+          },
+          "id": 6,
+          "options": {
+            "minVizHeight": 75,
+            "minVizWidth": 75,
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true,
+            "sizing": "auto"
+          },
+          "targets": [
+            {
+              "datasource": "Prometheus",
+              "editorMode": "code",
+              "expr": "max(kubelet_volume_stats_used_bytes{namespace=\"openshift-logging\", persistentvolumeclaim=~\".*loki.*\"} / kubelet_volume_stats_capacity_bytes{namespace=\"openshift-logging\", persistentvolumeclaim=~\".*loki.*\"})",
+              "legendFormat": "most full PVC",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "PVC Most Full",
+          "type": "gauge"
+        },
+        {
+          "collapsed": false,
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 6
+          },
+          "id": 101,
+          "title": "Ingestion Trends",
+          "type": "row"
+        },
+        {
+          "datasource": "Prometheus",
+          "description": "Gap between the two lines shows audit filter savings. When infra logs are enabled, the Loki line includes all tenants.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "events/min",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 15,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "smooth",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "API server total/min"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "orange",
+                      "mode": "fixed"
+                    }
+                  },
+                  {
+                    "id": "custom.fillOpacity",
+                    "value": 5
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Loki ingested/min"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "green",
+                      "mode": "fixed"
+                    }
+                  },
+                  {
+                    "id": "custom.fillOpacity",
+                    "value": 20
+                  },
+                  {
+                    "id": "custom.fillBelowTo",
+                    "value": "API server total/min"
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 14,
+            "x": 0,
+            "y": 7
+          },
+          "id": 7,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": "Prometheus",
+              "editorMode": "code",
+              "expr": "sum(rate(apiserver_audit_event_total[5m])) * 60",
+              "legendFormat": "API audit events/min (generated)",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": "Prometheus",
+              "editorMode": "code",
+              "expr": "sum(rate(loki_distributor_lines_received_total{namespace=\"openshift-logging\"}[5m])) * 60",
+              "legendFormat": "Loki lines/min (all tenants)",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "API Server vs Loki Ingested",
+          "type": "timeseries"
+        },
+        {
+          "datasource": "Prometheus",
+          "description": "Log line ingestion rate broken down by Loki tenant",
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 30,
+                "showPoints": "never",
+                "stacking": {
+                  "mode": "normal",
+                  "group": "A"
+                }
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 10,
+            "x": 14,
+            "y": 7
+          },
+          "id": 8,
+          "options": {
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "targets": [
+            {
+              "datasource": "Prometheus",
+              "editorMode": "code",
+              "expr": "sum by (tenant) (rate(loki_distributor_lines_received_total{namespace=\"openshift-logging\"}[5m]))",
+              "legendFormat": "{{tenant}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Log Volume by Tenant",
+          "type": "timeseries",
+          "maxDataPoints": 30
+        },
+        {
+          "collapsed": false,
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 14
+          },
+          "id": 102,
+          "title": "Recent Security Events",
+          "type": "row"
+        },
+        {
+          "datasource": "Loki (Audit)",
+          "description": "Unified security event feed: RBAC mutations, pod exec/attach, and impersonation requests.",
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 16,
+            "x": 0,
+            "y": 15
+          },
+          "id": 9,
+          "options": {
+            "showTime": true,
+            "sortOrder": "Descending",
+            "enableLogDetails": true,
+            "wrapLogMessage": true,
+            "dedupStrategy": "none",
+            "prettifyLogMessage": false,
+            "showCommonLabels": false,
+            "showLabels": false
+          },
+          "targets": [
+            {
+              "datasource": "Loki (Audit)",
+              "refId": "A",
+              "expr": "{log_type=\"audit\"} |~ \"(role|clusterrole)\" | json | verb=~\"(create|update|patch|delete)\" | objectRef_resource=~\"(rolebindings|clusterrolebindings|clusterroles|roles)\" | user_username!~\"system:.*\" | line_format \"RBAC {{.verb}} {{.objectRef_resource}}/{{.objectRef_name}} by {{.user_username}}\""
+            },
+            {
+              "datasource": "Loki (Audit)",
+              "refId": "B",
+              "expr": "{log_type=\"audit\"} |~ \"(exec|attach)\" | json | verb=\"create\" | objectRef_subresource=~\"(exec|attach)\" | line_format \"{{.objectRef_subresource}} {{.objectRef_namespace}}/{{.objectRef_name}} by {{.user_username}}\""
+            },
+            {
+              "datasource": "Loki (Audit)",
+              "refId": "C",
+              "expr": "{log_type=\"audit\"} |~ \"impersonatedUser\" | json | impersonatedUser_username!=\"\" | line_format \"IMPERSONATE {{.user_username}} as {{.impersonatedUser_username}}: {{.verb}} {{.objectRef_resource}}\""
+            }
+          ],
+          "title": "Security Event Feed",
+          "type": "logs",
+          "maxDataPoints": 50
+        },
+        {
+          "datasource": "Loki (Infrastructure)",
+          "description": "Top 10 namespaces producing the most error log lines in the last hour",
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 30,
+                "showPoints": "never",
+                "stacking": {
+                  "mode": "normal",
+                  "group": "A"
+                }
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 15
+          },
+          "id": 10,
+          "options": {
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "targets": [
+            {
+              "datasource": "Loki (Audit)",
+              "editorMode": "code",
+              "expr": "topk(10, sum by (kubernetes_namespace_name) (count_over_time({log_type=\"infrastructure\"} |~ \"(?i)error\" [15m])))",
+              "legendFormat": "{{kubernetes_namespace_name}}",
+              "queryType": "range",
+              "refId": "A"
+            }
+          ],
+          "title": "Top Error-Producing Namespaces",
+          "type": "timeseries",
+          "maxDataPoints": 30
+        },
+        {
+          "collapsed": false,
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 23
+          },
+          "id": 103,
+          "title": "Storage & Backend",
+          "type": "row"
+        },
+        {
+          "datasource": "Prometheus",
+          "description": "PVC usage percentage for all Loki persistent volumes \u2014 warning at 75%, critical at 90%",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 15,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "smooth",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "line+area"
+                }
+              },
+              "mappings": [],
+              "max": 1,
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "transparent",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 0.75
+                  },
+                  {
+                    "color": "red",
+                    "value": 0.9
+                  }
+                ]
+              },
+              "unit": "percentunit"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 24
+          },
+          "id": 11,
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": "Prometheus",
+              "editorMode": "code",
+              "expr": "kubelet_volume_stats_used_bytes{namespace=\"openshift-logging\", persistentvolumeclaim=~\".*loki.*\"} / kubelet_volume_stats_capacity_bytes{namespace=\"openshift-logging\", persistentvolumeclaim=~\".*loki.*\"}",
+              "legendFormat": "{{persistentvolumeclaim}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "PVC Usage %",
+          "type": "timeseries"
+        },
+        {
+          "datasource": "Prometheus",
+          "description": "Azure Blob Storage I/O \u2014 egress bandwidth and p99 request latency on dual axes",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 15,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "smooth",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Egress bytes/sec"
+                },
+                "properties": [
+                  {
+                    "id": "custom.axisPlacement",
+                    "value": "left"
+                  },
+                  {
+                    "id": "unit",
+                    "value": "Bps"
+                  },
+                  {
+                    "id": "custom.fillOpacity",
+                    "value": 15
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "p99 blob latency"
+                },
+                "properties": [
+                  {
+                    "id": "custom.axisPlacement",
+                    "value": "right"
+                  },
+                  {
+                    "id": "unit",
+                    "value": "s"
+                  },
+                  {
+                    "id": "color",
+                    "value": {
+                      "mode": "fixed",
+                      "fixedColor": "orange"
+                    }
+                  },
+                  {
+                    "id": "custom.fillOpacity",
+                    "value": 0
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 12,
+            "y": 24
+          },
+          "id": 12,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "datasource": "Prometheus",
+              "editorMode": "code",
+              "expr": "sum(rate(loki_azure_blob_egress_bytes_total{namespace=\"openshift-logging\"}[5m]))",
+              "legendFormat": "Egress bytes/sec",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": "Prometheus",
+              "editorMode": "code",
+              "expr": "histogram_quantile(0.99, sum by (le) (rate(loki_azure_blob_request_duration_seconds_bucket{namespace=\"openshift-logging\"}[5m])))",
+              "legendFormat": "p99 blob latency",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "Azure Blob I/O",
+          "type": "timeseries"
+        }
+      ],
+      "schemaVersion": 39,
+      "tags": [
+        "overview",
+        "operations",
+        "loki",
+        "executive"
+      ],
+      "templating": {
+        "list": []
+      },
+      "time": {
+        "from": "now-1h",
+        "to": "now"
+      },
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "Operational Overview",
+      "uid": "ops-overview",
+      "version": 1,
+      "weekStart": "",
+      "refresh": "1m",
+      "description": "Operational overview. Recommended time range: 1h (max 2h on 1x.extra-small LokiStack)."
+    }
+  grafana-platform-operators.json: |
+    {
+      "__elements": {},
+      "annotations": {
+        "list": [
+          {
+            "builtIn": 1,
+            "datasource": {
+              "type": "grafana",
+              "uid": "-- Grafana --"
+            },
+            "enable": true,
+            "hide": true,
+            "iconColor": "rgba(0, 211, 255, 1)",
+            "name": "Annotations & Alerts",
+            "type": "dashboard"
+          }
+        ]
+      },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "liveNow": false,
+      "panels": [
+        {
+          "collapsed": false,
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 0
+          },
+          "id": 100,
+          "title": "etcd Health",
+          "type": "row"
+        },
+        {
+          "datasource": "Prometheus",
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 2
+                  },
+                  {
+                    "color": "red",
+                    "value": 5
+                  }
+                ]
+              },
+              "color": {
+                "mode": "thresholds"
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 6,
+            "x": 0,
+            "y": 1
+          },
+          "id": 1,
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "value",
+            "graphMode": "none"
+          },
+          "targets": [
+            {
+              "datasource": "Prometheus",
+              "expr": "sum(increase(etcd_server_leader_changes_seen_total[1h]))",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "title": "etcd Leader Changes/hr",
+          "type": "stat"
+        },
+        {
+          "datasource": "Prometheus",
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 15,
+                "showPoints": "never",
+                "spanNulls": false
+              },
+              "color": {
+                "mode": "palette-classic"
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 9,
+            "x": 6,
+            "y": 1
+          },
+          "id": 2,
+          "options": {
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "calcs": []
+            }
+          },
+          "targets": [
+            {
+              "datasource": "Prometheus",
+              "expr": "etcd_mvcc_db_total_size_in_bytes",
+              "legendFormat": "{{pod}}",
+              "refId": "A"
+            }
+          ],
+          "title": "etcd DB Size",
+          "type": "timeseries"
+        },
+        {
+          "datasource": "Prometheus",
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 15,
+                "showPoints": "never",
+                "spanNulls": false,
+                "thresholdsStyle": {
+                  "mode": "dashed+area"
+                }
+              },
+              "color": {
+                "mode": "palette-classic"
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 0.01
+                  },
+                  {
+                    "color": "red",
+                    "value": 0.025
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 9,
+            "x": 15,
+            "y": 1
+          },
+          "id": 3,
+          "options": {
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "calcs": []
+            }
+          },
+          "targets": [
+            {
+              "datasource": "Prometheus",
+              "expr": "histogram_quantile(0.99, sum by (le) (rate(etcd_disk_wal_fsync_duration_seconds_bucket[5m])))",
+              "legendFormat": "p99 WAL fsync",
+              "refId": "A"
+            }
+          ],
+          "title": "etcd Disk WAL Sync",
+          "type": "timeseries"
+        },
+        {
+          "collapsed": false,
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 8
+          },
+          "id": 101,
+          "title": "etcd Logs",
+          "type": "row"
+        },
+        {
+          "datasource": "Loki (Infrastructure)",
+          "gridPos": {
+            "h": 7,
+            "w": 24,
+            "x": 0,
+            "y": 9
+          },
+          "id": 4,
+          "options": {
+            "showTime": true,
+            "sortOrder": "Descending",
+            "enableLogDetails": true,
+            "wrapLogMessage": true,
+            "dedupStrategy": "none",
+            "prettifyLogMessage": false
+          },
+          "targets": [
+            {
+              "datasource": "Loki (Infrastructure)",
+              "expr": "{log_type=\"infrastructure\", kubernetes_namespace_name=\"openshift-etcd\"} |~ \"(?i)(slow|took too long|overloaded|leader changed|compaction|snapshot|apply request took)\" | json message=\"message\" | line_format \"{{ .kubernetes_pod_name }}: {{ .message | trunc 200 }}\"",
+              "refId": "A"
+            }
+          ],
+          "title": "etcd Slow Requests & Warnings",
+          "type": "logs",
+          "maxDataPoints": 50
+        },
+        {
+          "collapsed": false,
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 16
+          },
+          "id": 102,
+          "title": "Operator Status",
+          "type": "row"
+        },
+        {
+          "datasource": "Prometheus",
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 1
+                  },
+                  {
+                    "color": "red",
+                    "value": 2
+                  }
+                ]
+              },
+              "color": {
+                "mode": "thresholds"
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 6,
+            "x": 0,
+            "y": 17
+          },
+          "id": 5,
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "value",
+            "graphMode": "none"
+          },
+          "targets": [
+            {
+              "datasource": "Prometheus",
+              "expr": "count(cluster_operator_conditions{condition=\"Degraded\",status=\"True\"}) OR on() vector(0)",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "title": "Failed ClusterOperators",
+          "type": "stat"
+        },
+        {
+          "datasource": "Prometheus",
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 1
+                  }
+                ]
+              },
+              "color": {
+                "mode": "thresholds"
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 6,
+            "x": 6,
+            "y": 17
+          },
+          "id": 6,
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "orientation": "auto",
+            "textMode": "auto",
+            "colorMode": "value",
+            "graphMode": "none"
+          },
+          "targets": [
+            {
+              "datasource": "Prometheus",
+              "expr": "count(cluster_operator_conditions{condition=\"Available\",status=\"False\"}) OR on() vector(0)",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "title": "Unavailable ClusterOperators",
+          "type": "stat"
+        },
+        {
+          "datasource": "Loki (Infrastructure)",
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 21
+          },
+          "id": 7,
+          "options": {
+            "showTime": true,
+            "sortOrder": "Descending",
+            "enableLogDetails": true,
+            "wrapLogMessage": true,
+            "dedupStrategy": "signature",
+            "prettifyLogMessage": false
+          },
+          "targets": [
+            {
+              "datasource": "Loki (Infrastructure)",
+              "expr": "{log_type=\"infrastructure\", kubernetes_namespace_name=~\"openshift-.*\"} |~ \"(?i)(error|fail|exception|panic)\" != \"healthz\" != \"readyz\" != \"livez\" != \"metrics\" != \"error_count=0\" | json message=\"message\" | line_format \"{{ .kubernetes_namespace_name }}/{{ .kubernetes_container_name }}: {{ .message | trunc 200 }}\"",
+              "refId": "A"
+            }
+          ],
+          "title": "Operator Error Logs",
+          "type": "logs",
+          "maxDataPoints": 50
+        },
+        {
+          "collapsed": false,
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 29
+          },
+          "id": 103,
+          "title": "OLM & Workloads",
+          "type": "row"
+        },
+        {
+          "datasource": "Loki (Infrastructure)",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 15,
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "mode": "normal",
+                  "group": "A"
+                }
+              },
+              "color": {
+                "mode": "palette-classic"
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 30
+          },
+          "id": 8,
+          "options": {
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "calcs": []
+            }
+          },
+          "targets": [
+            {
+              "datasource": "Loki (Infrastructure)",
+              "expr": "sum by (kubernetes_namespace_name) (count_over_time({log_type=\"infrastructure\", kubernetes_namespace_name=~\"openshift-.*\"} [15m]))",
+              "legendFormat": "{{kubernetes_namespace_name}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Operator Log Volume by Namespace",
+          "type": "timeseries",
+          "maxDataPoints": 30
+        },
+        {
+          "datasource": "Loki (Infrastructure)",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 30,
+                "showPoints": "never",
+                "stacking": {
+                  "mode": "normal",
+                  "group": "A"
+                }
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 12,
+            "y": 30
+          },
+          "id": 9,
+          "options": {
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "targets": [
+            {
+              "datasource": "Loki (Infrastructure)",
+              "expr": "topk(10, sum by (kubernetes_namespace_name) (count_over_time({log_type=\"infrastructure\", kubernetes_namespace_name=~\"openshift-.*\"} |~ \"(?i)error\" [15m])))",
+              "legendFormat": "{{kubernetes_namespace_name}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Namespace Error Rate",
+          "type": "timeseries",
+          "maxDataPoints": 30
+        },
+        {
+          "collapsed": false,
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 37
+          },
+          "id": 104,
+          "title": "DNS & Networking",
+          "type": "row"
+        },
+        {
+          "datasource": "Prometheus",
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 38
+          },
+          "id": 10,
+          "options": {
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "targets": [
+            {
+              "expr": "sum by (rcode) (rate(coredns_dns_responses_total{namespace=\"openshift-dns\"}[5m]))",
+              "legendFormat": "{{rcode}}",
+              "refId": "A"
+            }
+          ],
+          "title": "DNS Health",
+          "type": "timeseries",
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 30,
+                "showPoints": "never",
+                "stacking": {
+                  "mode": "normal",
+                  "group": "A"
+                }
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "NOERROR"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "green",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "NXDOMAIN"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "yellow",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "SERVFAIL"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "red",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "datasource": "Prometheus",
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 15,
+                "showPoints": "never",
+                "spanNulls": false
+              },
+              "color": {
+                "mode": "palette-classic"
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 12,
+            "y": 38
+          },
+          "id": 11,
+          "options": {
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom",
+              "calcs": []
+            }
+          },
+          "targets": [
+            {
+              "datasource": "Prometheus",
+              "expr": "histogram_quantile(0.99, sum by (le) (rate(coredns_dns_request_duration_seconds_bucket[5m])))",
+              "legendFormat": "p99 DNS latency",
+              "refId": "A"
+            }
+          ],
+          "title": "DNS Query Latency",
+          "type": "timeseries"
+        },
+        {
+          "collapsed": false,
+          "gridPos": {
+            "h": 1,
+            "w": 24,
+            "x": 0,
+            "y": 45
+          },
+          "id": 105,
+          "title": "API Server",
+          "type": "row"
+        },
+        {
+          "datasource": "Prometheus",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "lineWidth": 2,
+                "fillOpacity": 30,
+                "showPoints": "never",
+                "stacking": {
+                  "mode": "normal",
+                  "group": "A"
+                }
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 12,
+            "x": 0,
+            "y": 46
+          },
+          "id": 12,
+          "options": {
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          },
+          "targets": [
+            {
+              "datasource": "Prometheus",
+              "expr": "sum by (code) (rate(apiserver_request_total[5m]))",
+              "legendFormat": "{{code}}",
+              "refId": "A"
+            }
+          ],
+          "title": "API Server Request Rate",
+          "type": "timeseries"
+        },
+        {
+          "datasource": "Prometheus",
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 0.01
+                  },
+                  {
+                    "color": "red",
+                    "value": 0.05
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 5,
+            "w": 6,
+            "x": 12,
+            "y": 46
+          },
+          "id": 13,
+          "options": {
+            "graphMode": "area",
+            "textMode": "value_and_name",
+            "colorMode": "background",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            }
+          },
+          "targets": [
+            {
+              "datasource": "Prometheus",
+              "expr": "sum(rate(apiserver_request_total{code=~\"5..\"}[5m])) / sum(rate(apiserver_request_total[5m]))",
+              "legendFormat": "5xx error rate",
+              "refId": "A"
+            }
+          ],
+          "title": "API Server Error Rate",
+          "type": "stat"
+        }
+      ],
+      "refresh": "1m",
+      "schemaVersion": 39,
+      "tags": [
+        "infrastructure",
+        "operators",
+        "platform",
+        "etcd",
+        "openshift"
+      ],
+      "templating": {
+        "list": []
+      },
+      "time": {
+        "from": "now-1h",
+        "to": "now"
+      },
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "Platform & Operator Health",
+      "uid": "platform-operators",
+      "version": 0,
+      "weekStart": "",
+      "description": "Platform & operator health. Recommended time range: 1h (max 2h on 1x.extra-small LokiStack)."
+    }
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/name: loki-grafana
+    app.kubernetes.io/part-of: openshift-logging
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+  name: grafana-dashboards
+  namespace: openshift-logging

@@ -1,0 +1,150 @@
+#! ArgoCD PostSync hook: injects bearer tokens into Grafana datasources
+#! and creates the admin credentials Secret.
+#!
+#! Why a PostSync hook?
+#!   - Bearer tokens require ServiceAccounts to exist first (created at wave 5)
+#!   - The datasource ConfigMap has $LOKI_BEARER_TOKEN / $PROMETHEUS_BEARER_TOKEN
+#!     placeholders that must be replaced with real tokens
+#!   - The admin credentials Secret (password) should not be in git
+#!
+#! The hook runs after all sync waves complete. It is idempotent and safe to
+#! re-run (ArgoCD retries on failure).
+#!
+#! Grafana admin password: the hook generates a random password on first run
+#! and stores it in grafana-admin-credentials. On subsequent runs, the
+#! existing password is preserved. Retrieve it with:
+#!   oc get secret grafana-admin-credentials -n openshift-logging \
+#!     -o jsonpath='{.data.GF_SECURITY_ADMIN_PASSWORD}' | base64 -d
+
+#! ── RBAC for the hook Job ──
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: grafana-postsync
+  namespace: openshift-logging
+  labels:
+    app.kubernetes.io/name: loki-grafana
+    app.kubernetes.io/part-of: openshift-logging
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: grafana-postsync
+  namespace: openshift-logging
+  labels:
+    app.kubernetes.io/name: loki-grafana
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+rules:
+  - apiGroups: [""]
+    resources: [secrets, configmaps]
+    verbs: [get, create, patch, update]
+  - apiGroups: [""]
+    resources: [serviceaccounts/token]
+    verbs: [create]
+  - apiGroups: [apps]
+    resources: [deployments]
+    verbs: [get, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: grafana-postsync
+  namespace: openshift-logging
+  labels:
+    app.kubernetes.io/name: loki-grafana
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: grafana-postsync
+subjects:
+  - kind: ServiceAccount
+    name: grafana-postsync
+    namespace: openshift-logging
+---
+#! ── PostSync hook Job ──
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: grafana-postsync
+  namespace: openshift-logging
+  labels:
+    app.kubernetes.io/name: loki-grafana
+    app.kubernetes.io/part-of: openshift-logging
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 3600
+  template:
+    spec:
+      serviceAccountName: grafana-postsync
+      restartPolicy: OnFailure
+      containers:
+        - name: postsync
+          image: registry.redhat.io/openshift4/ose-cli:latest
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -euo pipefail
+              NS="openshift-logging"
+
+              echo "==> Step 1: Ensure grafana-admin-credentials Secret exists"
+              if ! oc get secret grafana-admin-credentials -n "${NS}" >/dev/null 2>&1; then
+                PASSWORD="$(head -c 16 /dev/urandom | base64 | tr -d '/+=' | head -c 20)"
+                oc create secret generic grafana-admin-credentials \
+                  -n "${NS}" \
+                  --from-literal=GF_SECURITY_ADMIN_USER=admin \
+                  --from-literal=GF_SECURITY_ADMIN_PASSWORD="${PASSWORD}"
+                echo "    Created with generated password. Retrieve:"
+                echo "    oc get secret grafana-admin-credentials -n ${NS} -o jsonpath='{.data.GF_SECURITY_ADMIN_PASSWORD}' | base64 -d"
+              else
+                echo "    Already exists — preserving current password"
+              fi
+
+              echo "==> Step 2: Generate bearer tokens"
+              LOKI_TOKEN="$(oc create token grafana-loki -n "${NS}" --duration=8760h)"
+              echo "    Loki token: ${#LOKI_TOKEN} chars"
+              PROM_TOKEN="$(oc create token grafana-prometheus -n "${NS}" --duration=8760h)"
+              echo "    Prometheus token: ${#PROM_TOKEN} chars"
+
+              echo "==> Step 3: Patch datasource ConfigMap with real tokens"
+              DS_YAML="$(oc get configmap grafana-datasource-provisioning \
+                -n "${NS}" -o jsonpath='{.data.datasources\.yaml}')"
+
+              DS_YAML="$(echo "${DS_YAML}" \
+                | sed "s|\\\$LOKI_BEARER_TOKEN|Bearer ${LOKI_TOKEN}|g" \
+                | sed "s|\\\$PROMETHEUS_BEARER_TOKEN|Bearer ${PROM_TOKEN}|g")"
+
+              oc create configmap grafana-datasource-provisioning \
+                -n "${NS}" \
+                --from-literal="datasources.yaml=${DS_YAML}" \
+                --dry-run=client -o yaml | oc apply -f -
+              echo "    Datasource ConfigMap patched"
+
+              echo "==> Step 4: Restart Grafana to pick up new tokens"
+              oc patch deployment loki-grafana -n "${NS}" \
+                -p "{\"spec\":{\"template\":{\"metadata\":{\"annotations\":{\"postsync/token-refresh\":\"$(date -u +%Y%m%d%H%M%S)\"}}}}}"
+              echo "    Grafana rollout triggered"
+
+              echo "==> PostSync complete"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi

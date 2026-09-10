@@ -146,7 +146,8 @@ data:
 ---
 #! ── Datasource provisioning ──
 #! Token placeholders ($LOKI_BEARER_TOKEN, $PROMETHEUS_BEARER_TOKEN) are
-#! replaced by scripts/deploy-grafana.sh at deploy time using sed + oc create.
+#! replaced automatically by the PostSync hook (grafana-postsync.yaml)
+#! or manually by scripts/deploy-grafana.sh at deploy time.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -224,7 +225,8 @@ data:
           foldersFromFilesStructure: false
 ---
 #! ── Grafana Deployment ──
-#! The grafana-admin-credentials Secret is created out-of-band by
+#! The grafana-admin-credentials Secret is created by the PostSync hook
+#! (grafana-postsync.yaml) with a generated password, or manually via
 #! scripts/deploy-grafana.sh from GRAFANA_ADMIN_PASSWORD in .env.
 apiVersion: apps/v1
 kind: Deployment
@@ -267,6 +269,7 @@ spec:
           envFrom:
             - secretRef:
                 name: grafana-admin-credentials
+                optional: true
           env:
             - name: GF_PATHS_CONFIG
               value: /etc/grafana/grafana.ini
