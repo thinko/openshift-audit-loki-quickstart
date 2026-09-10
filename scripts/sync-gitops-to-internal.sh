@@ -6,7 +6,7 @@
 #   scripts/sync-gitops-to-internal.sh <overlay-name> <target-dir>
 #
 # Example:
-#   scripts/sync-gitops-to-internal.sh d05 \
+#   scripts/sync-gitops-to-internal.sh my-cluster \
 #     ~/repos/internal-namespaces/namespaces/openshift-logging
 #
 # What it does:
@@ -26,11 +26,11 @@ usage() {
 Usage: $(basename "$0") <overlay-name> <target-dir>
 
 Arguments:
-  overlay-name   Name of the overlay in _overlays/ (e.g. d05)
+  overlay-name   Name of the overlay in _overlays/ (e.g. my-cluster)
   target-dir     Path to namespaces/openshift-logging/ in the internal repo
 
 Example:
-  $(basename "$0") d05 ~/repos/internal/namespaces/openshift-logging
+  $(basename "$0") my-cluster ~/repos/internal/namespaces/openshift-logging
 EOF
   exit 1
 }
