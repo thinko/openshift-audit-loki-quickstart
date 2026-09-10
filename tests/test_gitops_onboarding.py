@@ -16,6 +16,8 @@ REQUIRED_FILES = (
     "clusterlogforwarder.yaml",
     "alerting.yaml",
     "grafana.yaml",
+    "grafana-postsync.yaml",
+    "grafana-dashboards.yaml",
     "uiplugin.yaml",
     "loki-config-sp-overlay.yaml",
 )
@@ -179,6 +181,36 @@ def test_gitops_uiplugin(repo_root: Path):
     assert "SkipDryRunOnMissingResource=true" in annotations.get(
         "argocd.argoproj.io/sync-options", ""
     )
+
+
+def test_gitops_grafana_postsync_hook(repo_root: Path):
+    """PostSync hook must have correct ArgoCD annotations and create tokens."""
+    docs = _load_docs(repo_root / GITOPS_NS / "grafana-postsync.yaml")
+    kinds = {d["kind"] for d in docs}
+    assert "Job" in kinds, "grafana-postsync.yaml missing Job"
+    assert "ServiceAccount" in kinds, "grafana-postsync.yaml missing ServiceAccount"
+    assert "Role" in kinds, "grafana-postsync.yaml missing Role"
+    assert "RoleBinding" in kinds, "grafana-postsync.yaml missing RoleBinding"
+    job = next(d for d in docs if d["kind"] == "Job")
+    annotations = job["metadata"].get("annotations", {})
+    assert annotations.get("argocd.argoproj.io/hook") == "PostSync"
+    assert annotations.get("argocd.argoproj.io/hook-delete-policy") == "BeforeHookCreation"
+
+
+def test_gitops_grafana_dashboards_configmap(repo_root: Path):
+    """Dashboards ConfigMap must contain all expected dashboard JSON files."""
+    docs = _load_docs(repo_root / GITOPS_NS / "grafana-dashboards.yaml")
+    cm = next(d for d in docs if d["kind"] == "ConfigMap")
+    assert cm["metadata"]["name"] == "grafana-dashboards"
+    expected_dashboards = {
+        "grafana-audit-security.json",
+        "grafana-loki-profiler.json",
+        "grafana-node-cluster-health.json",
+        "grafana-ops-overview.json",
+        "grafana-platform-operators.json",
+    }
+    actual_keys = set(cm["data"].keys())
+    assert expected_dashboards == actual_keys, f"Missing dashboards: {expected_dashboards - actual_keys}"
 
 
 def test_gitops_sp_overlay_exists(repo_root: Path):

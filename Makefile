@@ -15,7 +15,7 @@ endef
 .PHONY: help deploy deploy-operators destroy test test-attribution enable-console-plugin \
 	helm-lint helm-template secret azure-storage status preflight apply-rbac check-egress \
 	deploy-grafana destroy-grafana deploy-console-dashboards deploy-alerting lint \
-	add-storage-subnet init-sp-auth
+	add-storage-subnet init-sp-auth generate-dashboard-configmap
 
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*##"; printf "\nTargets:\n"} /^[a-zA-Z0-9_.-]+:.*##/ { printf "  %-24s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -116,5 +116,25 @@ add-storage-subnet: ## Add ARO worker subnet to Azure storage account network AC
 
 init-sp-auth: ## Bootstrap service principal auth for Loki (AllowSharedKeyAccess=false workaround)
 	$(_load_env); "$(ROOT)/scripts/init-sp-auth.sh"
+
+generate-dashboard-configmap: ## Regenerate gitops dashboards ConfigMap from dashboards/*.json
+	@echo "#! Grafana dashboards ConfigMap — auto-generated from dashboards/*.json." \
+		> "$(ROOT)/gitops/namespaces/openshift-logging/grafana-dashboards.yaml"
+	@echo "#! Regenerate with: make generate-dashboard-configmap" \
+		>> "$(ROOT)/gitops/namespaces/openshift-logging/grafana-dashboards.yaml"
+	@echo "#!" >> "$(ROOT)/gitops/namespaces/openshift-logging/grafana-dashboards.yaml"
+	@echo "#! Do not edit dashboard JSON here; edit the source files in dashboards/" \
+		>> "$(ROOT)/gitops/namespaces/openshift-logging/grafana-dashboards.yaml"
+	@echo "#! and re-run the generator." \
+		>> "$(ROOT)/gitops/namespaces/openshift-logging/grafana-dashboards.yaml"
+	@echo "---" >> "$(ROOT)/gitops/namespaces/openshift-logging/grafana-dashboards.yaml"
+	@oc create configmap grafana-dashboards -n openshift-logging \
+		$$(for f in "$(ROOT)/dashboards"/grafana-*.json; do \
+			echo "--from-file=$$(basename $$f)=$$f"; \
+		done) \
+		--dry-run=client -o yaml \
+		| sed '/^metadata:/a\  labels:\n    app.kubernetes.io/name: loki-grafana\n    app.kubernetes.io/part-of: openshift-logging\n  annotations:\n    argocd.argoproj.io/sync-wave: "5"' \
+		>> "$(ROOT)/gitops/namespaces/openshift-logging/grafana-dashboards.yaml"
+	@echo "Generated: gitops/namespaces/openshift-logging/grafana-dashboards.yaml"
 
 lint: test ## Alias for test

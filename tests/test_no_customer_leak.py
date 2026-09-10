@@ -19,6 +19,7 @@ SKIP_DIRS = {
     "tests",
     "_dev_docs",
     "_dev_tests_",
+    "_overlays",
 }
 
 
