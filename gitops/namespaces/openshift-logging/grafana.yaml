@@ -1,3 +1,5 @@
+#@ load("@ytt:data", "data")
+
 #! Standalone Grafana deployment — no Grafana Operator required.
 #!
 #! Static resources managed by ArgoCD. Bearer tokens for datasources are
@@ -11,7 +13,13 @@
 #!
 #! Image: change grafana/grafana:latest to a Nexus-proxied or private-
 #! registry image if the cluster has image signature policies.
+#!
+#! Node placement: inherits node_placement from values.yaml. When set,
+#! the Grafana Deployment schedules on the same infra nodes as Loki.
 #! -------------------------------------------------------------------
+
+#@ np = data.values.node_placement
+#@ has_placement = len(np.node_selector) > 0 or len(np.tolerations) > 0
 
 #! ── RBAC: ServiceAccount for Grafana to query the LokiStack gateway ──
 ---
@@ -244,6 +252,10 @@ spec:
         app.kubernetes.io/name: loki-grafana
     spec:
       serviceAccountName: grafana-loki
+      #@ if has_placement:
+      nodeSelector: #@ np.node_selector
+      tolerations: #@ np.tolerations
+      #@ end
       containers:
         - name: grafana
           image: grafana/grafana:latest

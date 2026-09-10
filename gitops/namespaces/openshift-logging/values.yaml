@@ -1,7 +1,7 @@
 #@data/values
 ---
-#! Namespace ApplicationSet input (ytt data values). Extra Loki/CLO
-#! manifests in this folder are plain YAML and are not templated from here.
+#! Namespace ApplicationSet input (ytt data values).
+#! lokistack.yaml and grafana.yaml reference these values via ytt templating.
 #!
 #! Before the PR: set envs[0].name to the same cluster key as clusters.yaml
 #! (do not commit the filled name back to this public kit).
@@ -15,6 +15,26 @@
 #!
 #! Quota enforces requests only. No limits section, no LimitRange required.
 #! The Loki Operator sets requests but not limits on its pods.
+
+#! ── Node placement (optional) ──────────────────────────────────────
+#! On clusters with dedicated infra nodes, set nodeSelector and tolerations
+#! to schedule Loki and Grafana pods on infra nodes. Leave empty ({} / [])
+#! to run on any worker node (default).
+#!
+#! Example for standard OpenShift infra nodes:
+#!   node_placement:
+#!     node_selector:
+#!       node-role.kubernetes.io/infra: ""
+#!     tolerations:
+#!       - key: node-role.kubernetes.io/infra
+#!         effect: NoSchedule
+#!
+#! Note: log collector pods (DaemonSet) always run on ALL nodes regardless
+#! of this setting — they must collect logs from every node in the cluster.
+node_placement:
+  node_selector: {}
+  tolerations: []
+
 project:
   name: openshift-logging
   labels:
