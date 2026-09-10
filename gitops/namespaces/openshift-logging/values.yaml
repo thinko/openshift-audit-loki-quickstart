@@ -32,20 +32,28 @@
 #! Note: log collector pods (DaemonSet) always run on ALL nodes regardless
 #! of this setting — they must collect logs from every node in the cluster.
 #! ── Vault-sourced secrets (injected at render time) ─────────────────
-#! Credentials for the Azure Storage Account that holds Loki index/chunk data.
-#! These are NOT cluster-level or group-sync credentials — they are scoped
-#! exclusively to the Loki blob storage account.
+#! All secrets for the Loki deployment, sourced from a single Vault path.
+#! Populate from Vault in the platform pipeline — never commit real values.
+#!
+#! Vault path convention: secret/<team>/openshift/<cluster>/loki-storage
+#!
+#! Azure storage credentials (for the blob storage account holding Loki data):
+#!   These are NOT cluster-level or group-sync credentials — scoped to the
+#!   Loki blob storage account only.
+#!   Standard auth: account_name + account_key (storage account access key)
+#!   SP auth:       account_name + client_id + client_secret + tenant_id
+#!                  (SP with Storage Blob Data Contributor on the account)
 #!
 #! When account_name is empty (default), storage-secret.yaml produces no
 #! output and the logging-loki-azure Secret must be created out-of-band.
-#! Populate from Vault in the platform pipeline — never commit real values.
 #!
-#! Auth modes (choose one):
-#!   Standard:  account_name + account_key (storage account access key)
-#!   SP auth:   account_name + client_id + client_secret + tenant_id
-#!              (SP with Storage Blob Data Contributor on the account)
+#! Grafana admin password:
+#!   When set, grafana-secret.yaml renders the grafana-admin-credentials
+#!   Secret. The PostSync hook detects the existing Secret and skips
+#!   random password generation. When empty, the hook generates one.
 secrets:
   azure_storage:
+    #! ── Azure blob storage ──
     account_name: ""
     account_key: ""               #! storage account access key (standard auth)
     container: "loki-audit"
@@ -53,6 +61,8 @@ secrets:
     client_id: ""                 #! SP app registration client ID (SP auth)
     client_secret: ""             #! SP credential (SP auth)
     tenant_id: ""                 #! Azure AD tenant for the SP (SP auth)
+    #! ── Grafana ──
+    grafana_admin_password: ""    #! Grafana admin password (leave empty to auto-generate)
 
 node_placement:
   node_selector: {}

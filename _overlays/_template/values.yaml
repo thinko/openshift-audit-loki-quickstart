@@ -17,20 +17,23 @@
 #!   tolerations:
 #!     - key: node-role.kubernetes.io/infra
 #!       effect: NoSchedule
-#! ── Vault-sourced secrets (Loki blob storage) ───────────────────────
-#! Credentials for the Azure Storage Account that holds Loki data.
-#! These are NOT cluster-level or group-sync credentials — they are scoped
-#! exclusively to the Loki blob storage account.
-#!
+#! ── Vault-sourced secrets ────────────────────────────────────────────
+#! All secrets for the Loki deployment, from a single Vault path.
 #! Injected at render time from Vault (never committed to git).
-#! When account_name is empty, storage-secret.yaml produces no output and
-#! the Secret must be created out-of-band.
 #!
-#! Standard auth: fill account_name + account_key (storage access key)
-#! SP auth:       fill account_name + client_id + client_secret + tenant_id
-#!                (SP with Storage Blob Data Contributor on the account)
+#! Vault path: secret/<team>/openshift/<cluster>/loki-storage
+#!
+#! Azure storage (for the blob storage account holding Loki data):
+#!   Standard auth: account_name + account_key (storage access key)
+#!   SP auth:       account_name + client_id + client_secret + tenant_id
+#!                  (SP with Storage Blob Data Contributor on the account)
+#!   NOT cluster-level or group-sync credentials.
+#!
+#! Grafana: when set, renders the admin credentials Secret from Vault.
+#!   When empty, the PostSync hook generates a random password instead.
 secrets:
   azure_storage:
+    #! ── Azure blob storage ──
     account_name: ""
     account_key: ""               #! storage account access key (standard auth)
     container: "loki-audit"
@@ -38,6 +41,8 @@ secrets:
     client_id: ""                 #! SP app registration client ID (SP auth)
     client_secret: ""             #! SP credential (SP auth)
     tenant_id: ""                 #! Azure AD tenant for the SP (SP auth)
+    #! ── Grafana ──
+    grafana_admin_password: ""    #! Grafana admin password (leave empty to auto-generate)
 
 node_placement:
   node_selector: {}
