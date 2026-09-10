@@ -1,3 +1,5 @@
+#@ load("@ytt:data", "data")
+
 #! 1x.small: ~34 vCPU / 67 Gi requests (operator profile). Suitable for test/staging.
 #! Change size to match the target environment (see docs/scaling-guide.md):
 #!   1x.extra-small  (sandbox)  |  1x.small (test)  |  1x.medium (prod)
@@ -11,7 +13,14 @@
 #!               overwriting the patched ConfigMap). See loki-config-sp-overlay.yaml
 #!               and scripts/init-sp-auth.sh for the bootstrap process.
 #!
+#! Node placement: set node_placement.node_selector and node_placement.tolerations
+#! in values.yaml to schedule Loki pods on infra nodes. When empty, pods run on
+#! any worker. The operator applies the same placement to all Loki components.
+#!
 #! Retention: 60 days for audit and infrastructure tenants.
+
+#@ np = data.values.node_placement
+#@ has_placement = len(np.node_selector) > 0 or len(np.tolerations) > 0
 ---
 apiVersion: loki.grafana.com/v1
 kind: LokiStack
@@ -38,6 +47,33 @@ spec:
   storageClassName: managed-csi
   tenants:
     mode: openshift-logging
+  #@ if has_placement:
+  template:
+    compactor:
+      nodeSelector: #@ np.node_selector
+      tolerations: #@ np.tolerations
+    distributor:
+      nodeSelector: #@ np.node_selector
+      tolerations: #@ np.tolerations
+    gateway:
+      nodeSelector: #@ np.node_selector
+      tolerations: #@ np.tolerations
+    indexGateway:
+      nodeSelector: #@ np.node_selector
+      tolerations: #@ np.tolerations
+    ingester:
+      nodeSelector: #@ np.node_selector
+      tolerations: #@ np.tolerations
+    querier:
+      nodeSelector: #@ np.node_selector
+      tolerations: #@ np.tolerations
+    queryFrontend:
+      nodeSelector: #@ np.node_selector
+      tolerations: #@ np.tolerations
+    ruler:
+      nodeSelector: #@ np.node_selector
+      tolerations: #@ np.tolerations
+  #@ end
   limits:
     global:
       retention:

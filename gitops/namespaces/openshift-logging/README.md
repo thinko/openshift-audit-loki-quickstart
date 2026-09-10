@@ -25,7 +25,18 @@ cluster-specific overlay (see `_overlays/README.md`).
    - `1x.extra-small`: cpu=30, memory=64Gi
    - `1x.small`: cpu=72, memory=176Gi
    - `1x.medium`: cpu=100, memory=256Gi
-6. Omit CatalogSource, ImageContentSourcePolicy, MachineConfigPool, and
+6. If the cluster has **infra nodes**, set `node_placement` in `values.yaml`:
+   ```yaml
+   node_placement:
+     node_selector:
+       node-role.kubernetes.io/infra: ""
+     tolerations:
+       - key: node-role.kubernetes.io/infra
+         effect: NoSchedule
+   ```
+   This schedules all Loki components and Grafana on infra nodes.
+   Log collector pods (DaemonSet) always run on ALL nodes regardless.
+7. Omit CatalogSource, ImageContentSourcePolicy, MachineConfigPool, and
    KubeletConfig — those are for mirrored IBM catalogs / dedicated node pools,
    not Red Hat Loki.
 
