@@ -6,14 +6,10 @@ git repository that Argo CD already clones over SSH.
 Do **not** point Argo at this public GitHub repo or at `helm/audit-loki`.
 Sandbox installs still use `make deploy` from a laptop.
 
-Use `scripts/sync-gitops-to-internal.sh` to automate copying with a
-cluster-specific overlay (see `_overlays/README.md`).
-
 ## Before the PR
 
 1. Set `REPLACE_ME_CLUSTER` in `clusters.yaml` and `values.yaml` `envs[0].name`
    to the same cluster key other `namespaces/*/clusters.yaml` files use.
-   (Or use `scripts/sync-gitops-to-internal.sh` with a pre-filled overlay.)
 2. Copy org annotations and AD `rbac.edit` / `rbac.view` groups from an
    existing namespace folder. Leave `TBD` until those values are known.
 3. Confirm `oc get operatorgroup -n openshift-logging` is empty (this folder
