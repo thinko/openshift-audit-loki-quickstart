@@ -31,6 +31,25 @@
 #!
 #! Note: log collector pods (DaemonSet) always run on ALL nodes regardless
 #! of this setting — they must collect logs from every node in the cluster.
+#! ── Vault-sourced secrets (injected at render time) ─────────────────
+#! When account_name is empty (default), storage-secret.yaml produces no
+#! output and the logging-loki-azure Secret must be created out-of-band.
+#! Populate these values from Vault in the platform pipeline — never commit
+#! actual credentials to values.yaml.
+#!
+#! Auth modes:
+#!   Standard: account_name + account_key
+#!   SP auth:  account_name + client_id + client_secret + tenant_id
+secrets:
+  azure:
+    account_name: ""
+    account_key: ""
+    container: "loki-audit"
+    environment: "AzureGlobal"
+    client_id: ""
+    client_secret: ""
+    tenant_id: ""
+
 node_placement:
   node_selector: {}
   tolerations: []
