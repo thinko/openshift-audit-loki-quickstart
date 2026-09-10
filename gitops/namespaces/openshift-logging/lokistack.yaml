@@ -1,10 +1,16 @@
 #! 1x.small: ~34 vCPU / 67 Gi requests (operator profile). Suitable for test/staging.
+#! Change size to match the target environment (see docs/scaling-guide.md):
+#!   1x.extra-small  (sandbox)  |  1x.small (test)  |  1x.medium (prod)
+#!
 #! Object storage is Azure Blob via out-of-band secret logging-loki-azure.
 #! credentialMode static: operator-valid secret (account_name + account_key).
-#! Some ARO tenants have neither a real account key nor Workload ID; Azure
-#! auth is then patched out of band (do not commit client_secret). Freeze
-#! with spec.managementState: Unmanaged after that patch — do not scale
-#! the OLM operator Deployment (Argo/OLM will restore replicas).
+#!
+#! managementState:
+#!   Managed   — default. Operator reconciles all Loki components.
+#!   Unmanaged — use when SP auth overlay is applied (prevents operator from
+#!               overwriting the patched ConfigMap). See loki-config-sp-overlay.yaml
+#!               and scripts/init-sp-auth.sh for the bootstrap process.
+#!
 #! Retention: 60 days for audit and infrastructure tenants.
 ---
 apiVersion: loki.grafana.com/v1

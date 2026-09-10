@@ -1,0 +1,27 @@
+#! Cluster Observability Operator (COO) UIPlugin for the OpenShift Console
+#! Logs tab. Requires COO to be installed on the cluster (provides the
+#! observability.openshift.io CRD group).
+#!
+#! SkipDryRunOnMissingResource: if the COO is not yet installed when ArgoCD
+#! first syncs, the UIPlugin CRD will not exist. This annotation prevents
+#! ArgoCD from rejecting the resource during dry-run; the retry policy on
+#! the Application will re-apply it once the CRD is registered.
+---
+apiVersion: observability.openshift.io/v1alpha1
+kind: UIPlugin
+metadata:
+  name: logging
+  namespace: openshift-logging
+  labels:
+    app.kubernetes.io/name: uiplugin-logging
+    app.kubernetes.io/part-of: openshift-logging
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  type: Logging
+  logging:
+    lokiStack:
+      name: logging-loki
+    logsLimit: 50
+    timeout: 30s

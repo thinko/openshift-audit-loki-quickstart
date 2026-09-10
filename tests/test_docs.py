@@ -22,9 +22,14 @@ def test_gitops_runbook_topics(repo_root: Path):
         "namespaces/openshift-logging",
         "REPLACE_ME_CLUSTER",
         "logging-loki-azure",
-        "make enable-console-plugin",
+        "UIPlugin",
+        "make deploy-grafana",
+        "1x.small",
         "1x.medium",
         "OperatorGroup",
+        "requests only",
+        "init-sp-auth",
+        "add-storage-subnet",
     ):
         assert needle in text, f"missing {needle}"
 

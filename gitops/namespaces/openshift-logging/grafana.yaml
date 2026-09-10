@@ -1,0 +1,351 @@
+#! Standalone Grafana deployment — no Grafana Operator required.
+#!
+#! Static resources managed by ArgoCD. Bearer tokens for datasources are
+#! NOT included here — they require ServiceAccounts to exist first and
+#! must be injected post-sync via `make deploy-grafana`.
+#!
+#! Post-sync steps:
+#!   1. Set GRAFANA_ADMIN_PASSWORD in .env
+#!   2. Run `make deploy-grafana` to create the admin credentials secret,
+#!      generate bearer tokens, and patch the datasource ConfigMap.
+#!
+#! Image: change grafana/grafana:latest to a Nexus-proxied or private-
+#! registry image if the cluster has image signature policies.
+#! -------------------------------------------------------------------
+
+#! ── RBAC: ServiceAccount for Grafana to query the LokiStack gateway ──
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: grafana-loki
+  namespace: openshift-logging
+  labels:
+    app.kubernetes.io/name: loki-grafana
+    app.kubernetes.io/part-of: openshift-logging
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: grafana-loki-tenant-view
+  labels:
+    app.kubernetes.io/name: loki-grafana
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+rules:
+  - apiGroups:
+      - loki.grafana.com
+    resources:
+      - application
+      - audit
+      - infrastructure
+    resourceNames:
+      - logs
+    verbs:
+      - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: grafana-loki-tenant-view
+  labels:
+    app.kubernetes.io/name: loki-grafana
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: grafana-loki-tenant-view
+subjects:
+  - kind: ServiceAccount
+    name: grafana-loki
+    namespace: openshift-logging
+---
+#! ── RBAC: ServiceAccount for Prometheus / Thanos Querier access ──
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: grafana-prometheus
+  namespace: openshift-logging
+  labels:
+    app.kubernetes.io/name: loki-grafana
+    app.kubernetes.io/part-of: openshift-logging
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: grafana-prometheus-monitoring-view
+  labels:
+    app.kubernetes.io/name: loki-grafana
+    app.kubernetes.io/part-of: openshift-logging
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-monitoring-view
+subjects:
+  - kind: ServiceAccount
+    name: grafana-prometheus
+    namespace: openshift-logging
+---
+#! ── Grafana configuration ──
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-config
+  namespace: openshift-logging
+  labels:
+    app.kubernetes.io/name: loki-grafana
+    app.kubernetes.io/part-of: openshift-logging
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+data:
+  grafana.ini: |
+    [server]
+    root_url = %(protocol)s://%(domain)s/
+
+    [log]
+    mode = console
+    level = warn
+
+    [auth]
+    disable_login_form = false
+
+    [auth.anonymous]
+    enabled = true
+    org_role = Viewer
+
+    [dashboards]
+    default_home_dashboard_path = /opt/grafana/dashboards/grafana-ops-overview.json
+
+    [security]
+    allow_embedding = true
+
+    [dataproxy]
+    timeout = 60
+    keep_alive_seconds = 30
+
+    [unified_alerting]
+    enabled = false
+
+    [alerting]
+    enabled = false
+---
+#! ── Datasource provisioning ──
+#! Token placeholders ($LOKI_BEARER_TOKEN, $PROMETHEUS_BEARER_TOKEN) are
+#! replaced by scripts/deploy-grafana.sh at deploy time using sed + oc create.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasource-provisioning
+  namespace: openshift-logging
+  labels:
+    app.kubernetes.io/name: loki-grafana
+    app.kubernetes.io/part-of: openshift-logging
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Loki (Audit)
+        type: loki
+        access: proxy
+        url: https://logging-loki-gateway-http.openshift-logging.svc:8080/api/logs/v1/audit
+        isDefault: true
+        jsonData:
+          httpHeaderName1: Authorization
+          maxLines: 500
+          timeout: 60
+          tlsSkipVerify: true
+        secureJsonData:
+          httpHeaderValue1: "$LOKI_BEARER_TOKEN"
+
+      - name: Loki (Infrastructure)
+        type: loki
+        access: proxy
+        url: https://logging-loki-gateway-http.openshift-logging.svc:8080/api/logs/v1/infrastructure
+        jsonData:
+          httpHeaderName1: Authorization
+          maxLines: 500
+          timeout: 60
+          tlsSkipVerify: true
+        secureJsonData:
+          httpHeaderValue1: "$LOKI_BEARER_TOKEN"
+
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: https://thanos-querier.openshift-monitoring.svc.cluster.local:9091
+        jsonData:
+          httpHeaderName1: Authorization
+          timeInterval: "30s"
+          tlsSkipVerify: true
+        secureJsonData:
+          httpHeaderValue1: "$PROMETHEUS_BEARER_TOKEN"
+---
+#! ── Dashboard provider ──
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-provider
+  namespace: openshift-logging
+  labels:
+    app.kubernetes.io/name: loki-grafana
+    app.kubernetes.io/part-of: openshift-logging
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: default
+        orgId: 1
+        folder: ''
+        type: file
+        disableDeletion: false
+        editable: true
+        updateIntervalSeconds: 30
+        options:
+          path: /opt/grafana/dashboards
+          foldersFromFilesStructure: false
+---
+#! ── Grafana Deployment ──
+#! The grafana-admin-credentials Secret is created out-of-band by
+#! scripts/deploy-grafana.sh from GRAFANA_ADMIN_PASSWORD in .env.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loki-grafana
+  namespace: openshift-logging
+  labels:
+    app.kubernetes.io/name: loki-grafana
+    app.kubernetes.io/part-of: openshift-logging
+    app: loki-grafana
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: loki-grafana
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: loki-grafana
+        app.kubernetes.io/name: loki-grafana
+    spec:
+      serviceAccountName: grafana-loki
+      containers:
+        - name: grafana
+          image: grafana/grafana:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+              name: http
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: grafana-admin-credentials
+          env:
+            - name: GF_PATHS_CONFIG
+              value: /etc/grafana/grafana.ini
+            - name: GF_PATHS_PROVISIONING
+              value: /etc/grafana/provisioning
+            - name: GF_PATHS_DATA
+              value: /var/lib/grafana
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 100m
+            limits:
+              memory: 1536Mi
+              cpu: 500m
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          volumeMounts:
+            - name: grafana-config
+              mountPath: /etc/grafana/grafana.ini
+              subPath: grafana.ini
+            - name: datasource-provisioning
+              mountPath: /etc/grafana/provisioning/datasources
+            - name: dashboard-provider
+              mountPath: /etc/grafana/provisioning/dashboards
+            - name: dashboards
+              mountPath: /opt/grafana/dashboards
+      volumes:
+        - name: grafana-config
+          configMap:
+            name: grafana-config
+        - name: datasource-provisioning
+          configMap:
+            name: grafana-datasource-provisioning
+        - name: dashboard-provider
+          configMap:
+            name: grafana-dashboard-provider
+        - name: dashboards
+          configMap:
+            name: grafana-dashboards
+            optional: true
+---
+#! ── Grafana Service ──
+apiVersion: v1
+kind: Service
+metadata:
+  name: loki-grafana
+  namespace: openshift-logging
+  labels:
+    app.kubernetes.io/name: loki-grafana
+    app.kubernetes.io/part-of: openshift-logging
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3000
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: loki-grafana
+---
+#! ── Grafana Route ──
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: loki-grafana
+  namespace: openshift-logging
+  labels:
+    app.kubernetes.io/name: loki-grafana
+    app.kubernetes.io/part-of: openshift-logging
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+    haproxy.router.openshift.io/timeout: 5m
+spec:
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  to:
+    kind: Service
+    name: loki-grafana
+    weight: 100
+  port:
+    targetPort: http

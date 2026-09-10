@@ -6,7 +6,15 @@
 #! Before the PR: set envs[0].name to the same cluster key as clusters.yaml
 #! (do not commit the filled name back to this public kit).
 #! Copy org annotations / AD groups from an existing namespaces/*/values.yaml,
-#! and confirm spec_hard fits LokiStack 1x.medium (~54 vCPU / 139 Gi requests).
+#! and confirm spec_hard fits the chosen LokiStack size.
+#!
+#! Sizing reference (requests-only, no limits enforcement):
+#!   1x.extra-small: spec_hard cpu=30,  memory=64Gi   (14 vCPU / 31 Gi stack)
+#!   1x.small:       spec_hard cpu=72,  memory=176Gi  (34 vCPU / 67 Gi stack)
+#!   1x.medium:      spec_hard cpu=100, memory=256Gi  (54 vCPU / 139 Gi stack)
+#!
+#! Quota enforces requests only. No limits section, no LimitRange required.
+#! The Loki Operator sets requests but not limits on its pods.
 project:
   name: openshift-logging
   labels:
@@ -32,10 +40,7 @@ envs:
     deployment_id: TBD
     spec_hard:
       requests:
-        cpu: 100
-        memory: 256Gi
-      limits:
-        cpu: 100
-        memory: 256Gi
+        cpu: 72
+        memory: 176Gi
       count:
         persistentvolumeclaims: 20
