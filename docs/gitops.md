@@ -19,15 +19,6 @@ gitops/namespaces/openshift-logging/
 
 into `namespaces/openshift-logging/` on the Argo-watched git repo (folder name matches the destination namespace). Open a PR there.
 
-Use `scripts/sync-gitops-to-internal.sh` to automate copying with a
-cluster-specific overlay:
-
-```bash
-scripts/sync-gitops-to-internal.sh <overlay-name> <target-dir>
-```
-
-See `_overlays/README.md` for details on creating and using overlays.
-
 The folder follows the same mix used for other multi-manifest namespaces:
 
 - `clusters.yaml` and ytt `#@data/values` `values.yaml` — ApplicationSet inputs
