@@ -1,50 +1,57 @@
 #@ load("@ytt:data", "data")
-#@ load("@ytt:template", "template")
 
 #! Service Principal (SP) auth ConfigMap overlay for Loki.
 #!
-#! This overlay replaces the operator-generated ConfigMap with one that
-#! includes `use_service_principal: true` and populates the SP credentials
-#! directly in the config. Only needed when AllowSharedKeyAccess=false
-#! and WIF is unavailable.
+#! The Loki Operator does NOT support SP auth natively (see upstream
+#! issue: https://github.com/grafana/loki/issues/11150). The operator
+#! only generates `account_key` / `account_name` via ${ENV_VAR} refs
+#! mounted from the logging-loki-azure Secret.
+#!
+#! To use SP auth, we must:
+#!   1. Let the operator reconcile once (Managed) to create the base config
+#!   2. Export the generated config.yaml
+#!   3. Patch the common.storage.azure block with SP fields (literal values,
+#!      NOT env var refs — the operator never mounts SP vars)
+#!   4. Set managementState: Unmanaged to prevent the operator overwriting it
+#!
+#! Upstream reference (Go template the operator uses to generate config.yaml):
+#!   https://github.com/grafana/loki/blob/main/operator/internal/manifests/internal/config/loki-config.yaml
 #!
 #! ╔══════════════════════════════════════════════════════════════════════╗
 #! ║  TODO: This file contains a PLACEHOLDER config.yaml.               ║
-#! ║  Before using SP auth, export the real config from a running       ║
-#! ║  cluster where the operator has fully reconciled a LokiStack:      ║
+#! ║  Export the real config from a running cluster:                     ║
 #! ║                                                                    ║
 #! ║    oc get configmap logging-loki-config -n openshift-logging \     ║
 #! ║      -o jsonpath='{.data.config\.yaml}' > /tmp/loki-config.yaml   ║
 #! ║                                                                    ║
 #! ║  Then replace the config.yaml block below with the exported        ║
-#! ║  content, and update every common.storage.azure /                  ║
-#! ║  azure_storage_config block to match the azure_block below.        ║
+#! ║  content, and patch the common.storage.azure block to match the    ║
+#! ║  azure reference below.                                            ║
 #! ╚══════════════════════════════════════════════════════════════════════╝
 #!
-#! Prerequisites:
-#!   1. LokiStack reconciled at least once (Managed) to create base config.
-#!   2. Switch lokistack.yaml managementState to Unmanaged.
-#!   3. Create logging-loki-azure Secret (via Vault or out-of-band).
-#!   4. Apply this overlay, then restart Loki pods.
-#!
-#! The config.yaml is operator-generated and varies by LokiStack size.
-#! You must export from a cluster running the same size profile.
+#! The config.yaml varies by LokiStack size (replica counts, limits,
+#! ring settings). Export from the same size profile as the target cluster.
+#! See _dev_docs/loki-config-sp-auth-reference.md for full diff analysis.
 
 #@ azure = data.values.secrets.azure_storage
 #@ sp_enabled = azure.client_id != ""
 
 #! ── Azure block reference ──
-#! When filling in the exported config.yaml, every common.storage.azure
-#! and azure_storage_config section must contain these values:
+#! The operator generates: account_name: ${AZURE_STORAGE_ACCOUNT_NAME}
+#!                         account_key:  ${AZURE_STORAGE_ACCOUNT_KEY}
+#! SP fields are NOT mounted as env vars, so they must be LITERAL values.
+#! Our ytt template populates them from Vault via secrets.azure_storage.
+#!
+#! Patch every common.storage.azure block in the exported config to:
 #!
 #!   azure:
-#!     environment:            <-- from secrets.azure_storage.environment
-#!     container_name:         <-- from secrets.azure_storage.container
-#!     account_name:           <-- from secrets.azure_storage.account_name
+#!     environment:            <-- secrets.azure_storage.environment
+#!     container_name:         <-- secrets.azure_storage.container
+#!     account_name:           <-- secrets.azure_storage.account_name
 #!     use_service_principal: true
-#!     client_id:              <-- from secrets.azure_storage.client_id
-#!     client_secret:          <-- from secrets.azure_storage.client_secret
-#!     tenant_id:              <-- from secrets.azure_storage.tenant_id
+#!     client_id:              <-- secrets.azure_storage.client_id (literal)
+#!     client_secret:          <-- secrets.azure_storage.client_secret (literal)
+#!     tenant_id:              <-- secrets.azure_storage.tenant_id (literal)
 
 #! Only render when SP auth values are populated (from Vault at render time).
 #! When empty, this template produces no output — SP overlay must be applied
