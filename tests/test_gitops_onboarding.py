@@ -256,8 +256,10 @@ def test_gitops_values_secrets_schema(repo_root: Path):
     assert 'grafana_admin_password: ""' in content, "grafana_admin_password must default to empty"
     assert "Storage Blob Data Contributor" in content or "blob storage" in content, \
         "must clarify credentials are storage-scoped"
-    # Conjur injects secrets.azure from the group-sync SP path — schema must accept it
+    # Conjur injects secrets.azure from the platform credentials path — schema must accept it
     lines = content.split("\n")
     azure_lines = [l.strip() for l in lines if l.strip().startswith("azure:")]
     assert len(azure_lines) >= 1, "values.yaml must have secrets.azure section for Conjur overlay"
     assert 'spn: ""' in content, "secrets.azure must include spn key for Conjur compatibility"
+    assert "log_analytics:" in content, "secrets.azure must include log_analytics for Conjur overlay"
+    assert 'workspace_shared_key: ""' in content, "log_analytics must include workspace_shared_key"

@@ -53,14 +53,19 @@
 #!   random password generation. When empty, the hook generates one.
 #! ── Platform-injected secrets (do not remove) ───────────────────────
 #! The Conjur CMP sidecar injects secrets.azure from the cluster's
-#! group-sync SP credentials (secret/.../azure). These keys must exist
-#! in the schema so ytt can overlay them, even though our Loki templates
-#! don't use them. Removing this section breaks ArgoCD manifest generation.
+#! platform credentials (secret/.../azure). These keys must exist in
+#! the schema so ytt overlay matching succeeds, even though our Loki
+#! templates don't use them. Removing this section or any of its keys
+#! breaks ArgoCD manifest generation.
+#! Unmatched sibling sections (redhat, dynatrace, ldap, etc.) are
+#! handled by the sidecar's #@overlay/match missing_ok=True annotation.
 secrets:
   azure:
     client_id: ""
     client_secret: ""
     spn: ""
+    log_analytics:
+      workspace_shared_key: ""
   azure_storage:
     #! ── Azure blob storage ──
     account_name: ""
