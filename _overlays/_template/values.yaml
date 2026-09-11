@@ -31,7 +31,12 @@
 #!
 #! Grafana: when set, renders the admin credentials Secret from Vault.
 #!   When empty, the PostSync hook generates a random password instead.
+#! Platform-injected group-sync SP (from Conjur). Do not remove.
 secrets:
+  azure:
+    client_id: ""
+    client_secret: ""
+    spn: ""
   azure_storage:
     #! ── Azure blob storage ──
     account_name: ""
