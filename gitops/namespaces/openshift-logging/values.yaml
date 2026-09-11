@@ -51,7 +51,16 @@
 #!   When set, grafana-secret.yaml renders the grafana-admin-credentials
 #!   Secret. The PostSync hook detects the existing Secret and skips
 #!   random password generation. When empty, the hook generates one.
+#! ── Platform-injected secrets (do not remove) ───────────────────────
+#! The Conjur CMP sidecar injects secrets.azure from the cluster's
+#! group-sync SP credentials (secret/.../azure). These keys must exist
+#! in the schema so ytt can overlay them, even though our Loki templates
+#! don't use them. Removing this section breaks ArgoCD manifest generation.
 secrets:
+  azure:
+    client_id: ""
+    client_secret: ""
+    spn: ""
   azure_storage:
     #! ── Azure blob storage ──
     account_name: ""

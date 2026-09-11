@@ -248,7 +248,7 @@ def test_gitops_grafana_secret_template(repo_root: Path):
 
 
 def test_gitops_values_secrets_schema(repo_root: Path):
-    """values.yaml must include secrets.azure_storage schema with empty defaults."""
+    """values.yaml must include both secrets.azure (Conjur) and secrets.azure_storage (Loki)."""
     content = (repo_root / GITOPS_NS / "values.yaml").read_text()
     assert "secrets:" in content, "values.yaml must have secrets section"
     assert "azure_storage:" in content, "values.yaml must have secrets.azure_storage section"
@@ -256,3 +256,8 @@ def test_gitops_values_secrets_schema(repo_root: Path):
     assert 'grafana_admin_password: ""' in content, "grafana_admin_password must default to empty"
     assert "Storage Blob Data Contributor" in content or "blob storage" in content, \
         "must clarify credentials are storage-scoped"
+    # Conjur injects secrets.azure from the group-sync SP path — schema must accept it
+    lines = content.split("\n")
+    azure_lines = [l.strip() for l in lines if l.strip().startswith("azure:")]
+    assert len(azure_lines) >= 1, "values.yaml must have secrets.azure section for Conjur overlay"
+    assert 'spn: ""' in content, "secrets.azure must include spn key for Conjur compatibility"
