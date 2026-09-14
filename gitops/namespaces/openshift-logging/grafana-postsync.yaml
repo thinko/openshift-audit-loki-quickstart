@@ -17,6 +17,10 @@
 #!     -o jsonpath='{.data.GF_SECURITY_ADMIN_PASSWORD}' | base64 -d
 
 #! ── RBAC for the hook Job ──
+#! The ServiceAccount, Role, and RoleBinding are regular sync resources
+#! (wave 5), NOT hook resources. This ensures they exist before the
+#! PostSync Job fires — ArgoCD does not guarantee creation order within
+#! hook resources, so making the SA a hook caused "serviceaccount not found".
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -28,8 +32,6 @@ metadata:
     app.kubernetes.io/part-of: openshift-logging
   annotations:
     argocd.argoproj.io/sync-wave: "5"
-    argocd.argoproj.io/hook: PostSync
-    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -40,8 +42,6 @@ metadata:
     app.kubernetes.io/name: loki-grafana
   annotations:
     argocd.argoproj.io/sync-wave: "5"
-    argocd.argoproj.io/hook: PostSync
-    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 rules:
   - apiGroups: [""]
     resources: [secrets, configmaps]
@@ -62,8 +62,6 @@ metadata:
     app.kubernetes.io/name: loki-grafana
   annotations:
     argocd.argoproj.io/sync-wave: "5"
-    argocd.argoproj.io/hook: PostSync
-    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
