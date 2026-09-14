@@ -16,10 +16,10 @@ Sandbox installs still use `make deploy` from a laptop.
    creates one OperatorGroup). A second group breaks OLM.
 4. **Secrets** — all deployment secrets live in a single Vault path
    (`secret/<team>/openshift/<cluster>/loki-storage`). Choose one:
-   - **Vault (recommended):** populate `secrets.azure_storage.*` in `values.yaml`
+   - **Vault (recommended):** populate `secrets.loki_storage.*` in `values.yaml`
      at render time from Vault. `storage-secret.yaml` and `grafana-secret.yaml`
      will template the K8s Secrets automatically.
-   - **Out-of-band:** leave `secrets.azure_storage.account_name` empty and create
+   - **Out-of-band:** leave `secrets.loki_storage.account_name` empty and create
      `logging-loki-azure` manually (see [docs/gitops.md](../../../docs/gitops.md)).
      Leave `grafana_admin_password` empty and the PostSync hook will auto-generate one.
    Never commit actual credentials to `values.yaml`.
@@ -51,7 +51,7 @@ plain YAML siblings with the namespace hardcoded.
 | Wave | Resources |
 |------|-----------|
 | 1 | OperatorGroup, Subscriptions, namespace annotations from `values.yaml` |
-| 2 | Storage Secret (from Vault, if `secrets.azure_storage` populated), Collector SA and ClusterRoleBindings |
+| 2 | Storage Secret (from Vault, if `secrets.loki_storage` populated), Collector SA and ClusterRoleBindings |
 | 3 | LokiStack (requires the Azure secret) |
 | 4 | ClusterLogForwarder, SP Config Overlay (if SP auth) |
 | 5 | Grafana (static), UIPlugin, PrometheusRules |
@@ -140,7 +140,7 @@ Previous iterations used a LimitRange with default limits, which caused:
 
 - Azure account keys or SP credentials (injected from Vault at render time,
   or created out-of-band). `storage-secret.yaml` and `grafana-secret.yaml`
-  produce no output unless `secrets.azure_storage` values are populated.
+  produce no output unless `secrets.loki_storage` values are populated.
 - When Vault is not used: Grafana admin credentials are created by the PostSync
   hook (random password) or `deploy-grafana.sh`
 - CatalogSource / ImageContentSourcePolicy

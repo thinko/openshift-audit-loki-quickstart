@@ -33,25 +33,25 @@
 #! ring settings). Export from the same size profile as the target cluster.
 #! See _dev_docs/loki-config-sp-auth-reference.md for full diff analysis.
 
-#@ azure = data.values.secrets.azure_storage
+#@ azure = data.values.secrets.loki_storage
 #@ sp_enabled = azure.client_id != ""
 
 #! ── Azure block reference ──
 #! The operator generates: account_name: ${AZURE_STORAGE_ACCOUNT_NAME}
 #!                         account_key:  ${AZURE_STORAGE_ACCOUNT_KEY}
 #! SP fields are NOT mounted as env vars, so they must be LITERAL values.
-#! Our ytt template populates them from Vault via secrets.azure_storage.
+#! Our ytt template populates them from Vault via secrets.loki_storage.
 #!
 #! Patch every common.storage.azure block in the exported config to:
 #!
 #!   azure:
-#!     environment:            <-- secrets.azure_storage.environment
-#!     container_name:         <-- secrets.azure_storage.container
-#!     account_name:           <-- secrets.azure_storage.account_name
+#!     environment:            <-- secrets.loki_storage.environment
+#!     container_name:         <-- secrets.loki_storage.container
+#!     account_name:           <-- secrets.loki_storage.account_name
 #!     use_service_principal: true
-#!     client_id:              <-- secrets.azure_storage.client_id (literal)
-#!     client_secret:          <-- secrets.azure_storage.client_secret (literal)
-#!     tenant_id:              <-- secrets.azure_storage.tenant_id (literal)
+#!     client_id:              <-- secrets.loki_storage.client_id (literal)
+#!     client_secret:          <-- secrets.loki_storage.client_secret (literal)
+#!     tenant_id:              <-- secrets.loki_storage.tenant_id (literal)
 
 #! Only render when SP auth values are populated (from Vault at render time).
 #! When empty, this template produces no output — SP overlay must be applied
@@ -71,7 +71,7 @@ metadata:
 data:
   #! TODO: Replace this config.yaml with the full exported content.
   #! The azure block below is correctly populated from Vault — replicate
-  #! it in every azure_storage_config section in the exported config.
+  #! it in every loki_storage_config section in the exported config.
   config.yaml: |
     ---
     auth_enabled: true

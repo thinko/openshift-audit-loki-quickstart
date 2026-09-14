@@ -68,7 +68,7 @@ secrets:
       api: ""
       ingress: ""
   kubeconfig: ""
-  azure_storage:
+  loki_storage:
     #! ── Azure blob storage ──
     account_name: ""
     account_key: ""               #! storage account access key (standard auth)
