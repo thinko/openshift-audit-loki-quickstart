@@ -55,7 +55,7 @@ if grep -q 'TODO.*Replace' "${OVERLAY_FILE}" 2>/dev/null; then
   die "loki-config-sp-overlay.yaml still contains TODO placeholders.
 Export the real ConfigMap from a running cluster first:
   oc get configmap logging-loki-config -n ${NAMESPACE} -o yaml
-Then patch the azure_storage_config sections to add use_service_principal: true."
+Then patch the loki_storage_config sections to add use_service_principal: true."
 fi
 
 header "Service Principal Auth Bootstrap"

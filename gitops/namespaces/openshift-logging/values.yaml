@@ -58,7 +58,7 @@
 #! the secrets: key itself optional — once it matches (because we define
 #! it here), ALL sibling sections must exist in this base schema.
 #!
-#! Our Loki templates only use secrets.azure_storage.* — every other
+#! Our Loki templates only use secrets.loki_storage.* — every other
 #! section below is unused scaffolding required so ytt overlay matching
 #! succeeds. Removing any section or key breaks ArgoCD manifest generation.
 #!
@@ -101,7 +101,7 @@ secrets:
       ingress: ""
   kubeconfig: ""
   #! ── Loki deployment secrets (from Vault) ──────────────────────────
-  azure_storage:
+  loki_storage:
     #! ── Azure blob storage ──
     account_name: ""
     account_key: ""               #! storage account access key (standard auth)

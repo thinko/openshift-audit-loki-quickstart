@@ -235,7 +235,7 @@ def test_gitops_storage_secret_template(repo_root: Path):
     assert "logging-loki-azure" in content, "must target the logging-loki-azure secret"
     assert "client_id" in content, "must support SP auth fields"
     assert "account_key" in content, "must support standard auth fields"
-    assert "azure_storage" in content, "must use azure_storage values key"
+    assert "loki_storage" in content, "must use loki_storage values key"
 
 
 def test_gitops_grafana_secret_template(repo_root: Path):
@@ -244,14 +244,14 @@ def test_gitops_grafana_secret_template(repo_root: Path):
     assert "base64.encode" in content, "must use base64.encode for Secret data"
     assert 'grafana_admin_password != ""' in content, "must guard on grafana_admin_password"
     assert "grafana-admin-credentials" in content, "must target grafana-admin-credentials"
-    assert "azure_storage" in content, "must use azure_storage values key"
+    assert "loki_storage" in content, "must use loki_storage values key"
 
 
 def test_gitops_values_secrets_schema(repo_root: Path):
-    """values.yaml must include both secrets.azure (Conjur) and secrets.azure_storage (Loki)."""
+    """values.yaml must include both secrets.azure (Conjur) and secrets.loki_storage (Loki)."""
     content = (repo_root / GITOPS_NS / "values.yaml").read_text()
     assert "secrets:" in content, "values.yaml must have secrets section"
-    assert "azure_storage:" in content, "values.yaml must have secrets.azure_storage section"
+    assert "loki_storage:" in content, "values.yaml must have secrets.loki_storage section"
     assert 'account_name: ""' in content, "account_name must default to empty"
     assert 'grafana_admin_password: ""' in content, "grafana_admin_password must default to empty"
     assert "Storage Blob Data Contributor" in content or "blob storage" in content, \
