@@ -8,13 +8,21 @@
 #! Copy org annotations / AD groups from an existing namespaces/*/values.yaml,
 #! and confirm spec_hard fits the chosen LokiStack size.
 #!
-#! Sizing reference (requests-only, no limits enforcement):
-#!   1x.extra-small: spec_hard cpu=30,  memory=64Gi   (14 vCPU / 31 Gi stack)
-#!   1x.small:       spec_hard cpu=72,  memory=176Gi  (34 vCPU / 67 Gi stack)
-#!   1x.medium:      spec_hard cpu=100, memory=256Gi  (54 vCPU / 139 Gi stack)
+#! Sizing reference:
+#!   1x.extra-small: requests cpu=30,  memory=64Gi   limits.memory=128Gi
+#!   1x.small:       requests cpu=72,  memory=176Gi  limits.memory=256Gi
+#!   1x.medium:      requests cpu=100, memory=256Gi  limits.memory=384Gi
 #!
-#! Quota enforces requests only. No limits section, no LimitRange required.
-#! The Loki Operator sets requests but not limits on its pods.
+#! limits.memory MUST be set — the platform quota template defaults to 20Gi
+#! when absent, which blocks pod scheduling. Set ~1.5-2× requests.memory.
+#!
+#! Quota enforces requests only. The Loki Operator sets requests but not
+#! limits on its pods. However, the platform resourcequota.yaml template
+#! defaults limits.memory to 20Gi when spec_hard.limits is absent — so we
+#! MUST set spec_hard.limits.memory high enough to cover all pods in the
+#! namespace. Without a LimitRange, pods without explicit limits are not
+#! charged against limits quota, but the field must still exist to prevent
+#! the 20Gi default from blocking scheduling.
 
 #! ── Node placement (optional) ──────────────────────────────────────
 #! On clusters with dedicated infra nodes, set nodeSelector and tolerations
@@ -144,5 +152,7 @@ envs:
       requests:
         cpu: 72
         memory: 176Gi
+      limits:
+        memory: 256Gi
       count:
         persistentvolumeclaims: 20

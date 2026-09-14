@@ -65,12 +65,17 @@ def test_gitops_values_project_and_quota(repo_root: Path):
     assert int(mem.removesuffix("Gi")) >= 176
 
 
-def test_gitops_values_no_limits_section(repo_root: Path):
-    """Quota must enforce requests only — no limits section."""
+def test_gitops_values_limits_memory_set(repo_root: Path):
+    """spec_hard.limits.memory must be set to override platform 20Gi default."""
     values = yaml.safe_load((repo_root / GITOPS_NS / "values.yaml").read_text())
     env = values["envs"][0]
-    assert "limits" not in env["spec_hard"], \
-        "spec_hard should not have a 'limits' section; quota is requests-only"
+    limits = env["spec_hard"].get("limits", {})
+    assert "memory" in limits, \
+        "spec_hard.limits.memory must be set; platform defaults to 20Gi otherwise"
+    mem = str(limits["memory"])
+    assert mem.endswith("Gi")
+    assert int(mem.removesuffix("Gi")) >= 128, \
+        "limits.memory should be >= 128Gi (at least 1.5× requests.memory)"
 
 
 def test_gitops_no_db2_node_pool(repo_root: Path):
