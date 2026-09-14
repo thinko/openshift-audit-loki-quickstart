@@ -12,7 +12,7 @@ define _load_env
 if [ -f "$(ROOT)/.env" ]; then set -a; . "$(ROOT)/.env"; set +a; fi
 endef
 
-.PHONY: help deploy deploy-operators destroy test test-attribution enable-console-plugin \
+.PHONY: help deploy deploy-operators destroy teardown test test-attribution enable-console-plugin \
 	helm-lint helm-template secret azure-storage status preflight apply-rbac check-egress \
 	deploy-grafana destroy-grafana deploy-console-dashboards deploy-alerting lint \
 	add-storage-subnet init-sp-auth generate-dashboard-configmap
@@ -42,6 +42,9 @@ check-egress: ## Test network egress from openshift-logging to Azure Blob (runs 
 destroy: ## Remove the forwarder, LokiStack, and collector RBAC (asks for confirmation)
 	"$(ROOT)/scripts/destroy.sh"
 
+teardown: ## Full teardown: remove ALL Loki resources for a clean re-deploy (interactive)
+	"$(ROOT)/scripts/teardown-loki.sh"
+
 test: ## Run local validation (pytest, yamllint, shell syntax, helm lint)
 	$(PYTHON) -m pytest tests/ -v --tb=short --junitxml="$(ROOT)/test-results.xml"
 	@if command -v yamllint >/dev/null 2>&1; then \
@@ -63,6 +66,7 @@ test: ## Run local validation (pytest, yamllint, shell syntax, helm lint)
 	@bash -n "$(ROOT)/scripts/init-sp-auth.sh"
 	@bash -n "$(ROOT)/scripts/add-storage-subnet.sh"
 	@bash -n "$(ROOT)/scripts/sync-gitops-to-internal.sh"
+	@bash -n "$(ROOT)/scripts/teardown-loki.sh"
 	@if command -v helm >/dev/null 2>&1; then helm lint "$(CHART)"; else echo "helm not on PATH; skip helm lint"; fi
 
 test-attribution: ## Create/delete a ConfigMap and print LogQL to verify user attribution
