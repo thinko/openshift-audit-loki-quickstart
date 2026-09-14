@@ -30,13 +30,15 @@ Namespace is hardcoded as `openshift-logging` on those objects (the ApplicationS
 
 1. Replace `REPLACE_ME_CLUSTER` in `clusters.yaml` and `values.yaml` `envs[0].name` with the cluster key used in other `namespaces/*/clusters.yaml` files. Do not commit the filled cluster name back to this public kit.
 2. Copy org annotations and AD edit/view groups from an existing namespace `values.yaml`. Do not invent group names.
-3. Set `spec_hard` to match the LokiStack size. The quota enforces **requests only** (no limits section, no LimitRange). Sizing reference:
+3. Set `spec_hard` to match the LokiStack size. `limits.memory` **must** be
+   set — the platform quota template defaults to 20Gi when absent.
+   Set it to ~1.5–2× `requests.memory`. No `LimitRange` is used.
 
-   | LokiStack size | Recommended `spec_hard` | Stack requests |
-   |----------------|------------------------|----------------|
-   | `1x.extra-small` | cpu=30, memory=64Gi | 14 vCPU / 31 Gi |
-   | `1x.small` | cpu=72, memory=176Gi | 34 vCPU / 67 Gi |
-   | `1x.medium` | cpu=100, memory=256Gi | 54 vCPU / 139 Gi |
+   | LokiStack size | `spec_hard` requests | `limits.memory` | Stack requests |
+   |----------------|---------------------|-----------------|----------------|
+   | `1x.extra-small` | cpu=30, memory=64Gi | 128Gi | 14 vCPU / 31 Gi |
+   | `1x.small` | cpu=72, memory=176Gi | 256Gi | 34 vCPU / 67 Gi |
+   | `1x.medium` | cpu=100, memory=256Gi | 384Gi | 54 vCPU / 139 Gi |
 
    Headroom above stack requests covers log collectors, Grafana, operators, and temporary extra pods during upgrades.
 
@@ -44,10 +46,14 @@ Namespace is hardcoded as `openshift-logging` on those objects (the ApplicationS
 
 ## ResourceQuota design
 
-The quota enforces **requests only**. There is no `limits:` section and no
-`LimitRange` in the namespace. The Loki Operator sets only requests (not
-limits) on its pods, so they pass quota admission without any LimitRange
-intervention.
+The quota enforces **requests** and sets a generous **limits.memory** ceiling.
+There is no `LimitRange` in the namespace. The Loki Operator sets only
+requests (not limits) on its pods, so they pass quota admission without any
+LimitRange intervention. Pods without explicit limits are not charged against
+the limits quota.
+
+`limits.memory` **must** be present in `spec_hard` because the platform
+namespace quota template defaults it to 20Gi when absent.
 
 Previous iterations used a LimitRange to inject default limits, which caused:
 - Injected limits conflicting with operator-set requests

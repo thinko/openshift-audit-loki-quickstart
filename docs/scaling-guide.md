@@ -18,24 +18,30 @@ is the instance count (fixed at 1) and the suffix determines capacity.
 
 ## ResourceQuota Sizing
 
-The namespace quota enforces **requests only** — there is no `limits:`
-section and no `LimitRange`. The Loki Operator sets only requests (not
-limits) on its pods. Headroom above stack requests covers log collectors,
-Grafana, operators, and temporary extra pods during rolling upgrades.
+The namespace quota enforces **requests** and sets a generous
+**limits.memory** ceiling. There is no `LimitRange`. The Loki Operator sets
+only requests (not limits) on its pods, so they pass quota admission without
+any LimitRange intervention. Headroom above stack requests covers log
+collectors, Grafana, operators, and temporary extra pods during rolling
+upgrades.
 
-| LokiStack size | Stack requests | Recommended `spec_hard` |
-|----------------|----------------|------------------------|
-| `1x.extra-small` | 14 vCPU / 31 Gi | cpu=30, memory=64Gi |
-| `1x.small` | 34 vCPU / 67 Gi | cpu=72, memory=176Gi |
-| `1x.medium` | 54 vCPU / 139 Gi | cpu=100, memory=256Gi |
+`limits.memory` **must** be present in `spec_hard`. The platform namespace
+quota template defaults it to 20Gi when absent, which is far too small for a
+LokiStack and blocks pod scheduling. Set it to ~1.5–2× `requests.memory`.
 
-> **Why no limits?** Previous iterations used a `LimitRange` to inject
+| LokiStack size | Stack requests | `spec_hard` requests | `limits.memory` |
+|----------------|----------------|---------------------|-----------------|
+| `1x.extra-small` | 14 vCPU / 31 Gi | cpu=30, memory=64Gi | 128Gi |
+| `1x.small` | 34 vCPU / 67 Gi | cpu=72, memory=176Gi | 256Gi |
+| `1x.medium` | 54 vCPU / 139 Gi | cpu=100, memory=256Gi | 384Gi |
+
+> **Why no LimitRange?** Previous iterations used a `LimitRange` to inject
 > default limits so pods passed quota admission on `limits.memory`. This
 > caused injected limits to conflict with operator-set requests (e.g.
 > ingester requests 20Gi but LimitRange injects 14Gi limit), massive
 > quota inflation (14Gi × 14 pods = 196Gi), and required a PR for every
-> adjustment. Removing both `LimitRange` and `limits:` from the quota
-> eliminates all of these issues.
+> adjustment. Removing the `LimitRange` eliminates all of these issues.
+> Pods without explicit limits are not charged against the limits quota.
 
 ## Environment Overlay Strategy
 

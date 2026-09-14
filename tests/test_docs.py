@@ -27,7 +27,7 @@ def test_gitops_runbook_topics(repo_root: Path):
         "1x.small",
         "1x.medium",
         "OperatorGroup",
-        "requests only",
+        "limits.memory",
         "init-sp-auth",
         "add-storage-subnet",
     ):

@@ -23,11 +23,13 @@ Sandbox installs still use `make deploy` from a laptop.
      `logging-loki-azure` manually (see [docs/gitops.md](../../../docs/gitops.md)).
      Leave `grafana_admin_password` empty and the PostSync hook will auto-generate one.
    Never commit actual credentials to `values.yaml`.
-5. Confirm `spec_hard` in `values.yaml` matches the LokiStack size. The
-   quota enforces **requests only** (no limits section). Sizing reference:
-   - `1x.extra-small`: cpu=30, memory=64Gi
-   - `1x.small`: cpu=72, memory=176Gi
-   - `1x.medium`: cpu=100, memory=256Gi
+5. Confirm `spec_hard` in `values.yaml` matches the LokiStack size.
+   `limits.memory` **must** be set — the platform `resourcequota.yaml`
+   template defaults to 20Gi when absent, which blocks pod scheduling.
+   Set it to ~1.5–2× `requests.memory`. Sizing reference:
+   - `1x.extra-small`: requests cpu=30, memory=64Gi — limits.memory=128Gi
+   - `1x.small`: requests cpu=72, memory=176Gi — limits.memory=256Gi
+   - `1x.medium`: requests cpu=100, memory=256Gi — limits.memory=384Gi
 6. If the cluster has **infra nodes**, set `node_placement` in `values.yaml`:
    ```yaml
    node_placement:
@@ -126,14 +128,20 @@ make add-storage-subnet
 
 ## ResourceQuota design
 
-The quota enforces **requests only** — there is no `limits:` section. This
-eliminates the need for a `LimitRange` to inject default limits. The Loki
-Operator sets only requests (not limits) on its pods, so they pass quota
-admission without any LimitRange intervention.
+The quota enforces **requests** and sets a generous **limits.memory** ceiling.
+The Loki Operator sets only requests (not limits) on its pods, so they pass
+quota admission without any LimitRange intervention. We do **not** use a
+LimitRange — pods without explicit limits are not charged against the
+limits quota.
+
+`limits.memory` **must** be present in `spec_hard` because the platform
+namespace quota template defaults it to 20Gi when absent, which is far too
+small for a LokiStack deployment and blocks pod scheduling. Set it to
+~1.5–2× `requests.memory`.
 
 Previous iterations used a LimitRange with default limits, which caused:
 - Injected limits conflicting with operator-set requests
-- Massive quota inflation (14Gi limit per container x 14 pods = 196Gi)
+- Massive quota inflation (14Gi limit per container × 14 pods = 196Gi)
 - Every adjustment required a PR through the approval process
 
 ## What this folder does not include

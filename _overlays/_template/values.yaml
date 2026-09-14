@@ -3,10 +3,13 @@
 #! Cluster-specific overlay for REPLACE_ME_CLUSTER.
 #! This file overwrites the generic values.yaml when synced to the internal repo.
 #!
-#! Sizing reference (requests-only, no limits enforcement):
-#!   1x.extra-small: spec_hard cpu=30,  memory=64Gi
-#!   1x.small:       spec_hard cpu=72,  memory=176Gi
-#!   1x.medium:      spec_hard cpu=100, memory=256Gi
+#! Sizing reference:
+#!   1x.extra-small: requests cpu=30,  memory=64Gi   limits.memory=128Gi
+#!   1x.small:       requests cpu=72,  memory=176Gi  limits.memory=256Gi
+#!   1x.medium:      requests cpu=100, memory=256Gi  limits.memory=384Gi
+#!
+#! limits.memory MUST be set — the platform quota template defaults to 20Gi
+#! when absent, which blocks pod scheduling. Set ~1.5-2× requests.memory.
 
 #! ── Node placement ─────────────────────────────────────────────────
 #! Uncomment to schedule Loki and Grafana pods on infra nodes.
@@ -109,5 +112,7 @@ envs:
       requests:
         cpu: 72
         memory: 176Gi
+      limits:
+        memory: 256Gi
       count:
         persistentvolumeclaims: 20
