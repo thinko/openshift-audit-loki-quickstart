@@ -123,14 +123,18 @@ spec:
               DS_YAML="$(oc get configmap grafana-datasource-provisioning \
                 -n "${NS}" -o jsonpath='{.data.datasources\.yaml}')"
 
-              DS_YAML="$(echo "${DS_YAML}" \
+              DS_YAML="$(printf '%s' "${DS_YAML}" \
                 | sed "s|\\\$LOKI_BEARER_TOKEN|Bearer ${LOKI_TOKEN}|g" \
                 | sed "s|\\\$PROMETHEUS_BEARER_TOKEN|Bearer ${PROM_TOKEN}|g")"
 
+              TMPFILE=$(mktemp /tmp/ds-patch.XXXXXX.yaml)
+              trap 'rm -f "${TMPFILE}"' EXIT
+              printf '%s' "${DS_YAML}" > "${TMPFILE}"
               oc create configmap grafana-datasource-provisioning \
                 -n "${NS}" \
-                --from-literal="datasources.yaml=${DS_YAML}" \
+                --from-file="datasources.yaml=${TMPFILE}" \
                 --dry-run=client -o yaml | oc apply -f -
+              rm -f "${TMPFILE}"
               echo "    Datasource ConfigMap patched"
 
               echo "==> Step 4: Restart Grafana to pick up new tokens"
