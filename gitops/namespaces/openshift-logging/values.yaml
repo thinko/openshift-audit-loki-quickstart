@@ -52,20 +52,55 @@
 #!   Secret. The PostSync hook detects the existing Secret and skips
 #!   random password generation. When empty, the hook generates one.
 #! ── Platform-injected secrets (do not remove) ───────────────────────
-#! The Conjur CMP sidecar injects secrets.azure from the cluster's
-#! platform credentials (secret/.../azure). These keys must exist in
-#! the schema so ytt overlay matching succeeds, even though our Loki
-#! templates don't use them. Removing this section or any of its keys
-#! breaks ArgoCD manifest generation.
-#! Unmatched sibling sections (redhat, dynatrace, ldap, etc.) are
-#! handled by the sidecar's #@overlay/match missing_ok=True annotation.
+#! The Conjur CMP sidecar injects ALL platform secrets into every namespace
+#! via /opt/secrets/conjur/secrets.yaml. That file has
+#! #@overlay/match missing_ok=True on the secrets: key, which only makes
+#! the secrets: key itself optional — once it matches (because we define
+#! it here), ALL sibling sections must exist in this base schema.
+#!
+#! Our Loki templates only use secrets.azure_storage.* — every other
+#! section below is unused scaffolding required so ytt overlay matching
+#! succeeds. Removing any section or key breaks ArgoCD manifest generation.
+#!
+#! Source of truth: bootstrap/conjur/secrets.yaml in openshift-gitops repo.
+#! If the Conjur template adds new keys, they must be added here too.
 secrets:
+  #! ── Platform credentials (from Conjur, not used by Loki) ──────────
   azure:
     client_id: ""
     client_secret: ""
     spn: ""
     log_analytics:
       workspace_shared_key: ""
+  redhat:
+    pull_secret: ""
+  dynatrace:
+    apiToken: ""
+    wiz:
+      clientId: ""
+      clientToken: ""
+  cloudability:
+    apikey: ""
+  ldap:
+    username: ""
+    password: ""
+  prisma:
+    image_download_key: ""
+    install_bundle_base64: ""
+    certs_base64: ""
+  ssh:
+    key:
+      gitops: ""
+  nexus:
+    registry:
+      username: ""
+      password: ""
+  ssl:
+    key:
+      api: ""
+      ingress: ""
+  kubeconfig: ""
+  #! ── Loki deployment secrets (from Vault) ──────────────────────────
   azure_storage:
     #! ── Azure blob storage ──
     account_name: ""

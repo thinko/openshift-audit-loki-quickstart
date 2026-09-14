@@ -31,7 +31,8 @@
 #!
 #! Grafana: when set, renders the admin credentials Secret from Vault.
 #!   When empty, the PostSync hook generates a random password instead.
-#! Platform-injected credentials (from Conjur). Do not remove.
+#! Platform-injected credentials (from Conjur). Do not remove any section.
+#! See gitops/namespaces/openshift-logging/values.yaml for full explanation.
 secrets:
   azure:
     client_id: ""
@@ -39,6 +40,34 @@ secrets:
     spn: ""
     log_analytics:
       workspace_shared_key: ""
+  redhat:
+    pull_secret: ""
+  dynatrace:
+    apiToken: ""
+    wiz:
+      clientId: ""
+      clientToken: ""
+  cloudability:
+    apikey: ""
+  ldap:
+    username: ""
+    password: ""
+  prisma:
+    image_download_key: ""
+    install_bundle_base64: ""
+    certs_base64: ""
+  ssh:
+    key:
+      gitops: ""
+  nexus:
+    registry:
+      username: ""
+      password: ""
+  ssl:
+    key:
+      api: ""
+      ingress: ""
+  kubeconfig: ""
   azure_storage:
     #! ── Azure blob storage ──
     account_name: ""
