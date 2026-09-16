@@ -108,7 +108,12 @@ secrets:
       api: ""
       ingress: ""
   kubeconfig: ""
-  #! ── Loki deployment secrets (from Vault) ──────────────────────────
+  #! ── Loki deployment secrets and config (from Vault) ─────────────────
+  #! All keys below are sourced from a single Vault path per cluster:
+  #!   secret/<team>/openshift/<cluster>/loki-storage
+  #! Injected at render time via the gitops-secrets overlay — never commit
+  #! real values. Keys with non-empty defaults are safe fallbacks for when
+  #! the Vault overlay is absent (homelab, sandbox bootstrap).
   loki_storage:
     #! ── Azure blob storage ──
     account_name: ""
@@ -119,7 +124,20 @@ secrets:
     client_secret: ""             #! SP credential (SP auth)
     tenant_id: ""                 #! Azure AD tenant for the SP (SP auth)
     #! ── Grafana ──
-    grafana_admin_password: ""    #! Grafana admin password (leave empty to auto-generate)
+    grafana_admin_password: ""    #! leave empty to auto-generate via PostSync hook
+    grafana_image: ""             #! container image (empty → grafana/grafana:latest)
+    #! ── LokiStack sizing and operator ──
+    lokistack_size: "1x.small"    #! 1x.extra-small | 1x.small | 1x.medium
+    management_state: "Managed"   #! Managed (default) | Unmanaged (required for SP auth)
+    storage_class: "managed-csi"  #! storageClassName for LokiStack PVCs
+    #! ── ResourceQuota sizing (also used by generate-overlay.sh → envs block) ──
+    requests_cpu: ""              #! e.g. "72"  — empty means use envs[0].spec_hard default
+    requests_memory: ""           #! e.g. "176Gi"
+    limits_memory: ""             #! e.g. "256Gi" — platform quota template requires this
+    #! ── RBAC / environment identity ──
+    rbac_edit: ""                 #! comma-separated AD groups for edit role
+    rbac_view: ""                 #! comma-separated AD groups for view role
+    deployment_id: ""             #! environment deployment identifier
 
 node_placement:
   node_selector: {}

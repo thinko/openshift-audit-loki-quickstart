@@ -18,6 +18,8 @@
 #! the Grafana Deployment schedules on the same infra nodes as Loki.
 #! -------------------------------------------------------------------
 
+#@ ls = data.values.secrets.loki_storage
+#@ grafana_img = ls.grafana_image if ls.grafana_image != "" else "grafana/grafana:latest"
 #@ np = data.values.node_placement
 #@ has_placement = len(np.node_selector) > 0 or len(np.tolerations) > 0
 
@@ -260,7 +262,7 @@ spec:
       #@ end
       containers:
         - name: grafana
-          image: grafana/grafana:latest
+          image: #@ grafana_img
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000

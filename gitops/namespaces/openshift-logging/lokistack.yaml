@@ -19,6 +19,7 @@
 #!
 #! Retention: 60 days for audit and infrastructure tenants.
 
+#@ ls = data.values.secrets.loki_storage
 #@ np = data.values.node_placement
 #@ has_placement = len(np.node_selector) > 0 or len(np.tolerations) > 0
 ---
@@ -34,8 +35,8 @@ metadata:
     app.kubernetes.io/name: lokistack
     app.kubernetes.io/part-of: openshift-logging
 spec:
-  managementState: Managed
-  size: 1x.small
+  managementState: #@ ls.management_state if ls.management_state != "" else "Managed"
+  size: #@ ls.lokistack_size if ls.lokistack_size != "" else "1x.small"
   storage:
     schemas:
       - version: v13
@@ -44,7 +45,7 @@ spec:
       name: logging-loki-azure
       type: azure
       credentialMode: static
-  storageClassName: managed-csi
+  storageClassName: #@ ls.storage_class if ls.storage_class != "" else "managed-csi"
   tenants:
     mode: openshift-logging
   #@ if has_placement:
