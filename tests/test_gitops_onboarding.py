@@ -100,7 +100,10 @@ def test_gitops_lokistack_test_profile(repo_root: Path):
         if d["kind"] == "LokiStack"
     )
     spec = stack["spec"]
-    assert spec["size"] in ("1x.extra-small", "1x.small", "1x.medium")
+    # size, managementState, storageClassName are now ytt expressions;
+    # yaml.safe_load parses them as None. Validate via raw text instead.
+    content = (repo_root / GITOPS_NS / "lokistack.yaml").read_text()
+    assert "1x.small" in content, "lokistack.yaml must reference 1x.small as default size"
     assert spec["storage"]["secret"]["name"] == "logging-loki-azure"
     assert spec["storage"]["secret"]["type"] == "azure"
     assert spec["storage"]["secret"]["credentialMode"] == "static"
@@ -272,3 +275,65 @@ def test_gitops_values_secrets_schema(repo_root: Path):
     assert 'spn: ""' in content, "secrets.azure must include spn key"
     assert "log_analytics:" in content, "secrets.azure must include log_analytics"
     assert 'workspace_shared_key: ""' in content, "log_analytics must include workspace_shared_key"
+
+
+def test_gitops_values_vault_config_keys(repo_root: Path):
+    """loki_storage must include all Vault-driven configuration keys."""
+    values = yaml.safe_load((repo_root / GITOPS_NS / "values.yaml").read_text())
+    ls = values["secrets"]["loki_storage"]
+    required_keys = [
+        "account_name", "account_key", "container", "environment",
+        "client_id", "client_secret", "tenant_id",
+        "grafana_admin_password", "grafana_image",
+        "lokistack_size", "management_state", "storage_class",
+        "requests_cpu", "requests_memory", "limits_memory",
+        "rbac_edit", "rbac_view", "deployment_id",
+    ]
+    for key in required_keys:
+        assert key in ls, f"secrets.loki_storage.{key} missing from values.yaml"
+    assert ls["lokistack_size"] == "1x.small", "lokistack_size default must be 1x.small"
+    assert ls["management_state"] == "Managed", "management_state default must be Managed"
+    assert ls["storage_class"] == "managed-csi", "storage_class default must be managed-csi"
+
+
+def test_gitops_lokistack_vault_driven(repo_root: Path):
+    """lokistack.yaml must read size, managementState, storageClassName from loki_storage."""
+    content = (repo_root / GITOPS_NS / "lokistack.yaml").read_text()
+    assert "ls.management_state" in content, \
+        "lokistack.yaml must read managementState from loki_storage"
+    assert "ls.lokistack_size" in content, \
+        "lokistack.yaml must read size from loki_storage"
+    assert "ls.storage_class" in content, \
+        "lokistack.yaml must read storageClassName from loki_storage"
+
+
+def test_gitops_grafana_image_vault_driven(repo_root: Path):
+    """grafana.yaml must read container image from loki_storage.grafana_image."""
+    content = (repo_root / GITOPS_NS / "grafana.yaml").read_text()
+    assert "grafana_img" in content, \
+        "grafana.yaml must define grafana_img from loki_storage.grafana_image"
+    assert "grafana/grafana:latest" in content, \
+        "grafana.yaml must fall back to grafana/grafana:latest"
+
+
+def test_gitops_storage_secret_always_has_account_key(repo_root: Path):
+    """storage-secret.yaml must always render account_key (dummy if empty)."""
+    content = (repo_root / GITOPS_NS / "storage-secret.yaml").read_text()
+    assert "unused" in content, \
+        "storage-secret.yaml must use 'unused' dummy when account_key is empty"
+
+
+def test_gitops_sp_overlay_text_templating(repo_root: Path):
+    """loki-config-sp-overlay.yaml must use text-templated-strings, not raw #@ in literal blocks."""
+    content = (repo_root / GITOPS_NS / "loki-config-sp-overlay.yaml").read_text()
+    assert "@yaml/text-templated-strings" in content, \
+        "must use @yaml/text-templated-strings for config.yaml interpolation"
+    assert "(@= azure." in content, \
+        "must use (@= expr @) syntax inside literal block"
+
+
+def test_gitops_postsync_no_pipe_hang(repo_root: Path):
+    """grafana-postsync.yaml Step 3 must not pipe oc create into oc apply."""
+    content = (repo_root / GITOPS_NS / "grafana-postsync.yaml").read_text()
+    assert "oc apply -f -" not in content, \
+        "grafana-postsync.yaml must not pipe into 'oc apply -f -' (use temp file instead)"
