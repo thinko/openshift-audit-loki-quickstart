@@ -41,6 +41,7 @@ _dev_tests_/
 # Template and README are committed; actual cluster overlays are not.
 _overlays/*
 !_overlays/_template/
+!_overlays/_customer/
 !_overlays/README.md
 
 # Local graphify output

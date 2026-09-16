@@ -1,0 +1,18 @@
+#! Customer shared overlay base — annotations and labels common to all clusters.
+#!
+#! The generate-overlay.sh script merges these into every cluster overlay.
+#! Values here should NOT vary per cluster — put cluster-specific config in
+#! Vault (loki-storage path) and let the script populate the cluster overlay.
+#!
+#! Update the TBD placeholders with actual values. These annotations
+#! and labels are applied to the openshift-logging namespace on every cluster.
+
+project:
+  labels:
+    #! Organisation labels (same on all clusters)
+    org/product-owner: "TBD"
+    org/pcode: "TBD"
+    org/zcode: "TBD"
+  annotations:
+    #! Change management / cost-tracking annotations
+    org/change-record: "TBD"

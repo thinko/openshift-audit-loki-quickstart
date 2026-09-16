@@ -42,6 +42,10 @@ check-egress: ## Test network egress from openshift-logging to Azure Blob (runs 
 destroy: ## Remove the forwarder, LokiStack, and collector RBAC (asks for confirmation)
 	"$(ROOT)/scripts/destroy.sh"
 
+generate-overlay: ## Generate a cluster overlay from Vault (usage: make generate-overlay CLUSTER=mycluster)
+	@test -n "$(CLUSTER)" || { echo "Usage: make generate-overlay CLUSTER=<name>"; exit 1; }
+	"$(ROOT)/scripts/generate-overlay.sh" "$(CLUSTER)"
+
 teardown: ## Full teardown: remove ALL Loki resources for a clean re-deploy (interactive)
 	"$(ROOT)/scripts/teardown-loki.sh"
 
