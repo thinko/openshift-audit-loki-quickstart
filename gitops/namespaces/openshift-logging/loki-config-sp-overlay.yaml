@@ -56,6 +56,11 @@
 #! Only render when SP auth values are populated (from Vault at render time).
 #! When empty, this template produces no output — SP overlay must be applied
 #! manually via init-sp-auth.sh.
+#!
+#! NOTE: The config.yaml value uses @yaml/text-templated-strings so that
+#! (@= expr @) expressions inside the literal block are evaluated by ytt.
+#! Plain #@ annotations inside a YAML literal block are treated as comments
+#! and never evaluated — that was the original bug.
 #@ if sp_enabled:
 ---
 apiVersion: v1
@@ -68,10 +73,12 @@ metadata:
     app.kubernetes.io/part-of: openshift-logging
   annotations:
     argocd.argoproj.io/sync-wave: "4"
+#@yaml/text-templated-strings
 data:
   #! TODO: Replace this config.yaml with the full exported content.
   #! The azure block below is correctly populated from Vault — replicate
   #! it in every loki_storage_config section in the exported config.
+  #! Use (@= azure.field @) for interpolation (NOT #@ annotations).
   config.yaml: |
     ---
     auth_enabled: true
@@ -83,13 +90,13 @@ data:
     common:
       storage:
         azure:
-          environment: #@ azure.environment
-          container_name: #@ azure.container
-          account_name: #@ azure.account_name
+          environment: (@= azure.environment @)
+          container_name: (@= azure.container @)
+          account_name: (@= azure.account_name @)
           use_service_principal: true
-          client_id: #@ azure.client_id
-          client_secret: #@ azure.client_secret
-          tenant_id: #@ azure.tenant_id
+          client_id: (@= azure.client_id @)
+          client_secret: (@= azure.client_secret @)
+          tenant_id: (@= azure.tenant_id @)
       compactor_grpc_address: logging-loki-compactor-grpc.openshift-logging.svc.cluster.local:9095
       ring:
         kvstore:
@@ -102,7 +109,5 @@ data:
     #!   oc get configmap logging-loki-config -n openshift-logging \
     #!     -o jsonpath='{.data.config\.yaml}'
   runtime-config.yaml: |
-    #! TODO: Export and include if present:
-    #!   oc get configmap logging-loki-config -n openshift-logging \
-    #!     -o jsonpath='{.data.runtime-config\.yaml}'
+    {}
 #@ end
