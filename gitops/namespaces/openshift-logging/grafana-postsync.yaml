@@ -122,18 +122,38 @@ spec:
               echo "==> Step 3: Patch datasource ConfigMap with real tokens"
               DS_YAML="$(oc get configmap grafana-datasource-provisioning \
                 -n "${NS}" -o jsonpath='{.data.datasources\.yaml}')"
+              if [[ -z "${DS_YAML}" ]]; then
+                echo "    ERROR: grafana-datasource-provisioning ConfigMap is empty or missing"
+                exit 1
+              fi
+              echo "    Raw datasource YAML: ${#DS_YAML} chars"
 
               DS_YAML="$(printf '%s' "${DS_YAML}" \
                 | sed "s|\\\$LOKI_BEARER_TOKEN|Bearer ${LOKI_TOKEN}|g" \
                 | sed "s|\\\$PROMETHEUS_BEARER_TOKEN|Bearer ${PROM_TOKEN}|g")"
+              echo "    After token substitution: ${#DS_YAML} chars"
 
               TMPFILE=$(mktemp /tmp/ds-patch.XXXXXX.yaml)
               trap 'rm -f "${TMPFILE}" "${TMPFILE}.apply"' EXIT
               printf '%s' "${DS_YAML}" > "${TMPFILE}"
-              oc create configmap grafana-datasource-provisioning \
+              echo "    Temp file: ${TMPFILE} ($(wc -c < "${TMPFILE}") bytes)"
+
+              echo "    Running: oc create configmap --dry-run=client"
+              if ! oc create configmap grafana-datasource-provisioning \
                 -n "${NS}" \
                 --from-file="datasources.yaml=${TMPFILE}" \
-                --dry-run=client -o yaml > "${TMPFILE}.apply"
+                --dry-run=client -o yaml > "${TMPFILE}.apply"; then
+                echo "    ERROR: oc create --dry-run failed (exit $?)"
+                exit 1
+              fi
+              echo "    Dry-run output: $(wc -c < "${TMPFILE}.apply") bytes"
+
+              if [[ ! -s "${TMPFILE}.apply" ]]; then
+                echo "    ERROR: dry-run produced empty output"
+                exit 1
+              fi
+
+              echo "    Running: oc apply -f ${TMPFILE}.apply"
               oc apply -f "${TMPFILE}.apply"
               rm -f "${TMPFILE}" "${TMPFILE}.apply"
               echo "    Datasource ConfigMap patched"
