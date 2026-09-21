@@ -13,7 +13,7 @@
 - [ ] Blob container created on the environment account (do not create a new account per cluster):
   ```bash
   make azure-container
-  # or: scripts/create-azure-container.sh --name <account> --resource-group <rg> --cluster REPLACE_ME_CLUSTER
+  # or: scripts/create-azure-container.sh --name <account> --cluster REPLACE_ME_CLUSTER
   ```
 - [ ] Worker subnet added to storage account ACL:
   ```bash

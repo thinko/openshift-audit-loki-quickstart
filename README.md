@@ -81,8 +81,7 @@ Another cluster on that same account only needs a new container:
 
 ```bash
 export AZURE_STORAGE_ACCOUNT_NAME='<existing-account>'
-export AZURE_RESOURCE_GROUP='<resource-group>'
-export ARO_CLUSTER_NAME='arod05'                    # container defaults to arod05-audit-loki
+export ARO_CLUSTER_NAME='arod05'                    # container: arod05-audit-loki
 
 make azure-container
 make add-storage-subnet

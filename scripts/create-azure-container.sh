@@ -20,15 +20,15 @@ scripts/create-azure-storage.sh.
 
 Required:
   AZURE_STORAGE_ACCOUNT_NAME  or  --name ACCOUNT
-  AZURE_RESOURCE_GROUP        or  --resource-group NAME
-  AZURE_CONTAINER_NAME        or  --container NAME
-                                  Default: {cluster}-audit-loki from
-                                  ARO_CLUSTER_NAME, CLUSTER, or --cluster
+  ARO_CLUSTER_NAME / CLUSTER  or  --cluster NAME
+                                  Container name becomes {cluster}-audit-loki
                                   (arod05 -> arod05-audit-loki).
+                                  Or pass --container to override that name.
 
 Optional:
+  AZURE_RESOURCE_GROUP        or  --resource-group NAME
+                                  Discovered from the storage account name.
   AZURE_SUBSCRIPTION_ID       or  --subscription GUID
-  ARO_CLUSTER_NAME            or  --cluster NAME
   AZURE_STORAGE_ACCOUNT_KEY   Account key. When unset, uses Entra login
                               (--auth-mode login). Prefer login when shared
                               key access is disabled.
@@ -37,7 +37,8 @@ Options:
   -n, --name ACCOUNT
   -g, --resource-group NAME
   -c, --container NAME
-      --cluster NAME          Cluster key used for the default container name
+      --cluster NAME          Cluster key; sets the container name when
+                              --container is omitted
   -s, --subscription GUID
       --login                 Use Entra login even if an account key is set
       --quiet                 Do not print follow-up commands
@@ -74,12 +75,11 @@ done
 
 require_az_login
 
-[[ -n "${ACCOUNT_NAME}" ]]   || die "Set AZURE_STORAGE_ACCOUNT_NAME or pass --name"
-[[ -n "${RESOURCE_GROUP}" ]] || die "Set AZURE_RESOURCE_GROUP or pass --resource-group"
+[[ -n "${ACCOUNT_NAME}" ]] || die "Set AZURE_STORAGE_ACCOUNT_NAME or pass --name"
 
 if [[ -z "${CONTAINER_NAME}" ]]; then
   export ARO_CLUSTER_NAME="${CLUSTER_NAME}"
-  CONTAINER_NAME="$(azure_blob_container_name)" || die "Pass --container, or --cluster / ARO_CLUSTER_NAME. Default is {cluster}-audit-loki (one container per cluster)."
+  CONTAINER_NAME="$(azure_blob_container_name)" || die "Pass --cluster (for example arod05), or pass --container. Default is {cluster}-audit-loki (one container per cluster)."
 fi
 
 ACCOUNT_NAME="$(printf '%s' "${ACCOUNT_NAME}" | tr '[:upper:]' '[:lower:]')"
@@ -94,7 +94,17 @@ fi
 
 if [[ -n "${SUBSCRIPTION_ID}" ]]; then
   log "Setting Azure subscription ${SUBSCRIPTION_ID}"
-  [[ "${DRY_RUN}" -eq 1 ]] || az account set --subscription "${SUBSCRIPTION_ID}"
+  az account set --subscription "${SUBSCRIPTION_ID}"
+fi
+
+if [[ -z "${RESOURCE_GROUP}" ]]; then
+  local_rg="$(az storage account list --query "[?name=='${ACCOUNT_NAME}'].resourceGroup" -o tsv)"
+  local_count="$(printf '%s\n' "${local_rg}" | grep -c . || true)"
+  if [[ "${local_count}" -ne 1 ]]; then
+    die "Could not find storage account ${ACCOUNT_NAME} in this subscription. Pass --resource-group."
+  fi
+  RESOURCE_GROUP="${local_rg}"
+  log "Storage account resource group: ${RESOURCE_GROUP}"
 fi
 
 if [[ "${USE_LOGIN}" -eq 1 || -z "${AZURE_STORAGE_ACCOUNT_KEY:-}${AZURE_STORAGE_KEY:-}" ]]; then
