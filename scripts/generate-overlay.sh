@@ -72,32 +72,54 @@ need_cmd safe
 need_cmd yq
 
 # ── Read keys from Vault ─────────────────────────────────────────────
-# safe get outputs key:value pairs; read into an associative array.
+# One file per key. macOS bash 3.2 has no associative arrays.
+VAULT_KV="$(mktemp -d)"
+SIBLING_KV="$(mktemp -d)"
+trap 'rm -rf "${VAULT_KV}" "${SIBLING_KV}"' EXIT
+
+kv_set() {
+  local dir="$1" key="$2" value="$3"
+  printf '%s' "${value}" > "${dir}/${key}"
+}
+
+kv_get() {
+  local dir="$1" key="$2"
+  [[ -f "${dir}/${key}" ]] || return 0
+  cat "${dir}/${key}"
+}
+
+kv_or() {
+  local value
+  value="$(kv_get "$1" "$2")"
+  if [[ -n "${value}" ]]; then
+    printf '%s' "${value}"
+  else
+    printf '%s' "$3"
+  fi
+}
+
 read_vault() {
-  local path="$1"
-  local -n _out="$2"
+  local path="$1" dir="$2" key value
   while IFS=: read -r key value; do
     [[ -n "${key}" ]] || continue
     value="${value#"${value%%[![:space:]]*}"}"
-    _out["${key}"]="${value}"
+    kv_set "${dir}" "${key}" "${value}"
   done < <(safe get "${path}" 2>/dev/null)
 }
 
-declare -A vault=()
-declare -A sibling=()
 SIBLING_PATH=""
 if [[ -n "${SIBLING}" ]]; then
   SIBLING_PATH="${VAULT_BASE}/${SIBLING}/loki-storage"
   log "Reading sibling Vault path: ${SIBLING_PATH}"
   safe exists "${SIBLING_PATH}" 2>/dev/null \
     || die "Sibling Vault path ${SIBLING_PATH} does not exist."
-  read_vault "${SIBLING_PATH}" sibling
+  read_vault "${SIBLING_PATH}" "${SIBLING_KV}"
 fi
 
 log "Validating Vault path: ${VAULT_PATH}"
 if safe exists "${VAULT_PATH}" 2>/dev/null; then
   log "Reading keys from ${VAULT_PATH}"
-  read_vault "${VAULT_PATH}" vault
+  read_vault "${VAULT_PATH}" "${VAULT_KV}"
 elif [[ -n "${SIBLING}" ]]; then
   log "Vault path ${VAULT_PATH} does not exist; shared keys come from ${SIBLING}"
 else
@@ -133,8 +155,10 @@ SIBLING_KEYS=(
 )
 if [[ -n "${SIBLING}" ]]; then
   for key in "${SIBLING_KEYS[@]}"; do
-    if [[ -z "${vault[${key}]:-}" && -n "${sibling[${key}]:-}" ]]; then
-      vault["${key}"]="${sibling[${key}]}"
+    current="$(kv_get "${VAULT_KV}" "${key}")"
+    copied="$(kv_get "${SIBLING_KV}" "${key}")"
+    if [[ -z "${current}" && -n "${copied}" ]]; then
+      kv_set "${VAULT_KV}" "${key}" "${copied}"
       log "${key} from sibling ${SIBLING}"
     fi
   done
@@ -143,28 +167,28 @@ fi
 # ── Fill what Vault did not set ──────────────────────────────────────
 CLUSTER_LC="$(printf '%s' "${CLUSTER}" | tr '[:upper:]' '[:lower:]')"
 
-if [[ -z "${vault[account_name]:-}" ]] && command -v az >/dev/null 2>&1 \
+if [[ -z "$(kv_get "${VAULT_KV}" account_name)" ]] && command -v az >/dev/null 2>&1 \
   && az account show >/dev/null 2>&1; then
   tagged="$(az resource list --resource-type Microsoft.Storage/storageAccounts \
     --query "[?tags.purpose=='loki-audit'].name" -o tsv)"
   tagged_count="$(printf '%s\n' "${tagged}" | grep -c . || true)"
   if [[ "${tagged_count}" -eq 1 ]]; then
-    vault[account_name]="${tagged}"
+    kv_set "${VAULT_KV}" account_name "${tagged}"
     log "account_name from the only purpose=loki-audit storage account"
   fi
 fi
 
-[[ -n "${vault[account_name]:-}" ]] || die "Vault key 'account_name' is missing at ${VAULT_PATH}.
+[[ -n "$(kv_get "${VAULT_KV}" account_name)" ]] || die "Vault key 'account_name' is missing at ${VAULT_PATH}.
 Pass the storage account name. It cannot be derived from the cluster name
 unless this subscription has exactly one account tagged purpose=loki-audit."
 
-V_ACCOUNT_NAME="${vault[account_name]}"
-V_ACCOUNT_KEY="${vault[account_key]:-}"
-V_CONTAINER="${vault[container]:-${CLUSTER_LC}-audit-loki}"
-V_ENVIRONMENT="${vault[environment]:-AzureGlobal}"
-V_CLIENT_ID="${vault[client_id]:-}"
-V_CLIENT_SECRET="${vault[client_secret]:-}"
-V_TENANT_ID="${vault[tenant_id]:-}"
+V_ACCOUNT_NAME="$(kv_get "${VAULT_KV}" account_name)"
+V_ACCOUNT_KEY="$(kv_get "${VAULT_KV}" account_key)"
+V_CONTAINER="$(kv_or "${VAULT_KV}" container "${CLUSTER_LC}-audit-loki")"
+V_ENVIRONMENT="$(kv_or "${VAULT_KV}" environment AzureGlobal)"
+V_CLIENT_ID="$(kv_get "${VAULT_KV}" client_id)"
+V_CLIENT_SECRET="$(kv_get "${VAULT_KV}" client_secret)"
+V_TENANT_ID="$(kv_get "${VAULT_KV}" tenant_id)"
 if [[ -z "${V_TENANT_ID}" ]] && command -v az >/dev/null 2>&1 \
   && az account show >/dev/null 2>&1; then
   V_TENANT_ID="$(az account show --query tenantId -o tsv)"
@@ -172,28 +196,28 @@ if [[ -z "${V_TENANT_ID}" ]] && command -v az >/dev/null 2>&1 \
 fi
 # Empty on purpose. grafana-secret.yaml emits nothing, and the PostSync
 # hook creates grafana-admin-credentials with a random password.
-V_GRAFANA_PASSWORD="${vault[grafana_admin_password]:-}"
+V_GRAFANA_PASSWORD="$(kv_get "${VAULT_KV}" grafana_admin_password)"
 if [[ -z "${V_GRAFANA_PASSWORD}" ]]; then
   log "grafana_admin_password left empty; PostSync hook will generate one"
 else
   log "grafana_admin_password is set in Vault; PostSync will keep that password"
 fi
-V_GRAFANA_IMAGE="${vault[grafana_image]:-}"
-V_LOKISTACK_SIZE="${vault[lokistack_size]:-1x.small}"
+V_GRAFANA_IMAGE="$(kv_get "${VAULT_KV}" grafana_image)"
+V_LOKISTACK_SIZE="$(kv_or "${VAULT_KV}" lokistack_size 1x.small)"
 case "${V_LOKISTACK_SIZE}" in
   1x.extra-small) DEF_CPU=30;  DEF_MEM=64Gi;  DEF_LIM=128Gi ;;
   1x.small)       DEF_CPU=72;  DEF_MEM=176Gi; DEF_LIM=256Gi ;;
   1x.medium)      DEF_CPU=100; DEF_MEM=256Gi; DEF_LIM=384Gi ;;
   *) die "Unknown lokistack_size '${V_LOKISTACK_SIZE}'. Use 1x.extra-small, 1x.small, or 1x.medium." ;;
 esac
-V_MANAGEMENT_STATE="${vault[management_state]:-Managed}"
-V_STORAGE_CLASS="${vault[storage_class]:-managed-csi}"
-V_REQUESTS_CPU="${vault[requests_cpu]:-${DEF_CPU}}"
-V_REQUESTS_MEMORY="${vault[requests_memory]:-${DEF_MEM}}"
-V_LIMITS_MEMORY="${vault[limits_memory]:-${DEF_LIM}}"
-V_RBAC_EDIT="${vault[rbac_edit]:-}"
-V_RBAC_VIEW="${vault[rbac_view]:-}"
-V_DEPLOYMENT_ID="${vault[deployment_id]:-${CLUSTER_LC}-logging}"
+V_MANAGEMENT_STATE="$(kv_or "${VAULT_KV}" management_state Managed)"
+V_STORAGE_CLASS="$(kv_or "${VAULT_KV}" storage_class managed-csi)"
+V_REQUESTS_CPU="$(kv_or "${VAULT_KV}" requests_cpu "${DEF_CPU}")"
+V_REQUESTS_MEMORY="$(kv_or "${VAULT_KV}" requests_memory "${DEF_MEM}")"
+V_LIMITS_MEMORY="$(kv_or "${VAULT_KV}" limits_memory "${DEF_LIM}")"
+V_RBAC_EDIT="$(kv_get "${VAULT_KV}" rbac_edit)"
+V_RBAC_VIEW="$(kv_get "${VAULT_KV}" rbac_view)"
+V_DEPLOYMENT_ID="$(kv_or "${VAULT_KV}" deployment_id "${CLUSTER_LC}-logging")"
 
 # Shared image and AD groups live in the customer base. Vault still wins
 # when a cluster sets its own value. Empty and TBD are ignored.
