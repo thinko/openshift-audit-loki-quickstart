@@ -60,6 +60,8 @@ def test_generate_overlay_leaves_grafana_password_to_postsync(repo_root: Path):
     assert "--from <sibling-cluster>" in text
     assert "declare -A" not in text
     assert "local -n" not in text
+    assert '${CLUSTER^^}' not in text
+    assert "CLUSTER_UC=" in text
     assert "kv_get" in text
     assert 'VAULT_BASE="${VAULT_BASE:-}"' in text
     assert "Set VAULT_BASE" in text
