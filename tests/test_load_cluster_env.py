@@ -55,7 +55,8 @@ def _fake_bin(root: Path) -> Path:
     safe.write_text(
         "#!/bin/sh\n"
         "printf '%s\\n' '--- # secret/test/arod08/loki-storage' "
-        "'account_name: fromvault' 'client_secret: vault secret'\n",
+        "'account_name: fromvault' 'client_secret: vault secret' "
+        "'grafana_admin_password: \"\"' 'rbac_view: \"\"' 'requests_cpu: \"72\"'\n",
         encoding="utf-8",
     )
     safe.chmod(0o755)
@@ -101,6 +102,9 @@ def test_precedence_and_hidden_values(repo_root: Path, tmp_path: Path):
     assert "customer base" in _source_line(result.stderr, "GRAFANA_IMAGE")
     assert "default" in _source_line(result.stderr, "AZURE_STORAGE_ACCOUNT_KEY")
     assert "unset" in _source_line(result.stderr, "GRAFANA_ADMIN_PASSWORD")
+    assert "overlay values" in _source_line(result.stderr, "RBAC_VIEW")
+    assert "export RBAC_VIEW=from-values-view" in result.stdout
+    assert '""' not in result.stdout
     assert "export AZURE_STORAGE_ACCOUNT_NAME=fromvault" in result.stdout
     assert "export AZURE_CONTAINER_NAME=from-values" in result.stdout
 

@@ -108,6 +108,23 @@ kv_or() {
   fi
 }
 
+# safe get prints YAML quotes. "" and "72" must not be stored with the quotes.
+# Vault also rejects an empty assignment, so a blank value is left unset.
+unquote_vault() {
+  local v="${1-}" first last len
+  v="${v#"${v%%[![:space:]]*}"}"
+  v="${v%"${v##*[![:space:]]}"}"
+  if [[ ${#v} -ge 2 ]]; then
+    first="${v:0:1}"
+    last="${v:$((${#v} - 1)):1}"
+    if [[ "${first}" == "${last}" && ( "${first}" == '"' || "${first}" == "'" ) ]]; then
+      len=$(( ${#v} - 2 ))
+      v="${v:1:${len}}"
+    fi
+  fi
+  printf '%s' "${v}"
+}
+
 read_vault() {
   local path="$1" dir="$2" line key value count errfile
   count=0
@@ -126,8 +143,8 @@ $(cat "${errfile}")"
     esac
     if [[ "${line}" =~ ^([A-Za-z_][A-Za-z0-9_]*):[[:space:]]*(.*)$ ]]; then
       key="${BASH_REMATCH[1]}"
-      value="${BASH_REMATCH[2]}"
-      value="${value#"${value%%[![:space:]]*}"}"
+      value="$(unquote_vault "${BASH_REMATCH[2]}")"
+      [[ -n "${value}" ]] || continue
       kv_set "${dir}" "${key}" "${value}"
       count=$((count + 1))
     fi
@@ -490,7 +507,10 @@ if [[ "${NEED_SAFE_SET}" -eq 1 ]]; then
   emit_safe_field rbac_view "${V_RBAC_VIEW}"
   emit_safe_field deployment_id "${V_DEPLOYMENT_ID}"
   printf '\n\n'
-  printf 'grafana_admin_password is omitted. The PostSync hook generates one when it is unset.\n\n'
+  printf 'Blank keys are omitted. Vault rejects an empty assignment, so do not\n'
+  printf 'safe set grafana_admin_password= or rbac_view=.\n'
+  printf 'This command replaces the whole secret, which drops those keys.\n'
+  printf 'Leave grafana_admin_password unset and the PostSync hook generates one.\n\n'
 fi
 
 # ── Conjur secrets.tpl block ─────────────────────────────────────────

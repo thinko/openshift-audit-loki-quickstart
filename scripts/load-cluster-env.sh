@@ -201,9 +201,27 @@ load_cluster_env --cluster arod08
 EOF
 }
 
+# safe get prints YAML quotes around empty strings and numbers: "" and "72".
+_lce_unquote() {
+  local v="${1-}" first last len
+  v="${v#"${v%%[![:space:]]*}"}"
+  v="${v%"${v##*[![:space:]]}"}"
+  if [[ ${#v} -ge 2 ]]; then
+    first="${v:0:1}"
+    last="${v:$((${#v} - 1)):1}"
+    if [[ "${first}" == "${last}" && ( "${first}" == '"' || "${first}" == "'" ) ]]; then
+      len=$(( ${#v} - 2 ))
+      v="${v:1:${len}}"
+    fi
+  fi
+  printf '%s' "${v}"
+}
+
 _lce_usable() {
-  [[ -n "${1:-}" && "${1}" != "TBD" && "${1}" != "null" && "${1}" != '""' ]] || return 1
-  [[ "${1}" == REPLACE_ME* ]] && return 1
+  local v
+  v="$(_lce_unquote "${1-}")"
+  [[ -n "${v}" && "${v}" != "TBD" && "${v}" != "null" ]] || return 1
+  [[ "${v}" == REPLACE_ME* ]] && return 1
   return 0
 }
 
@@ -293,8 +311,8 @@ _lce_load_vault() {
     esac
     if [[ "${line}" =~ ^([A-Za-z_][A-Za-z0-9_]*):[[:space:]]*(.*)$ ]]; then
       key="${BASH_REMATCH[1]}"
-      value="${BASH_REMATCH[2]}"
-      value="${value#"${value%%[![:space:]]*}"}"
+      value="$(_lce_unquote "${BASH_REMATCH[2]}")"
+      [[ -n "${value}" ]] || continue
       printf '%s' "${value}" > "${tmp}/vault/${key}"
     fi
   done < "${tmp}/vault.out"
@@ -340,6 +358,7 @@ _lce_offer_env() {
 _lce_offer() {
   local tmp="$1" name="$2" value="$3" source="$4"
   [[ -f "${tmp}/skipped/${name}" || -f "${tmp}/resolved/${name}" ]] && return 0
+  value="$(_lce_unquote "${value}")"
   _lce_usable "${value}" || return 0
   printf '%s' "${value}" > "${tmp}/resolved/${name}"
   printf '%s' "${source}" > "${tmp}/source/${name}"
