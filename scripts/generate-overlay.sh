@@ -43,25 +43,21 @@ need_cmd yq
 log "Validating Vault path: ${VAULT_PATH}"
 if ! safe exists "${VAULT_PATH}" 2>/dev/null; then
   die "Vault path ${VAULT_PATH} does not exist.
-Create it first:
+Create it with the values this script cannot discover:
   safe set ${VAULT_PATH} \\
     account_name=<STORAGE_ACCOUNT> \\
-    container=${CLUSTER}-audit-loki \\
-    environment=AzureGlobal \\
     client_id=<SP_CLIENT_ID> \\
     client_secret=<SP_SECRET> \\
     tenant_id=<TENANT_ID> \\
-    grafana_admin_password=<PASSWORD> \\
-    grafana_image=<REGISTRY>/grafana/grafana:latest \\
-    lokistack_size=1x.small \\
-    management_state=Unmanaged \\
-    storage_class=managed-csi \\
-    requests_cpu=72 \\
-    requests_memory=176Gi \\
-    limits_memory=256Gi \\
     rbac_edit=group1,group2 \\
-    rbac_view=group1 \\
-    deployment_id=${CLUSTER}-logging"
+    rbac_view=group1
+Leave grafana_admin_password unset. The Grafana PostSync hook generates
+a random password when that value is empty.
+These are filled automatically when omitted: container=${CLUSTER}-audit-loki,
+environment=AzureGlobal, lokistack_size=1x.small (quota follows the size),
+management_state=Managed, storage_class=managed-csi,
+deployment_id=${CLUSTER}-logging. tenant_id is read from 'az account show'
+when it is empty and az is logged in."
 fi
 
 # ── Read keys from Vault ─────────────────────────────────────────────
@@ -74,31 +70,60 @@ while IFS=: read -r key value; do
   vault["${key}"]="${value}"
 done < <(safe get "${VAULT_PATH}" 2>/dev/null)
 
-# ── Validate required keys ───────────────────────────────────────────
-REQUIRED_KEYS=(account_name environment)
-for k in "${REQUIRED_KEYS[@]}"; do
-  [[ -n "${vault[$k]:-}" ]] || die "Required Vault key '${k}' is missing or empty at ${VAULT_PATH}"
-done
+# ── Fill what Vault did not set ──────────────────────────────────────
+CLUSTER_LC="$(printf '%s' "${CLUSTER}" | tr '[:upper:]' '[:lower:]')"
 
-# ── Read optional keys with defaults ─────────────────────────────────
+if [[ -z "${vault[account_name]:-}" ]] && command -v az >/dev/null 2>&1 \
+  && az account show >/dev/null 2>&1; then
+  tagged="$(az resource list --resource-type Microsoft.Storage/storageAccounts \
+    --query "[?tags.purpose=='loki-audit'].name" -o tsv)"
+  tagged_count="$(printf '%s\n' "${tagged}" | grep -c . || true)"
+  if [[ "${tagged_count}" -eq 1 ]]; then
+    vault[account_name]="${tagged}"
+    log "account_name from the only purpose=loki-audit storage account"
+  fi
+fi
+
+[[ -n "${vault[account_name]:-}" ]] || die "Vault key 'account_name' is missing at ${VAULT_PATH}.
+Pass the storage account name. It cannot be derived from the cluster name
+unless this subscription has exactly one account tagged purpose=loki-audit."
+
 V_ACCOUNT_NAME="${vault[account_name]}"
 V_ACCOUNT_KEY="${vault[account_key]:-}"
-V_CONTAINER="${vault[container]:-$(printf '%s' "${CLUSTER}" | tr '[:upper:]' '[:lower:]')-audit-loki}"
-V_ENVIRONMENT="${vault[environment]}"
+V_CONTAINER="${vault[container]:-${CLUSTER_LC}-audit-loki}"
+V_ENVIRONMENT="${vault[environment]:-AzureGlobal}"
 V_CLIENT_ID="${vault[client_id]:-}"
 V_CLIENT_SECRET="${vault[client_secret]:-}"
 V_TENANT_ID="${vault[tenant_id]:-}"
+if [[ -z "${V_TENANT_ID}" ]] && command -v az >/dev/null 2>&1 \
+  && az account show >/dev/null 2>&1; then
+  V_TENANT_ID="$(az account show --query tenantId -o tsv)"
+  log "tenant_id from az account show"
+fi
+# Empty on purpose. grafana-secret.yaml emits nothing, and the PostSync
+# hook creates grafana-admin-credentials with a random password.
 V_GRAFANA_PASSWORD="${vault[grafana_admin_password]:-}"
+if [[ -z "${V_GRAFANA_PASSWORD}" ]]; then
+  log "grafana_admin_password left empty; PostSync hook will generate one"
+else
+  log "grafana_admin_password is set in Vault; PostSync will keep that password"
+fi
 V_GRAFANA_IMAGE="${vault[grafana_image]:-}"
 V_LOKISTACK_SIZE="${vault[lokistack_size]:-1x.small}"
+case "${V_LOKISTACK_SIZE}" in
+  1x.extra-small) DEF_CPU=30;  DEF_MEM=64Gi;  DEF_LIM=128Gi ;;
+  1x.small)       DEF_CPU=72;  DEF_MEM=176Gi; DEF_LIM=256Gi ;;
+  1x.medium)      DEF_CPU=100; DEF_MEM=256Gi; DEF_LIM=384Gi ;;
+  *) die "Unknown lokistack_size '${V_LOKISTACK_SIZE}'. Use 1x.extra-small, 1x.small, or 1x.medium." ;;
+esac
 V_MANAGEMENT_STATE="${vault[management_state]:-Managed}"
 V_STORAGE_CLASS="${vault[storage_class]:-managed-csi}"
-V_REQUESTS_CPU="${vault[requests_cpu]:-72}"
-V_REQUESTS_MEMORY="${vault[requests_memory]:-176Gi}"
-V_LIMITS_MEMORY="${vault[limits_memory]:-256Gi}"
+V_REQUESTS_CPU="${vault[requests_cpu]:-${DEF_CPU}}"
+V_REQUESTS_MEMORY="${vault[requests_memory]:-${DEF_MEM}}"
+V_LIMITS_MEMORY="${vault[limits_memory]:-${DEF_LIM}}"
 V_RBAC_EDIT="${vault[rbac_edit]:-}"
 V_RBAC_VIEW="${vault[rbac_view]:-}"
-V_DEPLOYMENT_ID="${vault[deployment_id]:-${CLUSTER}-logging}"
+V_DEPLOYMENT_ID="${vault[deployment_id]:-${CLUSTER_LC}-logging}"
 
 # ── Build RBAC lists ─────────────────────────────────────────────────
 # Convert comma-separated strings to YAML list items
