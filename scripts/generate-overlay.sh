@@ -147,10 +147,12 @@ if [[ -n "${SIBLING}" ]]; then
 fi
 
 log "Validating Vault path: ${VAULT_PATH}"
+NEED_SAFE_SET=0
 if safe exists "${VAULT_PATH}" 2>/dev/null; then
   log "Reading keys from ${VAULT_PATH}"
   read_vault "${VAULT_PATH}" "${VAULT_KV}"
 elif [[ -n "${SIBLING}" ]]; then
+  NEED_SAFE_SET=1
   log "Vault path ${VAULT_PATH} does not exist; shared keys come from ${SIBLING}"
 else
   die "Vault path ${VAULT_PATH} does not exist.
@@ -453,6 +455,37 @@ cat > "${SECRETS_FILE}" <<SECEOF
     deployment_id: "${V_DEPLOYMENT_ID}"
 SECEOF
 log "  Written: gitops-secrets-loki-storage.yaml (DO NOT COMMIT)"
+
+if [[ "${NEED_SAFE_SET}" -eq 1 ]]; then
+  # safe set replaces the whole path. Print it only when the path is missing.
+  # grafana_admin_password is omitted so the PostSync hook generates one.
+  printf '\nVault secret does not exist. Create it from the sibling values:\n'
+  printf 'safe set %q' "${VAULT_PATH}"
+  emit_safe_field() {
+    local key="$1" value="$2"
+    [[ -n "${value}" ]] || return 0
+    printf ' \\\n  %s=%q' "${key}" "${value}"
+  }
+  emit_safe_field account_name "${V_ACCOUNT_NAME}"
+  emit_safe_field account_key "${V_ACCOUNT_KEY}"
+  emit_safe_field container "${V_CONTAINER}"
+  emit_safe_field environment "${V_ENVIRONMENT}"
+  emit_safe_field client_id "${V_CLIENT_ID}"
+  emit_safe_field client_secret "${V_CLIENT_SECRET}"
+  emit_safe_field tenant_id "${V_TENANT_ID}"
+  emit_safe_field grafana_image "${V_GRAFANA_IMAGE}"
+  emit_safe_field lokistack_size "${V_LOKISTACK_SIZE}"
+  emit_safe_field management_state "${V_MANAGEMENT_STATE}"
+  emit_safe_field storage_class "${V_STORAGE_CLASS}"
+  emit_safe_field requests_cpu "${V_REQUESTS_CPU}"
+  emit_safe_field requests_memory "${V_REQUESTS_MEMORY}"
+  emit_safe_field limits_memory "${V_LIMITS_MEMORY}"
+  emit_safe_field rbac_edit "${V_RBAC_EDIT}"
+  emit_safe_field rbac_view "${V_RBAC_VIEW}"
+  emit_safe_field deployment_id "${V_DEPLOYMENT_ID}"
+  printf '\n\n'
+  printf 'grafana_admin_password is omitted. The PostSync hook generates one when it is unset.\n\n'
+fi
 
 # ── Conjur secrets.tpl block ─────────────────────────────────────────
 log ""
