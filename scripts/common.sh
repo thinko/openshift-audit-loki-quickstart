@@ -222,13 +222,28 @@ list_secret_key_names() {
     -o go-template='{{range $k, $v := .data}}{{$k}}{{"\n"}}{{end}}' 2>/dev/null || true
 }
 
+# Blob container for one cluster. An explicit AZURE_CONTAINER_NAME or
+# AZURE_STORAGE_CONTAINER wins. Otherwise the name is {cluster}-audit-loki
+# from ARO_CLUSTER_NAME or CLUSTER (for example arod05-audit-loki).
+azure_blob_container_name() {
+  local name="${AZURE_CONTAINER_NAME:-${AZURE_STORAGE_CONTAINER:-}}"
+  if [[ -z "${name}" ]]; then
+    local cluster="${ARO_CLUSTER_NAME:-${CLUSTER:-}}"
+    cluster="$(printf '%s' "${cluster}" | tr '[:upper:]' '[:lower:]')"
+    [[ -n "${cluster}" ]] || return 1
+    name="${cluster}-audit-loki"
+  fi
+  printf '%s' "${name}" | tr '[:upper:]' '[:lower:]'
+}
+
 apply_azure_secret() {
   local account_name="${AZURE_STORAGE_ACCOUNT_NAME:-}"
   local account_key="${AZURE_STORAGE_ACCOUNT_KEY:-}"
   local client_id="${AZURE_CLIENT_ID:-}"
   local tenant_id="${AZURE_TENANT_ID:-}"
   local subscription_id="${AZURE_SUBSCRIPTION_ID:-}"
-  local container="${AZURE_CONTAINER_NAME:-${AZURE_STORAGE_CONTAINER:-loki-audit}}"
+  local container
+  container="$(azure_blob_container_name)" || die "Set AZURE_CONTAINER_NAME or ARO_CLUSTER_NAME. The default container is {cluster}-audit-loki (for example arod05-audit-loki)."
   local environment="${AZURE_ENVIRONMENT:-AzureGlobal}"
   local audience="${AZURE_AUDIENCE:-api://AzureADTokenExchange}"
   local token_ready=0
@@ -261,7 +276,7 @@ LokiStack cannot start without object storage. Either:
   * meanwhile: make deploy-operators
 
 See docs/azure-blob-request.md.
-Optionally set AZURE_CONTAINER_NAME (default: loki-audit) and AZURE_ENVIRONMENT (default: AzureGlobal)."
+Optionally set AZURE_CONTAINER_NAME, or ARO_CLUSTER_NAME to use {cluster}-audit-loki. AZURE_ENVIRONMENT defaults to AzureGlobal."
   fi
 
   case "${environment}" in

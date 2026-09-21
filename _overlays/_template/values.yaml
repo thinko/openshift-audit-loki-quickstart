@@ -75,7 +75,7 @@ secrets:
     #! ── Azure blob storage ──
     account_name: ""
     account_key: ""               #! real Azure key, or empty (renders a double-base64 dummy). A single-encoded placeholder is rejected.
-    container: "loki-audit"
+    container: ""                 #! empty -> {envs[0].name}-audit-loki (arod05 -> arod05-audit-loki)
     environment: "AzureGlobal"
     client_id: ""                 #! SP app registration client ID (SP auth)
     client_secret: ""             #! SP credential (SP auth)

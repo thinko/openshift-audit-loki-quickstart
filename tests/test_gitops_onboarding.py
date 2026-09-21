@@ -244,6 +244,8 @@ def test_gitops_storage_secret_template(repo_root: Path):
     assert "client_id" in content, "must support SP auth fields"
     assert "account_key" in content, "must support standard auth fields"
     assert "loki_storage" in content, "must use loki_storage values key"
+    assert 'data.values.envs[0].name + "-audit-loki"' in content, \
+        "empty container must default to {cluster}-audit-loki"
 
 
 def test_gitops_grafana_secret_template(repo_root: Path):

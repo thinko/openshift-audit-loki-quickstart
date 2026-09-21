@@ -64,7 +64,7 @@ account per **environment type** (sandbox, dev, test, prod) is enough; use a
 ```bash
 export AZURE_SUBSCRIPTION_ID='<subscription-guid>'   # optional if az account is already set
 export AZURE_RESOURCE_GROUP='<resource-group>'
-export AZURE_CONTAINER_NAME='loki-audit'             # unique per cluster if the account is shared
+export ARO_CLUSTER_NAME='arod05'                    # default container: arod05-audit-loki
 # optional: AZURE_STORAGE_ACCOUNT_NAME, AZURE_STORAGE_ACCOUNT_PREFIX (default lokiblob)
 
 make azure-storage
@@ -82,7 +82,7 @@ Another cluster on that same account only needs a new container:
 ```bash
 export AZURE_STORAGE_ACCOUNT_NAME='<existing-account>'
 export AZURE_RESOURCE_GROUP='<resource-group>'
-export AZURE_CONTAINER_NAME='loki-audit-<cluster>'   # required; unique per cluster
+export ARO_CLUSTER_NAME='arod05'                    # container defaults to arod05-audit-loki
 
 make azure-container
 make add-storage-subnet

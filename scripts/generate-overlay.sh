@@ -46,7 +46,7 @@ if ! safe exists "${VAULT_PATH}" 2>/dev/null; then
 Create it first:
   safe set ${VAULT_PATH} \\
     account_name=<STORAGE_ACCOUNT> \\
-    container=loki-audit \\
+    container=${CLUSTER}-audit-loki \\
     environment=AzureGlobal \\
     client_id=<SP_CLIENT_ID> \\
     client_secret=<SP_SECRET> \\
@@ -75,7 +75,7 @@ while IFS=: read -r key value; do
 done < <(safe get "${VAULT_PATH}" 2>/dev/null)
 
 # ── Validate required keys ───────────────────────────────────────────
-REQUIRED_KEYS=(account_name container environment)
+REQUIRED_KEYS=(account_name environment)
 for k in "${REQUIRED_KEYS[@]}"; do
   [[ -n "${vault[$k]:-}" ]] || die "Required Vault key '${k}' is missing or empty at ${VAULT_PATH}"
 done
@@ -83,7 +83,7 @@ done
 # ── Read optional keys with defaults ─────────────────────────────────
 V_ACCOUNT_NAME="${vault[account_name]}"
 V_ACCOUNT_KEY="${vault[account_key]:-}"
-V_CONTAINER="${vault[container]}"
+V_CONTAINER="${vault[container]:-$(printf '%s' "${CLUSTER}" | tr '[:upper:]' '[:lower:]')-audit-loki}"
 V_ENVIRONMENT="${vault[environment]}"
 V_CLIENT_ID="${vault[client_id]:-}"
 V_CLIENT_SECRET="${vault[client_secret]:-}"

@@ -22,10 +22,13 @@ Required:
   AZURE_STORAGE_ACCOUNT_NAME  or  --name ACCOUNT
   AZURE_RESOURCE_GROUP        or  --resource-group NAME
   AZURE_CONTAINER_NAME        or  --container NAME
-                                  Unique per cluster (no default).
+                                  Default: {cluster}-audit-loki from
+                                  ARO_CLUSTER_NAME, CLUSTER, or --cluster
+                                  (arod05 -> arod05-audit-loki).
 
 Optional:
   AZURE_SUBSCRIPTION_ID       or  --subscription GUID
+  ARO_CLUSTER_NAME            or  --cluster NAME
   AZURE_STORAGE_ACCOUNT_KEY   Account key. When unset, uses Entra login
                               (--auth-mode login). Prefer login when shared
                               key access is disabled.
@@ -34,6 +37,7 @@ Options:
   -n, --name ACCOUNT
   -g, --resource-group NAME
   -c, --container NAME
+      --cluster NAME          Cluster key used for the default container name
   -s, --subscription GUID
       --login                 Use Entra login even if an account key is set
       --quiet                 Do not print follow-up commands
@@ -47,6 +51,7 @@ EOF
 ACCOUNT_NAME="${AZURE_STORAGE_ACCOUNT_NAME:-}"
 RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:-}"
 CONTAINER_NAME="${AZURE_CONTAINER_NAME:-}"
+CLUSTER_NAME="${ARO_CLUSTER_NAME:-${CLUSTER:-}}"
 SUBSCRIPTION_ID="${AZURE_SUBSCRIPTION_ID:-}"
 USE_LOGIN=0
 QUIET=0
@@ -57,6 +62,7 @@ while [[ $# -gt 0 ]]; do
     -n|--name)            ACCOUNT_NAME="${2:?}"; shift 2 ;;
     -g|--resource-group)  RESOURCE_GROUP="${2:?}"; shift 2 ;;
     -c|--container)       CONTAINER_NAME="${2:?}"; shift 2 ;;
+    --cluster)            CLUSTER_NAME="${2:?}"; shift 2 ;;
     -s|--subscription)    SUBSCRIPTION_ID="${2:?}"; shift 2 ;;
     --login)              USE_LOGIN=1; shift ;;
     --quiet)              QUIET=1; shift ;;
@@ -70,7 +76,11 @@ need_cmd az
 
 [[ -n "${ACCOUNT_NAME}" ]]   || die "Set AZURE_STORAGE_ACCOUNT_NAME or pass --name"
 [[ -n "${RESOURCE_GROUP}" ]] || die "Set AZURE_RESOURCE_GROUP or pass --resource-group"
-[[ -n "${CONTAINER_NAME}" ]] || die "Set AZURE_CONTAINER_NAME or pass --container (one container per cluster; there is no default)"
+
+if [[ -z "${CONTAINER_NAME}" ]]; then
+  export ARO_CLUSTER_NAME="${CLUSTER_NAME}"
+  CONTAINER_NAME="$(azure_blob_container_name)" || die "Pass --container, or --cluster / ARO_CLUSTER_NAME. Default is {cluster}-audit-loki (one container per cluster)."
+fi
 
 ACCOUNT_NAME="$(printf '%s' "${ACCOUNT_NAME}" | tr '[:upper:]' '[:lower:]')"
 CONTAINER_NAME="$(printf '%s' "${CONTAINER_NAME}" | tr '[:upper:]' '[:lower:]')"

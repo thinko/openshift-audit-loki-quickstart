@@ -16,7 +16,7 @@
 #     (not the placeholder TODO content)
 #   - Environment variables set (via .env or export):
 #       AZURE_STORAGE_ACCOUNT_NAME  (required)
-#       AZURE_CONTAINER_NAME        (default: loki-audit)
+#       AZURE_CONTAINER_NAME        (default: {ARO_CLUSTER_NAME}-audit-loki)
 #       AZURE_ENVIRONMENT           (default: AzureGlobal)
 #       AZURE_SP_CLIENT_ID          (required)
 #       AZURE_SP_CLIENT_SECRET      (required)
@@ -38,7 +38,7 @@ require_cluster_admin
 
 # ── Validate required env vars ──
 AZURE_STORAGE_ACCOUNT_NAME="${AZURE_STORAGE_ACCOUNT_NAME:-}"
-AZURE_CONTAINER_NAME="${AZURE_CONTAINER_NAME:-loki-audit}"
+AZURE_CONTAINER_NAME="$(azure_blob_container_name)" || die "Set AZURE_CONTAINER_NAME or ARO_CLUSTER_NAME. Default container is {cluster}-audit-loki."
 AZURE_ENVIRONMENT="${AZURE_ENVIRONMENT:-AzureGlobal}"
 AZURE_SP_CLIENT_ID="${AZURE_SP_CLIENT_ID:-}"
 AZURE_SP_CLIENT_SECRET="${AZURE_SP_CLIENT_SECRET:-}"

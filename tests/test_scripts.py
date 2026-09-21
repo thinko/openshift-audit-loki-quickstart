@@ -33,6 +33,8 @@ def test_create_azure_container_does_not_create_an_account(repo_root: Path):
     assert "az storage container create" in text
     assert "--auth-mode login" in text
     assert "one container per cluster" in text
+    assert "-audit-loki" in text
+    assert "--cluster" in text
     assert "oc create secret" not in text
 
 

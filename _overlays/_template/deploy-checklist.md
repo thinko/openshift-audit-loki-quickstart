@@ -13,7 +13,7 @@
 - [ ] Blob container created on the environment account (do not create a new account per cluster):
   ```bash
   make azure-container
-  # or: scripts/create-azure-container.sh --name <account> --resource-group <rg> --container loki-audit-<cluster>
+  # or: scripts/create-azure-container.sh --name <account> --resource-group <rg> --cluster REPLACE_ME_CLUSTER
   ```
 - [ ] Worker subnet added to storage account ACL:
   ```bash
@@ -30,7 +30,7 @@ oc create secret generic logging-loki-azure \
   --from-literal=environment=AzureGlobal \
   --from-literal=account_name=<ACCOUNT_NAME> \
   --from-literal=account_key=<ACCOUNT_KEY> \
-  --from-literal=container=loki-audit
+  --from-literal=container=REPLACE_ME_CLUSTER-audit-loki
 ```
 
 ### SP auth (AllowSharedKeyAccess=false)

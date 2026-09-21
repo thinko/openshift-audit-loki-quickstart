@@ -21,7 +21,7 @@ Azure Blob is required for LokiStack (not for operator install):
   or an existing Secret openshift-logging/logging-loki-azure with matching keys.
 
 Optional environment:
-  AZURE_CONTAINER_NAME     Azure Blob container (default: loki-audit)
+  AZURE_CONTAINER_NAME     Azure Blob container (default: {ARO_CLUSTER_NAME}-audit-loki)
   AZURE_ENVIRONMENT        AzureGlobal | AzureChinaCloud | AzureGermanCloud | AzureUSGovernment
   SKIP_CONSOLE_PLUGIN      Set to 1 to skip patching the Console operator
 

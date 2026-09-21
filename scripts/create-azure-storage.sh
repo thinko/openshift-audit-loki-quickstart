@@ -28,7 +28,8 @@ Required:
 
 Optional:
   AZURE_SUBSCRIPTION_ID         Subscription GUID (otherwise uses current az account)
-  AZURE_CONTAINER_NAME          Blob container (default: loki-audit)
+  AZURE_CONTAINER_NAME          Blob container (default: {cluster}-audit-loki
+                                from ARO_CLUSTER_NAME or CLUSTER)
   AZURE_STORAGE_ACCOUNT_NAME    Exact account name (3-24 lowercase alphanumeric)
   AZURE_STORAGE_ACCOUNT_PREFIX  Used when generating a name (default: lokiblob)
   AZURE_ENVIRONMENT             Written to the env file (default: AzureGlobal)
@@ -43,6 +44,7 @@ Options:
   -p, --prefix PREFIX           Prefix for a generated account name
       --sku SKU
       --env-file PATH
+      --cluster NAME            Cluster key for the default container name
       --container-only          Create a container on an existing account
       --login                   With --container-only, use Entra login
       --dry-run                 Print planned names; do not call Azure
@@ -59,7 +61,8 @@ EOF
 
 RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:-}"
 SUBSCRIPTION_ID="${AZURE_SUBSCRIPTION_ID:-}"
-CONTAINER_NAME="${AZURE_CONTAINER_NAME:-loki-audit}"
+CONTAINER_NAME="${AZURE_CONTAINER_NAME:-}"
+CLUSTER_NAME="${ARO_CLUSTER_NAME:-${CLUSTER:-}}"
 ACCOUNT_NAME="${AZURE_STORAGE_ACCOUNT_NAME:-}"
 ACCOUNT_PREFIX="${AZURE_STORAGE_ACCOUNT_PREFIX:-lokiblob}"
 SKU="${AZURE_STORAGE_SKU:-Standard_LRS}"
@@ -74,6 +77,7 @@ while [[ $# -gt 0 ]]; do
     -g|--resource-group) RESOURCE_GROUP="${2:?}"; shift 2 ;;
     -s|--subscription) SUBSCRIPTION_ID="${2:?}"; shift 2 ;;
     -c|--container) CONTAINER_NAME="${2:?}"; shift 2 ;;
+    --cluster) CLUSTER_NAME="${2:?}"; shift 2 ;;
     -n|--name) ACCOUNT_NAME="${2:?}"; shift 2 ;;
     -p|--prefix) ACCOUNT_PREFIX="${2:?}"; shift 2 ;;
     --sku) SKU="${2:?}"; shift 2 ;;
@@ -89,6 +93,11 @@ done
 need_cmd az
 
 [[ -n "${RESOURCE_GROUP}" ]] || die "Set AZURE_RESOURCE_GROUP or pass --resource-group"
+
+if [[ -z "${CONTAINER_NAME}" ]]; then
+  export ARO_CLUSTER_NAME="${CLUSTER_NAME}"
+  CONTAINER_NAME="$(azure_blob_container_name)" || die "Pass --container, or --cluster / ARO_CLUSTER_NAME. Default is {cluster}-audit-loki."
+fi
 
 if [[ "${CONTAINER_ONLY}" -eq 1 ]]; then
   [[ -n "${ACCOUNT_NAME}" ]] || die "Container-only mode needs an existing account: --name or AZURE_STORAGE_ACCOUNT_NAME"
