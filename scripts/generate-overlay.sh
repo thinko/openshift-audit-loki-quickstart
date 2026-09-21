@@ -20,8 +20,15 @@
 #   - `yq` (v4+) for YAML manipulation
 #
 # Vault path convention:
-#   secret/my-team/openshift/<cluster>/loki-storage
+#   ${VAULT_BASE}/<cluster>/loki-storage
 set -euo pipefail
+
+# ── Customer Vault prefix (required) ─────────────────────────────────
+# Fill this in for the customer, or export VAULT_BASE before running.
+# Do not commit a customer-specific path.
+# Cluster secrets are read from ${VAULT_BASE}/<cluster>/loki-storage.
+# Example: secret/my-team/openshift
+VAULT_BASE="${VAULT_BASE:-}"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
@@ -61,8 +68,11 @@ while [[ $# -gt 0 ]]; do
 done
 [[ -n "${CLUSTER}" ]] || die "Usage: $0 <cluster-name> [--from <sibling-cluster>]"
 [[ "${SIBLING}" != "${CLUSTER}" ]] || die "--from must name a different cluster"
+[[ -n "${VAULT_BASE}" ]] || die "Set VAULT_BASE at the top of scripts/generate-overlay.sh.
+It is the Vault prefix for this customer.
+Cluster secrets are read from \${VAULT_BASE}/<cluster>/loki-storage."
+VAULT_BASE="${VAULT_BASE%/}"
 
-VAULT_BASE="${VAULT_BASE:-secret/my-team/openshift}"
 VAULT_PATH="${VAULT_BASE}/${CLUSTER}/loki-storage"
 OVERLAY_DIR="${ROOT}/_overlays/${CLUSTER}"
 CUSTOMER_BASE="${ROOT}/_overlays/_customer/values-base.yaml"
@@ -99,12 +109,32 @@ kv_or() {
 }
 
 read_vault() {
-  local path="$1" dir="$2" key value
-  while IFS=: read -r key value; do
-    [[ -n "${key}" ]] || continue
-    value="${value#"${value%%[![:space:]]*}"}"
-    kv_set "${dir}" "${key}" "${value}"
-  done < <(safe get "${path}" 2>/dev/null)
+  local path="$1" dir="$2" line key value count errfile
+  count=0
+  errfile="$(mktemp)"
+  # safe get prints a YAML document header before the keys:
+  #   --- # <vault-path>
+  #   account_name: example
+  # The header contains slashes. Only identifier keys are stored.
+  if ! safe get "${path}" >"${dir}.out" 2>"${errfile}"; then
+    die "safe get failed for ${path}
+$(cat "${errfile}")"
+  fi
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    case "${line}" in
+      ""|---*) continue ;;
+    esac
+    if [[ "${line}" =~ ^([A-Za-z_][A-Za-z0-9_]*):[[:space:]]*(.*)$ ]]; then
+      key="${BASH_REMATCH[1]}"
+      value="${BASH_REMATCH[2]}"
+      value="${value#"${value%%[![:space:]]*}"}"
+      kv_set "${dir}" "${key}" "${value}"
+      count=$((count + 1))
+    fi
+  done < "${dir}.out"
+  rm -f "${dir}.out" "${errfile}"
+  [[ "${count}" -gt 0 ]] || die "No keys found at ${path}.
+Confirm the secret with: safe get ${path}"
 }
 
 SIBLING_PATH=""
