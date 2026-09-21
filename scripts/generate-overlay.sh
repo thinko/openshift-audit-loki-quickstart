@@ -217,6 +217,12 @@ unless this subscription has exactly one account tagged purpose=loki-audit."
 
 V_ACCOUNT_NAME="$(kv_get "${VAULT_KV}" account_name)"
 V_ACCOUNT_KEY="$(kv_get "${VAULT_KV}" account_key)"
+if [[ -z "${V_ACCOUNT_KEY}" ]]; then
+  # Operator-visible filler. storage-secret.yaml adds the Secret data encoding.
+  # A real Azure key is already one base64 layer; do not double-encode that.
+  V_ACCOUNT_KEY="$(printf 'unused' | base64 | tr -d '\n' | base64 | tr -d '\n')"
+  log "account_key left empty; using the double-base64 filler"
+fi
 V_CONTAINER="$(kv_or "${VAULT_KV}" container "${CLUSTER_LC}-audit-loki")"
 V_ENVIRONMENT="$(kv_or "${VAULT_KV}" environment AzureGlobal)"
 V_CLIENT_ID="$(kv_get "${VAULT_KV}" client_id)"
