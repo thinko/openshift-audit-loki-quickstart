@@ -16,7 +16,7 @@ Do **not** copy `azure-cloud-credentials` (cluster identity).
 | Public blob access | Disabled |
 | HTTPS only | Enabled |
 | Hierarchical namespace (ADLS Gen2) | **Disabled** — Loki uses classic Blob |
-| Container | Unique per cluster, e.g. `loki-audit` (3–63 chars, lowercase, hyphens ok) |
+| Container | Unique per cluster, e.g. `loki-audit-<cluster>` (3–63 chars, lowercase, hyphens ok). Extra clusters on an existing account: `scripts/create-azure-container.sh` |
 | Account name | Globally unique, 3–24 lowercase alphanumeric. One account per environment type is enough if each cluster gets its own container. |
 
 Optional tags: `purpose=loki-audit`, `workload=openshift-logging`.

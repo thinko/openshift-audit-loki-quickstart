@@ -15,7 +15,7 @@ endef
 .PHONY: help deploy deploy-operators destroy teardown test test-attribution enable-console-plugin \
 	helm-lint helm-template secret azure-storage status preflight apply-rbac check-egress \
 	deploy-grafana destroy-grafana deploy-console-dashboards deploy-alerting lint \
-	add-storage-subnet init-sp-auth generate-dashboard-configmap
+	add-storage-subnet init-sp-auth generate-dashboard-configmap azure-container
 
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*##"; printf "\nTargets:\n"} /^[a-zA-Z0-9_.-]+:.*##/ { printf "  %-24s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -62,6 +62,7 @@ test: ## Run local validation (pytest, yamllint, shell syntax, helm lint)
 	@bash -n "$(ROOT)/scripts/test-attribution.sh"
 	@bash -n "$(ROOT)/scripts/enable-console-plugin.sh"
 	@bash -n "$(ROOT)/scripts/create-azure-storage.sh"
+	@bash -n "$(ROOT)/scripts/create-azure-container.sh"
 	@bash -n "$(ROOT)/scripts/status.sh"
 	@bash -n "$(ROOT)/scripts/preflight.sh"
 	@bash -n "$(ROOT)/scripts/apply-rbac.sh"
@@ -88,8 +89,11 @@ helm-template: ## Render the chart with placeholder Azure values (no cluster req
 		--set azure.accountKey=examplekey \
 		--set azure.container=loki-audit
 
-azure-storage: ## Create a dedicated Azure Blob account and container (AZURE_RESOURCE_GROUP required)
+azure-storage: ## Create a dedicated Azure Blob account and one container (AZURE_RESOURCE_GROUP required)
 	"$(ROOT)/scripts/create-azure-storage.sh"
+
+azure-container: ## Create a blob container on an existing account (one per cluster)
+	$(_load_env); "$(ROOT)/scripts/create-azure-container.sh"
 
 secret: ## Create/update the Azure Blob secret from environment variables
 	$(_load_env); "$(ROOT)/scripts/apply-azure-secret.sh"

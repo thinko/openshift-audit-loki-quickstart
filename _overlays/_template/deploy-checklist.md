@@ -10,7 +10,11 @@
 ## Azure Setup
 
 - [ ] Storage account created: `AZURE_STORAGE_ACCOUNT_NAME`
-- [ ] Blob container created: `AZURE_CONTAINER_NAME`
+- [ ] Blob container created on the environment account (do not create a new account per cluster):
+  ```bash
+  make azure-container
+  # or: scripts/create-azure-container.sh --name <account> --resource-group <rg> --container loki-audit-<cluster>
+  ```
 - [ ] Worker subnet added to storage account ACL:
   ```bash
   make add-storage-subnet

@@ -77,6 +77,20 @@ TLS 1.2, public blob access off, hierarchical namespace off) in the resource
 group's region and writes gitignored `.env.azure`. It does **not** create the
 OpenShift secret; `make deploy` creates `logging-loki-azure`.
 
+Another cluster on that same account only needs a new container:
+
+```bash
+export AZURE_STORAGE_ACCOUNT_NAME='<existing-account>'
+export AZURE_RESOURCE_GROUP='<resource-group>'
+export AZURE_CONTAINER_NAME='loki-audit-<cluster>'   # required; unique per cluster
+
+make azure-container
+make add-storage-subnet
+```
+
+`make azure-container` uses an account key from the environment when one is
+set, and Entra login (`--auth-mode login`) when it is not.
+
 Alternatively set `AZURE_STORAGE_ACCOUNT_NAME`, `AZURE_STORAGE_ACCOUNT_KEY`,
 and `AZURE_CONTAINER_NAME`. If the cluster has Entra Workload ID, omit the
 account key and use LokiStack `credentialMode: token` with `client_id` /

@@ -23,6 +23,17 @@ def test_create_azure_storage_is_anonymized_and_defers_ocp_secret(repo_root: Pat
     assert "logging-loki-azure" in text
     assert "oc create secret" not in text
     assert "--enable-hierarchical-namespace false" in text
+    assert "create-azure-container.sh" in text
+    assert "--container-only" in text
+
+
+def test_create_azure_container_does_not_create_an_account(repo_root: Path):
+    text = (repo_root / "scripts" / "create-azure-container.sh").read_text(encoding="utf-8")
+    assert "az storage account create" not in text
+    assert "az storage container create" in text
+    assert "--auth-mode login" in text
+    assert "one container per cluster" in text
+    assert "oc create secret" not in text
 
 
 def test_deploy_supports_operators_only(repo_root: Path):
