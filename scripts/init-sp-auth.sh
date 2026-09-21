@@ -80,6 +80,11 @@ log "Found ${SS_COUNT} StatefulSet(s) for LokiStack ${LOKISTACK_NAME}"
 
 # ── Step 2: Create/update Azure secret with SP credentials ──
 log "Creating/updating secret ${SECRET_NAME} with SP credentials"
+# --from-literal stores this string as the secret value. The operator
+# base64-decodes it and rejects a single encoding ("not valid base64"),
+# which blocks creation of the Loki components. Two layers pass the check.
+# A real Azure account key is already one layer; do not double-encode it.
+DUMMY_ACCOUNT_KEY="$(printf 'unused' | base64 | tr -d '\n' | base64 | tr -d '\n')"
 oc create secret generic "${SECRET_NAME}" \
   --namespace "${NAMESPACE}" \
   --from-literal=environment="${AZURE_ENVIRONMENT}" \
@@ -88,7 +93,7 @@ oc create secret generic "${SECRET_NAME}" \
   --from-literal=client_id="${AZURE_SP_CLIENT_ID}" \
   --from-literal=client_secret="${AZURE_SP_CLIENT_SECRET}" \
   --from-literal=tenant_id="${AZURE_SP_TENANT_ID}" \
-  --from-literal=account_key="placeholder-not-used-with-sp-auth" \
+  --from-literal=account_key="${DUMMY_ACCOUNT_KEY}" \
   --dry-run=client -o yaml | oc apply -f -
 
 # ── Step 3: Switch to Unmanaged ──

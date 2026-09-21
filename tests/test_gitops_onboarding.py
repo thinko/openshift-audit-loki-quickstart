@@ -317,10 +317,10 @@ def test_gitops_grafana_image_vault_driven(repo_root: Path):
 
 
 def test_gitops_storage_secret_always_has_account_key(repo_root: Path):
-    """storage-secret.yaml must always render account_key (dummy if empty)."""
+    """storage-secret.yaml must always render account_key (double-base64 dummy if empty)."""
     content = (repo_root / GITOPS_NS / "storage-secret.yaml").read_text()
-    assert "unused" in content, \
-        "storage-secret.yaml must use 'unused' dummy when account_key is empty"
+    assert 'base64.encode(base64.encode("unused"))' in content, \
+        "empty account_key must be double-base64 before the Secret data encoding"
 
 
 def test_gitops_sp_overlay_text_templating(repo_root: Path):
