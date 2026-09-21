@@ -252,6 +252,8 @@ def test_gitops_grafana_secret_template(repo_root: Path):
     """grafana-secret.yaml must conditionally render admin credentials."""
     content = (repo_root / GITOPS_NS / "grafana-secret.yaml").read_text()
     assert "base64.encode" in content, "must use base64.encode for Secret data"
+    assert 'GF_SECURITY_ADMIN_USER: "(@=' in content, "Secret data values must be YAML strings"
+    assert 'GF_SECURITY_ADMIN_PASSWORD: "(@=' in content, "Secret data values must be YAML strings"
     assert 'grafana_admin_password != ""' in content, "must guard on grafana_admin_password"
     assert "grafana-admin-credentials" in content, "must target grafana-admin-credentials"
     assert "loki_storage" in content, "must use loki_storage values key"
