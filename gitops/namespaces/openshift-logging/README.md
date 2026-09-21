@@ -115,7 +115,9 @@ Workload Identity Federation is not available, use SP auth:
 make init-sp-auth
 ```
 
-See `scripts/init-sp-auth.sh` and `loki-config-sp-overlay.yaml` for details.
+See `scripts/init-sp-auth.sh`. If a later sync turns the stack back to Managed,
+run `make patch-loki-storage-config` after the operator rewrites
+`logging-loki-config`.
 
 ### Azure storage subnet ACL
 

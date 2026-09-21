@@ -113,9 +113,14 @@ Identity Federation is not available, use SP auth:
 1. Let the operator reconcile the LokiStack at least once (Managed)
 2. Run `make init-sp-auth` which:
    - Creates the secret with SP credentials (`client_id`, `client_secret`, `tenant_id`)
+   - Rewrites azure storage blocks in the live `logging-loki-config` ConfigMap
    - Switches LokiStack to `Unmanaged`
-   - Applies the SP config overlay ConfigMap
    - Restarts Loki pods
+
+   If a later sync turns the stack back to `Managed`, the operator regenerates
+   that ConfigMap. Run `make patch-loki-storage-config` after that reconcile
+   to put the service principal values back. The rest of the operator config
+   is left in place.
 
 See `scripts/init-sp-auth.sh` and `gitops/namespaces/openshift-logging/loki-config-sp-overlay.yaml`.
 

@@ -15,7 +15,7 @@ endef
 .PHONY: help deploy deploy-operators destroy teardown test test-attribution enable-console-plugin \
 	helm-lint helm-template secret azure-storage status preflight apply-rbac check-egress \
 	deploy-grafana destroy-grafana deploy-console-dashboards deploy-alerting lint \
-	add-storage-subnet init-sp-auth generate-dashboard-configmap azure-container
+	add-storage-subnet init-sp-auth patch-loki-storage-config generate-dashboard-configmap azure-container
 
 help: ## Show this help
 	@awk 'BEGIN {FS = ":.*##"; printf "\nTargets:\n"} /^[a-zA-Z0-9_.-]+:.*##/ { printf "  %-24s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -69,6 +69,7 @@ test: ## Run local validation (pytest, yamllint, shell syntax, helm lint)
 	@bash -n "$(ROOT)/scripts/check-egress.sh"
 	@bash -n "$(ROOT)/scripts/deploy-grafana.sh"
 	@bash -n "$(ROOT)/scripts/init-sp-auth.sh"
+	@bash -n "$(ROOT)/scripts/patch-loki-storage-config.sh"
 	@bash -n "$(ROOT)/scripts/load-cluster-env.sh"
 	@bash -n "$(ROOT)/scripts/add-storage-subnet.sh"
 	@bash -n "$(ROOT)/scripts/sync-gitops-to-internal.sh"
@@ -129,6 +130,9 @@ add-storage-subnet: ## Add ARO worker subnet to Azure storage account network AC
 
 init-sp-auth: ## Bootstrap service principal auth for Loki (AllowSharedKeyAccess=false workaround)
 	$(_load_env); "$(ROOT)/scripts/init-sp-auth.sh"
+
+patch-loki-storage-config: ## Re-apply SP storage settings on the live logging-loki-config ConfigMap
+	$(_load_env); "$(ROOT)/scripts/patch-loki-storage-config.sh"
 
 generate-dashboard-configmap: ## Regenerate gitops dashboards ConfigMap from dashboards/*.json
 	@echo "#! Grafana dashboards ConfigMap — auto-generated from dashboards/*.json." \
