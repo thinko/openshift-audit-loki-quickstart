@@ -57,6 +57,12 @@ def test_generate_overlay_leaves_grafana_password_to_postsync(repo_root: Path):
     assert "tenantId" in text
     assert "customer_shared '.grafana_image'" in text
     assert "customer_shared '.rbac.edit'" in text
+    assert "--from <sibling-cluster>" in text
+    sibling_keys = text.split("SIBLING_KEYS=(", 1)[1].split(")", 1)[0]
+    for key in ("grafana_image", "rbac_edit", "rbac_view", "client_id", "account_name"):
+        assert key in sibling_keys
+    for key in ("container", "deployment_id", "grafana_admin_password", "management_state"):
+        assert key not in sibling_keys
     base = (repo_root / "_overlays" / "_customer" / "values-base.yaml").read_text(encoding="utf-8")
     assert "grafana_image:" in base
     assert "edit:" in base

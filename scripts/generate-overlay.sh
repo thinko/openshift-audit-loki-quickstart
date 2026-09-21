@@ -8,7 +8,12 @@
 #      content to inject into the gitops-secrets Secret in openshift-gitops)
 #
 # Usage:
-#   scripts/generate-overlay.sh <cluster-name>
+#   scripts/generate-overlay.sh <cluster-name> [--from <sibling-cluster>]
+#
+# --from copies values that are the same across clusters (image, AD groups,
+# storage account, service principal) from that cluster's Vault path.
+# It does not copy container, deployment_id, grafana_admin_password, or
+# management_state. Those stay specific to the new cluster.
 #
 # Prerequisites:
 #   - `safe` CLI authenticated to the target Vault
@@ -27,8 +32,35 @@ die()    { err "$*"; exit 1; }
 need_cmd() { command -v "$1" >/dev/null 2>&1 || die "Required command not found: $1"; }
 
 # ── Argument parsing ─────────────────────────────────────────────────
-CLUSTER="${1:-}"
-[[ -n "${CLUSTER}" ]] || die "Usage: $0 <cluster-name>"
+CLUSTER=""
+SIBLING=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --from)
+      [[ -n "${2:-}" && "${2}" != --* ]] || die "--from requires a sibling cluster name"
+      SIBLING="$2"
+      shift 2
+      ;;
+    --from=*)
+      SIBLING="${1#--from=}"
+      [[ -n "${SIBLING}" ]] || die "--from requires a sibling cluster name"
+      shift
+      ;;
+    -h|--help)
+      die "Usage: $0 <cluster-name> [--from <sibling-cluster>]"
+      ;;
+    --*)
+      die "Unknown option: $1"
+      ;;
+    *)
+      [[ -z "${CLUSTER}" ]] || die "Unexpected argument: $1"
+      CLUSTER="$1"
+      shift
+      ;;
+  esac
+done
+[[ -n "${CLUSTER}" ]] || die "Usage: $0 <cluster-name> [--from <sibling-cluster>]"
+[[ "${SIBLING}" != "${CLUSTER}" ]] || die "--from must name a different cluster"
 
 VAULT_BASE="${VAULT_BASE:-secret/my-team/openshift}"
 VAULT_PATH="${VAULT_BASE}/${CLUSTER}/loki-storage"
@@ -39,9 +71,36 @@ TEMPLATE_DIR="${ROOT}/_overlays/_template"
 need_cmd safe
 need_cmd yq
 
-# ── Validate Vault path ─────────────────────────────────────────────
+# ── Read keys from Vault ─────────────────────────────────────────────
+# safe get outputs key:value pairs; read into an associative array.
+read_vault() {
+  local path="$1"
+  local -n _out="$2"
+  while IFS=: read -r key value; do
+    [[ -n "${key}" ]] || continue
+    value="${value#"${value%%[![:space:]]*}"}"
+    _out["${key}"]="${value}"
+  done < <(safe get "${path}" 2>/dev/null)
+}
+
+declare -A vault=()
+declare -A sibling=()
+SIBLING_PATH=""
+if [[ -n "${SIBLING}" ]]; then
+  SIBLING_PATH="${VAULT_BASE}/${SIBLING}/loki-storage"
+  log "Reading sibling Vault path: ${SIBLING_PATH}"
+  safe exists "${SIBLING_PATH}" 2>/dev/null \
+    || die "Sibling Vault path ${SIBLING_PATH} does not exist."
+  read_vault "${SIBLING_PATH}" sibling
+fi
+
 log "Validating Vault path: ${VAULT_PATH}"
-if ! safe exists "${VAULT_PATH}" 2>/dev/null; then
+if safe exists "${VAULT_PATH}" 2>/dev/null; then
+  log "Reading keys from ${VAULT_PATH}"
+  read_vault "${VAULT_PATH}" vault
+elif [[ -n "${SIBLING}" ]]; then
+  log "Vault path ${VAULT_PATH} does not exist; shared keys come from ${SIBLING}"
+else
   die "Vault path ${VAULT_PATH} does not exist.
 Create it with the values this script cannot discover:
   safe set ${VAULT_PATH} \\
@@ -49,9 +108,11 @@ Create it with the values this script cannot discover:
     client_id=<SP_CLIENT_ID> \\
     client_secret=<SP_SECRET> \\
     tenant_id=<TENANT_ID>
+Or copy the shared values from a cluster that already has them:
+  $0 ${CLUSTER} --from <sibling-cluster>
 Leave grafana_admin_password unset. The Grafana PostSync hook generates
 a random password when that value is empty.
-grafana_image and rbac.edit / rbac.view come from
+grafana_image and rbac.edit / rbac.view also come from
 _overlays/_customer/values-base.yaml when Vault omits them.
 These are filled automatically when omitted: container=${CLUSTER}-audit-loki,
 environment=AzureGlobal, lokistack_size=1x.small (quota follows the size),
@@ -60,15 +121,24 @@ deployment_id=${CLUSTER}-logging. tenant_id is read from 'az account show'
 when it is empty and az is logged in."
 fi
 
-# ── Read keys from Vault ─────────────────────────────────────────────
-log "Reading keys from ${VAULT_PATH}"
-# safe get outputs key:value pairs; read into an associative array
-declare -A vault
-while IFS=: read -r key value; do
-  # trim leading/trailing whitespace from value
-  value="${value#"${value%%[![:space:]]*}"}"
-  vault["${key}"]="${value}"
-done < <(safe get "${VAULT_PATH}" 2>/dev/null)
+# Copied from --from when this cluster's key is empty.
+# Not copied: container, deployment_id, grafana_admin_password, management_state.
+SIBLING_KEYS=(
+  account_name account_key environment
+  client_id client_secret tenant_id
+  grafana_image
+  lokistack_size storage_class
+  requests_cpu requests_memory limits_memory
+  rbac_edit rbac_view
+)
+if [[ -n "${SIBLING}" ]]; then
+  for key in "${SIBLING_KEYS[@]}"; do
+    if [[ -z "${vault[${key}]:-}" && -n "${sibling[${key}]:-}" ]]; then
+      vault["${key}"]="${sibling[${key}]}"
+      log "${key} from sibling ${SIBLING}"
+    fi
+  done
+fi
 
 # ── Fill what Vault did not set ──────────────────────────────────────
 CLUSTER_LC="$(printf '%s' "${CLUSTER}" | tr '[:upper:]' '[:lower:]')"
