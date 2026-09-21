@@ -50,7 +50,7 @@ def _write_fixture(root: Path) -> None:
 
 def _fake_bin(root: Path) -> Path:
     bindir = root / "bin"
-    bindir.mkdir()
+    bindir.mkdir(exist_ok=True)
     safe = bindir / "safe"
     safe.write_text(
         "#!/bin/sh\n"
@@ -130,6 +130,66 @@ def test_show_values_set_and_skip(repo_root: Path, tmp_path: Path):
     assert "unset AZURE_SP_CLIENT_ID" in result.stdout
     assert "export CLUSTER=arod08" in result.stdout
     assert "ZFc1MWMyVms=" in _source_line(result.stderr, "AZURE_STORAGE_ACCOUNT_KEY")
+
+
+def test_gitops_dir_beats_overlay_and_ignores_placeholders(repo_root: Path, tmp_path: Path):
+    _write_fixture(tmp_path)
+    gitops = tmp_path / "internal" / "namespaces" / "openshift-logging"
+    gitops.mkdir(parents=True)
+    (gitops / "values.yaml").write_text(
+        "\n".join(
+            [
+                "secrets:",
+                "  loki_storage:",
+                '    container: "from-gitops"',
+                '    storage_class: "from-gitops-sc"',
+                "envs:",
+                "  - name: arod08",
+                "    rbac:",
+                "      edit: from-gitops-edit",
+                "      view: REPLACE_ME_VIEW",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    repo_gitops = tmp_path / "gitops" / "namespaces" / "openshift-logging"
+    repo_gitops.mkdir(parents=True)
+    (repo_gitops / "values.yaml").write_text(
+        'secrets:\n  loki_storage:\n    storage_class: "from-repo-gitops"\n',
+        encoding="utf-8",
+    )
+    result = _run(
+        repo_root,
+        tmp_path,
+        "--cluster",
+        "arod08",
+        "--vault-base",
+        "secret/test",
+        "--gitops-dir",
+        str(gitops),
+        "--show-values",
+    )
+    assert result.returncode == 0, result.stderr
+    assert "from-gitops" in _source_line(result.stderr, "AZURE_CONTAINER_NAME")
+    assert "gitops values" in _source_line(result.stderr, "AZURE_CONTAINER_NAME")
+    assert "from-gitops-edit" in _source_line(result.stderr, "RBAC_EDIT")
+    assert "from-values-view" in _source_line(result.stderr, "RBAC_VIEW")
+    assert "from-gitops-sc" in _source_line(result.stderr, "STORAGE_CLASS")
+
+    repo_only = _run(
+        repo_root,
+        tmp_path,
+        "--cluster",
+        "arod08",
+        "--vault-base",
+        "secret/test",
+        "--show-values",
+    )
+    assert repo_only.returncode == 0, repo_only.stderr
+    assert "from-values" in _source_line(repo_only.stderr, "AZURE_CONTAINER_NAME")
+    assert "from-repo-gitops" in _source_line(repo_only.stderr, "STORAGE_CLASS")
+    assert "repo gitops values" in _source_line(repo_only.stderr, "STORAGE_CLASS")
 
 
 def test_sourced_export(repo_root: Path, tmp_path: Path):

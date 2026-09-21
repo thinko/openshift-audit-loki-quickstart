@@ -18,13 +18,20 @@
 #   1. --set / --skip
 #   2. a variable that is already exported
 #   3. Vault (${VAULT_BASE}/<cluster>/loki-storage)
-#   4. _overlays/<cluster>/gitops-secrets-loki-storage.yaml
-#   5. _overlays/<cluster>/values.yaml
-#   6. _overlays/_customer/values-base.yaml
-#   7. a derived default (container name, AzureGlobal, filler account key, ...)
+#   4. --gitops-dir (the cluster copy of namespaces/openshift-logging)
+#   5. _overlays/<cluster>/gitops-secrets-loki-storage.yaml
+#   6. _overlays/<cluster>/values.yaml
+#   7. gitops/namespaces/openshift-logging/values.yaml in this repo
+#   8. _overlays/_customer/values-base.yaml
+#   9. a derived default (container name, AzureGlobal, filler account key, ...)
 #
-# Empty strings and TBD are ignored. grafana_admin_password has no default:
-# leave it unset and the Grafana PostSync hook generates one.
+# Cluster-specific edits usually live in the internal gitops checkout, not in
+# _overlays/ on the machine that only has this repo. Point --gitops-dir at
+# that namespaces/openshift-logging directory, or export GITOPS_LOGGING_DIR.
+#
+# Empty strings, TBD, and REPLACE_ME* placeholders are ignored.
+# grafana_admin_password has no default: leave it unset and the Grafana
+# PostSync hook generates one.
 #
 # VAULT_BASE is taken from the environment, or from the VAULT_BASE= line at
 # the top of scripts/generate-overlay.sh when that line has been filled in.
@@ -34,6 +41,7 @@ _lce_repo_root="$(cd "${_lce_script_dir}/.." && pwd)"
 
 load_cluster_env() {
   local cluster="" show_values=0 vault_base="${VAULT_BASE:-}" root="${_lce_repo_root}"
+  local gitops_dir="${GITOPS_LOGGING_DIR:-}"
   local tmp="" spec=""
   local -a specs=()
   _LCE_CLI_SET_NAMES=""
@@ -81,6 +89,11 @@ load_cluster_env() {
         root="$2"
         shift 2
         ;;
+      --gitops-dir)
+        [[ -n "${2:-}" && "${2}" != --* ]] || { printf 'ERROR: --gitops-dir requires a directory\n' >&2; return 1; }
+        gitops_dir="$2"
+        shift 2
+        ;;
       -h|--help)
         _lce_usage
         return 0
@@ -107,6 +120,10 @@ load_cluster_env() {
   _lce_apply_cli "${tmp}"
   _lce_load_vault "${tmp}" "${vault_base}" "${cluster}"
   _lce_prepare_secrets_file "${tmp}" "${root}" "${cluster}"
+  if [[ -n "${gitops_dir}" ]]; then
+    [[ -d "${gitops_dir}" ]] || { printf 'ERROR: --gitops-dir is not a directory: %s\n' "${gitops_dir}" >&2; rm -rf "${tmp}"; return 1; }
+    _lce_dedent_secrets "${gitops_dir}/gitops-secrets-loki-storage.yaml" "${tmp}/gitops-secrets.yaml"
+  fi
 
   _lce_offer "${tmp}" CLUSTER "${cluster}" argument
   _lce_offer "${tmp}" ARO_CLUSTER_NAME "${cluster}" argument
@@ -130,19 +147,21 @@ load_cluster_env() {
   )
 
   local env_name vault_key default_kind values_expr customer_expr
-  local from_vault from_secrets from_values from_customer from_default
+  local from_vault from_secrets from_customer from_default
   for spec in "${specs[@]}"; do
     IFS='|' read -r env_name vault_key default_kind values_expr customer_expr <<<"${spec}"
     _lce_offer_env "${tmp}" "${env_name}"
     from_vault="$(_lce_file_value "${tmp}/vault/${vault_key}")"
     _lce_offer "${tmp}" "${env_name}" "${from_vault}" vault
+    if [[ -n "${gitops_dir}" ]]; then
+      from_secrets="$(_lce_yaml "${tmp}/gitops-secrets.yaml" ".loki_storage.${vault_key}")"
+      _lce_offer "${tmp}" "${env_name}" "${from_secrets}" "gitops secrets"
+      _lce_offer_values_file "${tmp}" "${env_name}" "${gitops_dir}/values.yaml" "${values_expr}" "${vault_key}" "gitops values"
+    fi
     from_secrets="$(_lce_yaml "${tmp}/secrets.yaml" ".loki_storage.${vault_key}")"
     _lce_offer "${tmp}" "${env_name}" "${from_secrets}" "overlay secrets"
-    from_values="$(_lce_yaml "${root}/_overlays/${cluster}/values.yaml" "${values_expr}")"
-    if ! _lce_usable "${from_values}"; then
-      from_values="$(_lce_yaml "${root}/_overlays/${cluster}/values.yaml" ".secrets.loki_storage.${vault_key}")"
-    fi
-    _lce_offer "${tmp}" "${env_name}" "${from_values}" "overlay values"
+    _lce_offer_values_file "${tmp}" "${env_name}" "${root}/_overlays/${cluster}/values.yaml" "${values_expr}" "${vault_key}" "overlay values"
+    _lce_offer_values_file "${tmp}" "${env_name}" "${root}/gitops/namespaces/openshift-logging/values.yaml" "${values_expr}" "${vault_key}" "repo gitops values"
     if [[ -n "${customer_expr}" ]]; then
       from_customer="$(_lce_yaml "${root}/_overlays/_customer/values-base.yaml" "${customer_expr}")"
       _lce_offer "${tmp}" "${env_name}" "${from_customer}" "customer base"
@@ -173,6 +192,8 @@ usage: load_cluster_env --cluster NAME [options]
   --set VAR=value        set VAR and ignore vault, overlays, and defaults
   --skip VAR             leave VAR unset
   --vault-base PATH      Vault prefix (default: VAULT_BASE, or generate-overlay.sh)
+  --gitops-dir DIR       cluster copy of namespaces/openshift-logging
+                         (default: GITOPS_LOGGING_DIR)
   --root DIR             repository root (default: this repo)
 
 source scripts/load-cluster-env.sh
@@ -181,7 +202,18 @@ EOF
 }
 
 _lce_usable() {
-  [[ -n "${1:-}" && "${1}" != "TBD" && "${1}" != "null" && "${1}" != '""' ]]
+  [[ -n "${1:-}" && "${1}" != "TBD" && "${1}" != "null" && "${1}" != '""' ]] || return 1
+  [[ "${1}" == REPLACE_ME* ]] && return 1
+  return 0
+}
+
+_lce_offer_values_file() {
+  local tmp="$1" name="$2" file="$3" expr="$4" vault_key="$5" source="$6" value
+  value="$(_lce_yaml "${file}" "${expr}")"
+  if ! _lce_usable "${value}"; then
+    value="$(_lce_yaml "${file}" ".secrets.loki_storage.${vault_key}")"
+  fi
+  _lce_offer "${tmp}" "${name}" "${value}" "${source}"
 }
 
 _lce_file_value() {
@@ -268,11 +300,15 @@ _lce_load_vault() {
   done < "${tmp}/vault.out"
 }
 
-_lce_prepare_secrets_file() {
-  local tmp="$1" root="$2" cluster="$3" src
-  src="${root}/_overlays/${cluster}/gitops-secrets-loki-storage.yaml"
+_lce_dedent_secrets() {
+  local src="$1" dest="$2"
   [[ -f "${src}" ]] || return 0
-  sed 's/^  //' "${src}" > "${tmp}/secrets.yaml"
+  sed 's/^  //' "${src}" > "${dest}"
+}
+
+_lce_prepare_secrets_file() {
+  local tmp="$1" root="$2" cluster="$3"
+  _lce_dedent_secrets "${root}/_overlays/${cluster}/gitops-secrets-loki-storage.yaml" "${tmp}/secrets.yaml"
 }
 
 _lce_yaml() {
