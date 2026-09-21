@@ -69,6 +69,7 @@ test: ## Run local validation (pytest, yamllint, shell syntax, helm lint)
 	@bash -n "$(ROOT)/scripts/check-egress.sh"
 	@bash -n "$(ROOT)/scripts/deploy-grafana.sh"
 	@bash -n "$(ROOT)/scripts/init-sp-auth.sh"
+	@bash -n "$(ROOT)/scripts/load-cluster-env.sh"
 	@bash -n "$(ROOT)/scripts/add-storage-subnet.sh"
 	@bash -n "$(ROOT)/scripts/sync-gitops-to-internal.sh"
 	@bash -n "$(ROOT)/scripts/teardown-loki.sh"
