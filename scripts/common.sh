@@ -32,6 +32,15 @@ require_oc() {
   oc whoami >/dev/null 2>&1 || die "oc is not logged in. Run: oc login --server <api> --web"
 }
 
+require_az_login() {
+  need_cmd az
+  local account
+  if ! account="$(az account show --query '{name:name, id:id}' -o tsv 2>/dev/null)"; then
+    die "az is not logged in. Run 'az login', then re-run this script."
+  fi
+  log "Azure CLI session: ${account//$'\t'/ / }"
+}
+
 require_cluster_admin() {
   local user
   user="$(oc whoami)"

@@ -38,6 +38,16 @@ def test_create_azure_container_does_not_create_an_account(repo_root: Path):
     assert "oc create secret" not in text
 
 
+def test_add_storage_subnet_discovers_from_cluster_name(repo_root: Path):
+    text = (repo_root / "scripts" / "add-storage-subnet.sh").read_text(encoding="utf-8")
+    assert "require_az_login" in text
+    assert "az aro list" in text
+    assert "az storage account list" in text
+    assert "Pass --cluster" in text
+    common = (repo_root / "scripts" / "common.sh").read_text(encoding="utf-8")
+    assert "az account show" in common
+
+
 def test_deploy_supports_operators_only(repo_root: Path):
     text = (repo_root / "scripts" / "deploy.sh").read_text(encoding="utf-8")
     assert "--operators-only" in text

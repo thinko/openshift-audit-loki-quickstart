@@ -15,15 +15,15 @@ correct.
 ## Automated fix
 
 ```bash
-# Set env vars in .env or export them:
-#   AZURE_STORAGE_ACCOUNT_NAME, AZURE_RESOURCE_GROUP
-#   ARO_CLUSTER_NAME, ARO_RESOURCE_GROUP  (for auto-discovery)
-make add-storage-subnet
+# az must already be logged in (`az login`).
+# Cluster name finds the ARO resource group and worker subnet.
+# Account name is not derived from the cluster name.
+scripts/add-storage-subnet.sh --cluster arod05 --account-name <storage-account>
 ```
 
-The script auto-discovers the worker subnet from the ARO cluster metadata
-and adds it to the storage account's network rules. It is idempotent — safe
-to re-run.
+The script checks `az account show` before it calls Azure. It looks up the
+ARO resource group and the storage account resource group. Those two are
+often the same and do not need to be set. It is idempotent — safe to re-run.
 
 If auto-discovery fails (e.g. insufficient Azure RBAC), pass the subnet
 resource ID directly:

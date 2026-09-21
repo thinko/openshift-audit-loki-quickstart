@@ -17,8 +17,7 @@
   ```
 - [ ] Worker subnet added to storage account ACL:
   ```bash
-  make add-storage-subnet
-  # or: scripts/add-storage-subnet.sh --account-name <name> --resource-group <rg>
+  scripts/add-storage-subnet.sh --cluster REPLACE_ME_CLUSTER --account-name <storage-account>
   ```
 
 ## Secret Creation (out-of-band, before ArgoCD sync)

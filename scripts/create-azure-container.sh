@@ -72,7 +72,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-need_cmd az
+require_az_login
 
 [[ -n "${ACCOUNT_NAME}" ]]   || die "Set AZURE_STORAGE_ACCOUNT_NAME or pass --name"
 [[ -n "${RESOURCE_GROUP}" ]] || die "Set AZURE_RESOURCE_GROUP or pass --resource-group"

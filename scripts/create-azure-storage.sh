@@ -90,7 +90,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-need_cmd az
+require_az_login
 
 [[ -n "${RESOURCE_GROUP}" ]] || die "Set AZURE_RESOURCE_GROUP or pass --resource-group"
 
