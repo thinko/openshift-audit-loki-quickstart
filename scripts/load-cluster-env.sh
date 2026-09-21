@@ -28,6 +28,8 @@
 # Cluster-specific edits usually live in the internal gitops checkout, not in
 # _overlays/ on the machine that only has this repo. Point --gitops-dir at
 # that namespaces/openshift-logging directory, or export GITOPS_LOGGING_DIR.
+# The resolved directory is exported so init-sp-auth.sh applies
+# loki-config-sp-overlay.yaml from there instead of this repo.
 #
 # Empty strings, TBD, and REPLACE_ME* placeholders are ignored.
 # grafana_admin_password has no default: leave it unset and the Grafana
@@ -122,7 +124,15 @@ load_cluster_env() {
   _lce_prepare_secrets_file "${tmp}" "${root}" "${cluster}"
   if [[ -n "${gitops_dir}" ]]; then
     [[ -d "${gitops_dir}" ]] || { printf 'ERROR: --gitops-dir is not a directory: %s\n' "${gitops_dir}" >&2; rm -rf "${tmp}"; return 1; }
+    gitops_dir="$(cd "${gitops_dir}" && pwd)"
     _lce_dedent_secrets "${gitops_dir}/gitops-secrets-loki-storage.yaml" "${tmp}/gitops-secrets.yaml"
+    # init-sp-auth.sh applies loki-config-sp-overlay.yaml from this directory.
+    if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+      printf 'export GITOPS_LOGGING_DIR=%q\n' "${gitops_dir}"
+    else
+      GITOPS_LOGGING_DIR="${gitops_dir}"
+      export GITOPS_LOGGING_DIR
+    fi
   fi
 
   _lce_offer "${tmp}" CLUSTER "${cluster}" argument

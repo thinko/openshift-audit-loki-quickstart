@@ -12,8 +12,10 @@
 # Prerequisites:
 #   - oc logged in as cluster-admin
 #   - LokiStack CR applied and operator has reconciled (created StatefulSets etc.)
-#   - The loki-config-sp-overlay.yaml has been populated with real config
-#     (not the placeholder TODO content)
+#   - loki-config-sp-overlay.yaml has been populated with real config
+#     (not the placeholder TODO content). When load_cluster_env was given
+#     --gitops-dir, that directory's copy is applied. Otherwise the copy
+#     in this repo is used.
 #   - Environment variables set (via .env or export):
 #       AZURE_STORAGE_ACCOUNT_NAME  (required)
 #       AZURE_CONTAINER_NAME        (default: {ARO_CLUSTER_NAME}-audit-loki)
@@ -50,9 +52,16 @@ for var in AZURE_STORAGE_ACCOUNT_NAME AZURE_SP_CLIENT_ID AZURE_SP_CLIENT_SECRET 
   fi
 done
 
-OVERLAY_FILE="${ROOT}/gitops/namespaces/openshift-logging/loki-config-sp-overlay.yaml"
+if [[ -n "${GITOPS_LOGGING_DIR:-}" ]]; then
+  OVERLAY_FILE="${GITOPS_LOGGING_DIR%/}/loki-config-sp-overlay.yaml"
+  [[ -f "${OVERLAY_FILE}" ]] || die "loki-config-sp-overlay.yaml not found at ${OVERLAY_FILE}.
+GITOPS_LOGGING_DIR was set by load_cluster_env --gitops-dir.
+Put the populated ConfigMap in that directory. The copy in this repo is a placeholder."
+else
+  OVERLAY_FILE="${ROOT}/gitops/namespaces/openshift-logging/loki-config-sp-overlay.yaml"
+fi
 if grep -q 'TODO.*Replace' "${OVERLAY_FILE}" 2>/dev/null; then
-  die "loki-config-sp-overlay.yaml still contains TODO placeholders.
+  die "${OVERLAY_FILE} still contains TODO placeholders.
 Export the real ConfigMap from a running cluster first:
   oc get configmap logging-loki-config -n ${NAMESPACE} -o yaml
 Then patch the loki_storage_config sections to add use_service_principal: true."

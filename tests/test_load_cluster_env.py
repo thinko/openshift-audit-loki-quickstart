@@ -180,6 +180,7 @@ def test_gitops_dir_beats_overlay_and_ignores_placeholders(repo_root: Path, tmp_
     assert "from-gitops-edit" in _source_line(result.stderr, "RBAC_EDIT")
     assert "from-values-view" in _source_line(result.stderr, "RBAC_VIEW")
     assert "from-gitops-sc" in _source_line(result.stderr, "STORAGE_CLASS")
+    assert f"export GITOPS_LOGGING_DIR={gitops}" in result.stdout
 
     repo_only = _run(
         repo_root,
@@ -194,6 +195,31 @@ def test_gitops_dir_beats_overlay_and_ignores_placeholders(repo_root: Path, tmp_
     assert "from-values" in _source_line(repo_only.stderr, "AZURE_CONTAINER_NAME")
     assert "from-repo-gitops" in _source_line(repo_only.stderr, "STORAGE_CLASS")
     assert "repo gitops values" in _source_line(repo_only.stderr, "STORAGE_CLASS")
+
+    script = repo_root / "scripts" / "load-cluster-env.sh"
+    probe = tmp_path / "probe-gitops.sh"
+    probe.write_text(
+        "\n".join(
+            [
+                "#!/bin/bash",
+                f"source '{script}'",
+                "load_cluster_env --cluster arod08 "
+                f"--root '{tmp_path}' --vault-base secret/test --gitops-dir '{gitops}'",
+                'printf "dir=%s\\n" "$GITOPS_LOGGING_DIR"',
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    sourced = subprocess.run(
+        ["bash", str(probe)],
+        check=False,
+        capture_output=True,
+        text=True,
+        env={"PATH": f"{_fake_bin(tmp_path)}:{os.environ.get('PATH', '')}", "HOME": str(tmp_path)},
+    )
+    assert sourced.returncode == 0, sourced.stderr
+    assert f"dir={gitops}" in sourced.stdout
 
 
 def test_sourced_export(repo_root: Path, tmp_path: Path):
