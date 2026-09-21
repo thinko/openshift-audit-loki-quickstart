@@ -55,6 +55,12 @@ def test_generate_overlay_leaves_grafana_password_to_postsync(repo_root: Path):
     assert "PostSync hook will generate one" in text
     assert "1x.medium" in text
     assert "tenantId" in text
+    assert "customer_shared '.grafana_image'" in text
+    assert "customer_shared '.rbac.edit'" in text
+    base = (repo_root / "_overlays" / "_customer" / "values-base.yaml").read_text(encoding="utf-8")
+    assert "grafana_image:" in base
+    assert "edit:" in base
+    assert "view:" in base
 
 
 def test_deploy_supports_operators_only(repo_root: Path):

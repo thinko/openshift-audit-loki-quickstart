@@ -16,3 +16,12 @@ project:
   annotations:
     #! Change management / cost-tracking annotations
     org/change-record: "TBD"
+
+#! Grafana image and AD groups are the same on most clusters.
+#! generate-overlay.sh copies these when the cluster Vault path omits them.
+#! A Vault value for one cluster still wins.
+#! Leave grafana_image empty to use grafana/grafana:latest.
+grafana_image: ""
+rbac:
+  edit: ""
+  view: ""

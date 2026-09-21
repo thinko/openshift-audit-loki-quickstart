@@ -48,11 +48,11 @@ Create it with the values this script cannot discover:
     account_name=<STORAGE_ACCOUNT> \\
     client_id=<SP_CLIENT_ID> \\
     client_secret=<SP_SECRET> \\
-    tenant_id=<TENANT_ID> \\
-    rbac_edit=group1,group2 \\
-    rbac_view=group1
+    tenant_id=<TENANT_ID>
 Leave grafana_admin_password unset. The Grafana PostSync hook generates
 a random password when that value is empty.
+grafana_image and rbac.edit / rbac.view come from
+_overlays/_customer/values-base.yaml when Vault omits them.
 These are filled automatically when omitted: container=${CLUSTER}-audit-loki,
 environment=AzureGlobal, lokistack_size=1x.small (quota follows the size),
 management_state=Managed, storage_class=managed-csi,
@@ -125,6 +125,49 @@ V_RBAC_EDIT="${vault[rbac_edit]:-}"
 V_RBAC_VIEW="${vault[rbac_view]:-}"
 V_DEPLOYMENT_ID="${vault[deployment_id]:-${CLUSTER_LC}-logging}"
 
+# Shared image and AD groups live in the customer base. Vault still wins
+# when a cluster sets its own value. Empty and TBD are ignored.
+# A YAML list is joined into the comma-separated form Vault uses.
+customer_shared() {
+  local path="$1" kind value
+  [[ -f "${CUSTOMER_BASE}" ]] || return 0
+  kind="$(yq -r "${path} | type" "${CUSTOMER_BASE}" 2>/dev/null || true)"
+  case "${kind}" in
+    '!!seq')
+      value="$(yq -r "${path} | map(select(. != \"\" and . != \"TBD\")) | join(\",\")" "${CUSTOMER_BASE}")"
+      ;;
+    '!!str')
+      value="$(yq -r "${path}" "${CUSTOMER_BASE}")"
+      [[ "${value}" == "TBD" ]] && value=""
+      ;;
+    *)
+      value=""
+      ;;
+  esac
+  printf '%s' "${value}"
+}
+if [[ -z "${V_GRAFANA_IMAGE}" ]]; then
+  shared="$(customer_shared '.grafana_image')"
+  if [[ -n "${shared}" ]]; then
+    V_GRAFANA_IMAGE="${shared}"
+    log "grafana_image from ${CUSTOMER_BASE}"
+  fi
+fi
+if [[ -z "${V_RBAC_EDIT}" ]]; then
+  shared="$(customer_shared '.rbac.edit')"
+  if [[ -n "${shared}" ]]; then
+    V_RBAC_EDIT="${shared}"
+    log "rbac.edit from ${CUSTOMER_BASE}"
+  fi
+fi
+if [[ -z "${V_RBAC_VIEW}" ]]; then
+  shared="$(customer_shared '.rbac.view')"
+  if [[ -n "${shared}" ]]; then
+    V_RBAC_VIEW="${shared}"
+    log "rbac.view from ${CUSTOMER_BASE}"
+  fi
+fi
+
 # ── Build RBAC lists ─────────────────────────────────────────────────
 # Convert comma-separated strings to YAML list items
 rbac_edit_yaml=""
@@ -191,7 +234,7 @@ secrets:
     client_secret: ""
     tenant_id: ""
     grafana_admin_password: ""
-    grafana_image: ""             #! set in Vault → gitops-secrets overlay
+    grafana_image: ""             #! Vault or _customer/values-base.yaml → gitops-secrets
     lokistack_size: "${V_LOKISTACK_SIZE}"
     management_state: "${V_MANAGEMENT_STATE}"
     storage_class: "${V_STORAGE_CLASS}"
