@@ -53,6 +53,8 @@ def test_coo_is_its_own_application(repo_root: Path):
     assert sub["spec"]["source"] == "redhat-operators"
     assert group["spec"]["targetNamespaces"] == ["openshift-cluster-observability-operator"]
     assert values["project"]["name"] == "openshift-cluster-observability-operator"
+    assert "secrets" not in values
+    assert "node_placement" not in values
     assert values["envs"][0]["spec_hard"]["limits"]["memory"] == "8Gi"
 
 

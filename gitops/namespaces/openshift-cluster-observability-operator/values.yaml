@@ -1,71 +1,9 @@
 #@data/values
 ---
 #! Namespace ApplicationSet input for the Cluster Observability Operator.
-#! This operator is a separate Application from openshift-logging.
-#! Copy this folder to namespaces/openshift-cluster-observability-operator/
-#! in the internal repo and sync it before the logging UIPlugin.
-#!
-#! The secrets block matches the platform Conjur overlay. This namespace
-#! does not use those values. Removing a key breaks ytt overlay matching.
-secrets:
-  azure:
-    client_id: ""
-    client_secret: ""
-    spn: ""
-    log_analytics:
-      workspace_shared_key: ""
-  redhat:
-    pull_secret: ""
-  dynatrace:
-    apiToken: ""
-    wiz:
-      clientId: ""
-      clientToken: ""
-  cloudability:
-    apikey: ""
-  ldap:
-    username: ""
-    password: ""
-  prisma:
-    image_download_key: ""
-    install_bundle_base64: ""
-    certs_base64: ""
-  ssh:
-    key:
-      gitops: ""
-  nexus:
-    registry:
-      username: ""
-      password: ""
-  ssl:
-    key:
-      api: ""
-      ingress: ""
-  kubeconfig: ""
-  loki_storage:
-    account_name: ""
-    account_key: ""
-    container: ""
-    environment: ""
-    client_id: ""
-    client_secret: ""
-    tenant_id: ""
-    grafana_admin_password: ""
-    grafana_image: ""
-    lokistack_size: ""
-    management_state: ""
-    storage_class: ""
-    requests_cpu: ""
-    requests_memory: ""
-    limits_memory: ""
-    rbac_edit: ""
-    rbac_view: ""
-    deployment_id: ""
-
-node_placement:
-  node_selector: {}
-  tolerations: []
-
+#! This folder has no ytt templates, so it does not declare secrets or
+#! node_placement. The Conjur overlay skips secrets when the key is absent.
+#! Defining secrets here would require every platform secret key.
 project:
   name: openshift-cluster-observability-operator
   labels:
