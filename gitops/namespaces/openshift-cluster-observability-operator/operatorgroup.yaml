@@ -1,0 +1,19 @@
+#! OwnNamespace on purpose. openshift-operators already holds the cluster's
+#! AllNamespaces OperatorGroup, and a second global group is rejected.
+#! The UIPlugin CRD is still cluster-scoped once this CSV installs, so the
+#! logging application can create UIPlugin in openshift-logging.
+#!
+#! Do not put this OperatorGroup in openshift-logging. That namespace
+#! already has one, and a second OperatorGroup breaks OLM.
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: openshift-cluster-observability-operator
+  namespace: openshift-cluster-observability-operator
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  upgradeStrategy: Default
+  targetNamespaces:
+    - openshift-cluster-observability-operator

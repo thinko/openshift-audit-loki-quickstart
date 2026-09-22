@@ -1,0 +1,94 @@
+#@data/values
+---
+#! Namespace ApplicationSet input for the Cluster Observability Operator.
+#! This operator is a separate Application from openshift-logging.
+#! Copy this folder to namespaces/openshift-cluster-observability-operator/
+#! in the internal repo and sync it before the logging UIPlugin.
+#!
+#! The secrets block matches the platform Conjur overlay. This namespace
+#! does not use those values. Removing a key breaks ytt overlay matching.
+secrets:
+  azure:
+    client_id: ""
+    client_secret: ""
+    spn: ""
+    log_analytics:
+      workspace_shared_key: ""
+  redhat:
+    pull_secret: ""
+  dynatrace:
+    apiToken: ""
+    wiz:
+      clientId: ""
+      clientToken: ""
+  cloudability:
+    apikey: ""
+  ldap:
+    username: ""
+    password: ""
+  prisma:
+    image_download_key: ""
+    install_bundle_base64: ""
+    certs_base64: ""
+  ssh:
+    key:
+      gitops: ""
+  nexus:
+    registry:
+      username: ""
+      password: ""
+  ssl:
+    key:
+      api: ""
+      ingress: ""
+  kubeconfig: ""
+  loki_storage:
+    account_name: ""
+    account_key: ""
+    container: ""
+    environment: ""
+    client_id: ""
+    client_secret: ""
+    tenant_id: ""
+    grafana_admin_password: ""
+    grafana_image: ""
+    lokistack_size: ""
+    management_state: ""
+    storage_class: ""
+    requests_cpu: ""
+    requests_memory: ""
+    limits_memory: ""
+    rbac_edit: ""
+    rbac_view: ""
+    deployment_id: ""
+
+node_placement:
+  node_selector: {}
+  tolerations: []
+
+project:
+  name: openshift-cluster-observability-operator
+  labels:
+    kubernetes.io/metadata.name: openshift-cluster-observability-operator
+    argocd.argoproj.io/managed-by: "openshift-gitops"
+    openshift.io/cluster-monitoring: "true"
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/audit: privileged
+    pod-security.kubernetes.io/warn: privileged
+  annotations:
+    openshift.io/node-selector: ""
+    openshift.io/description: "Cluster Observability Operator (UIPlugin CRD)"
+    openshift.io/display-name: openshift-cluster-observability-operator
+    argocd.argoproj.io/sync-wave: "1"
+envs:
+  - name: REPLACE_ME_CLUSTER
+    rbac:
+      edit: TBD
+      view: TBD
+    deployment_id: TBD
+    spec_hard:
+      requests:
+        cpu: 2
+        memory: 4Gi
+      limits:
+        memory: 8Gi

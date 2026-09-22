@@ -60,9 +60,11 @@ plain YAML siblings with the namespace hardcoded.
 
 ## Sync behaviour
 
-The Loki Operator CRDs (`LokiStack`, `ClusterLogForwarder`) and the COO
-CRDs (`UIPlugin`) are installed by OLM via the `Subscription` resources in
-wave 1. Because CRD registration is asynchronous (OLM must pull the operator
+The Loki Operator CRDs (`LokiStack`, `ClusterLogForwarder`) are installed by
+OLM via the `Subscription` resources in wave 1. The `UIPlugin` CRD is not.
+It comes from the Cluster Observability Operator, which is a separate
+Application in `namespaces/openshift-cluster-observability-operator/`.
+Because CRD registration is asynchronous (OLM must pull the operator
 image and install its CSV), the first sync will typically fail on the wave
 3/4/5 resources with _"API could not find LokiStack"_.
 
@@ -102,9 +104,11 @@ after token expiry or ServiceAccount recreation.
 
 ### UIPlugin
 
-The `UIPlugin` CR registers the Logs tab in the OpenShift Console. It requires
-the Cluster Observability Operator (COO) to be installed. If COO is not present,
-the UIPlugin will remain in a pending state but will not block the sync.
+The `UIPlugin` CR registers the Logs tab in the OpenShift Console. The CRD
+comes from the Cluster Observability Operator Application
+(`namespaces/openshift-cluster-observability-operator/`), which must be
+synced first. If that operator is absent, this CR stays pending and does
+not block the rest of the sync.
 
 ### Service principal auth (AllowSharedKeyAccess=false)
 

@@ -19,6 +19,14 @@ gitops/namespaces/openshift-logging/
 
 into `namespaces/openshift-logging/` on the Argo-watched git repo (folder name matches the destination namespace). Open a PR there.
 
+Also copy
+
+```text
+gitops/namespaces/openshift-cluster-observability-operator/
+```
+
+into `namespaces/openshift-cluster-observability-operator/`. That folder is its own Application. It installs the Cluster Observability Operator, which owns the `UIPlugin` CRD. Sync it before the logging Application. Do not put that Subscription in the logging folder: `openshift-logging` already has an OperatorGroup.
+
 The folder follows the same mix used for other multi-manifest namespaces:
 
 - `clusters.yaml` and ytt `#@data/values` `values.yaml` — ApplicationSet inputs
@@ -167,9 +175,10 @@ This creates the admin credentials Secret (from `GRAFANA_ADMIN_PASSWORD` in
 
 ### Console plugin (UIPlugin)
 
-The `UIPlugin` CR for the Console Logs tab is included in the sync at wave 5.
-It requires the Cluster Observability Operator (COO) to be installed. If COO
-is not present, the UIPlugin will remain pending but will not block the sync.
+The `UIPlugin` CR for the Console Logs tab is included in the logging sync at wave 5.
+The CRD is installed by the separate
+`openshift-cluster-observability-operator` Application. If that operator is
+not present yet, the UIPlugin stays pending and does not block the sync.
 
 ## Sync waves
 

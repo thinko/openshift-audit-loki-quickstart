@@ -37,6 +37,25 @@ def test_gitops_required_files(repo_root: Path):
     assert missing == [], f"missing GitOps files: {missing}"
 
 
+def test_coo_is_its_own_application(repo_root: Path):
+    """UIPlugin CRD comes from COO, which cannot share openshift-logging's OperatorGroup."""
+    logging_subs = _load_docs(repo_root / GITOPS_NS / "subscription.yaml")
+    names = {doc["metadata"]["name"] for doc in logging_subs}
+    assert names == {"loki-operator", "cluster-logging"}
+    assert all(doc["metadata"]["namespace"] == "openshift-logging" for doc in logging_subs)
+
+    coo = repo_root / "gitops" / "namespaces" / "openshift-cluster-observability-operator"
+    sub = _load_docs(coo / "subscription.yaml")[0]
+    group = _load_docs(coo / "operatorgroup.yaml")[0]
+    values = yaml.safe_load((coo / "values.yaml").read_text(encoding="utf-8"))
+    assert sub["metadata"]["name"] == "cluster-observability-operator"
+    assert sub["metadata"]["namespace"] == "openshift-cluster-observability-operator"
+    assert sub["spec"]["source"] == "redhat-operators"
+    assert group["spec"]["targetNamespaces"] == ["openshift-cluster-observability-operator"]
+    assert values["project"]["name"] == "openshift-cluster-observability-operator"
+    assert values["envs"][0]["spec_hard"]["limits"]["memory"] == "8Gi"
+
+
 def test_gitops_no_limitrange(repo_root: Path):
     """LimitRange was removed — ensure it does not come back."""
     folder = repo_root / GITOPS_NS
