@@ -14,9 +14,18 @@
 # the SP auth patch will be lost.
 #
 #   Order of operations (GitOps clusters):
-#     1. Set management_state=Unmanaged in Vault / gitops-secrets
-#     2. Sync (or wait for ArgoCD self-heal to pick up the new value)
-#     3. Run this script
+#     1. Set management_state=Unmanaged in Vault for this cluster
+#     2. Patch gitops-secrets to match (the Conjur sidecar caches secrets.yaml
+#        at pod startup — patching the Secret directly is the fastest path)
+#     3. Restart openshift-gitops-repo-server so the Conjur CMP sidecar
+#        re-reads the updated gitops-secrets:
+#          oc rollout restart deployment/openshift-gitops-repo-server -n openshift-gitops
+#          oc rollout status  deployment/openshift-gitops-repo-server -n openshift-gitops --timeout=120s
+#     4. Hard Refresh the logging app in ArgoCD (not just Refresh — forces
+#        a re-render through the ytt/Conjur sidecar)
+#     5. Sync the logging app and verify live managementState=Unmanaged:
+#          oc get lokistack logging-loki -n openshift-logging -o jsonpath='{.spec.managementState}'
+#     6. Run this script
 #
 # Run it again after a Managed reconcile has regenerated the ConfigMap.
 # It switches the LokiStack to Unmanaged first so the operator does not
