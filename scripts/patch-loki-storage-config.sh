@@ -7,6 +7,17 @@
 # that carries account_name or account_key). This script keeps every other
 # key the operator wrote and only replaces those storage blocks.
 #
+# IMPORTANT: If ArgoCD manages the LokiStack on this cluster, you MUST set
+# management_state to Unmanaged in the gitops-secrets BEFORE running this
+# script, then sync. Otherwise ArgoCD self-heal will revert the LokiStack
+# to Managed within minutes, the operator will regenerate the ConfigMap, and
+# the SP auth patch will be lost.
+#
+#   Order of operations (GitOps clusters):
+#     1. Set management_state=Unmanaged in Vault / gitops-secrets
+#     2. Sync (or wait for ArgoCD self-heal to pick up the new value)
+#     3. Run this script
+#
 # Run it again after a Managed reconcile has regenerated the ConfigMap.
 # It switches the LokiStack to Unmanaged first so the operator does not
 # overwrite the patched ConfigMap on the next reconcile.
@@ -126,6 +137,54 @@ fi
 
 require_oc
 require_cluster_admin
+
+# Guard: if ArgoCD manages this LokiStack with self-heal, the gitops source
+# must already render Unmanaged. Otherwise the operator will regenerate the
+# ConfigMap within minutes of this script finishing.
+check_argocd_selfheal() {
+  local app_json desired_state
+  # Find the ArgoCD Application targeting openshift-logging (if any)
+  app_json="$(oc get applications.argoproj.io -A -o json 2>/dev/null \
+    | jq -r '[.items[] | select(.spec.destination.namespace=="openshift-logging")] | first // empty' 2>/dev/null)" || true
+  if [[ -z "${app_json}" ]]; then
+    return 0  # no ArgoCD app found — manual cluster, safe to proceed
+  fi
+  local self_heal
+  self_heal="$(printf '%s' "${app_json}" | jq -r '.spec.syncPolicy.automated.selfHeal // false')"
+  if [[ "${self_heal}" != "true" ]]; then
+    return 0  # self-heal off — manual patch will stick
+  fi
+  # Self-heal is on. Check if the gitops-secrets already says Unmanaged.
+  desired_state="$(oc get secret gitops-secrets -n openshift-gitops \
+    -o jsonpath='{.data.secrets\.yaml}' 2>/dev/null \
+    | base64 -d 2>/dev/null \
+    | grep 'management_state' \
+    | head -1 \
+    | sed 's/.*management_state:[[:space:]]*//' \
+    | tr -d '"' \
+    | tr -d "'" || true)"
+  if [[ "${desired_state}" == "Unmanaged" ]]; then
+    log "ArgoCD self-heal is enabled and gitops-secrets has management_state: Unmanaged — safe to proceed"
+    return 0
+  fi
+  err "ArgoCD self-heal is ENABLED for this namespace and gitops-secrets"
+  err "has management_state: ${desired_state:-Managed} (not Unmanaged)."
+  err ""
+  err "If you patch now, ArgoCD will revert the LokiStack to Managed within"
+  err "minutes and the operator will overwrite logging-loki-config."
+  err ""
+  err "Fix first:"
+  err "  1. Set management_state=Unmanaged in Vault for this cluster"
+  err "  2. Patch gitops-secrets:  oc get secret gitops-secrets -n openshift-gitops -o json \\"
+  err "       | jq '.data[\"secrets.yaml\"] |= (@base64d | gsub(\"management_state: .*\"; \"management_state: Unmanaged\") | @base64)' \\"
+  err "       | oc apply -f -"
+  err "  3. Sync the logging app in the ArgoCD UI"
+  err "  4. Re-run this script"
+  err ""
+  read -rp "Continue anyway? (y/N) " answer
+  [[ "${answer}" =~ ^[Yy] ]] || die "Aborted. Fix gitops-secrets first."
+}
+check_argocd_selfheal
 
 tmp="$(mktemp)"
 trap 'rm -f "${tmp}"' EXIT
