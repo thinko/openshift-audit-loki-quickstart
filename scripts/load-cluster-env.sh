@@ -16,14 +16,17 @@
 #
 # Precedence, first match wins:
 #   1. --set / --skip
-#   2. a variable that is already exported
-#   3. Vault (${VAULT_BASE}/<cluster>/loki-storage)
-#   4. --gitops-dir (the cluster copy of namespaces/openshift-logging)
-#   5. _overlays/<cluster>/gitops-secrets-loki-storage.yaml
-#   6. _overlays/<cluster>/values.yaml
-#   7. gitops/namespaces/openshift-logging/values.yaml in this repo
-#   8. _overlays/_customer/values-base.yaml
-#   9. a derived default (container name, AzureGlobal, filler account key, ...)
+#   2. Vault (${VAULT_BASE}/<cluster>/loki-storage)
+#   3. --gitops-dir (the cluster copy of namespaces/openshift-logging)
+#   4. _overlays/<cluster>/gitops-secrets-loki-storage.yaml
+#   5. _overlays/<cluster>/values.yaml
+#   6. gitops/namespaces/openshift-logging/values.yaml in this repo
+#   7. _overlays/_customer/values-base.yaml
+#   8. a derived default (container name, AzureGlobal, filler account key, ...)
+#
+# All managed variables are automatically unset before loading. This prevents
+# stale values from a previous cluster from leaking when you switch contexts.
+# Use --set to explicitly force a variable regardless of other sources.
 #
 # Cluster-specific edits usually live in the internal gitops checkout, not in
 # _overlays/ on the machine that only has this repo. Point --gitops-dir at
@@ -110,6 +113,18 @@ load_cluster_env() {
 
   [[ -n "${cluster}" ]] || { printf 'ERROR: --cluster is required\n' >&2; _lce_usage >&2; return 1; }
   cluster="$(printf '%s' "${cluster}" | tr '[:upper:]' '[:lower:]')"
+
+  # Clear all managed variables so a prior load_cluster_env for a different
+  # cluster doesn't leak into this one.  Intentional overrides use --set.
+  local _prev_cluster="${CLUSTER:-}"
+  local _managed_vars="CLUSTER ARO_CLUSTER_NAME AZURE_STORAGE_ACCOUNT_NAME AZURE_STORAGE_ACCOUNT_KEY AZURE_CONTAINER_NAME AZURE_ENVIRONMENT AZURE_SP_CLIENT_ID AZURE_SP_CLIENT_SECRET AZURE_SP_TENANT_ID GRAFANA_IMAGE GRAFANA_ADMIN_PASSWORD DEPLOYMENT_ID RBAC_EDIT RBAC_VIEW LOKISTACK_SIZE LOKI_MANAGEMENT_STATE STORAGE_CLASS GITOPS_LOGGING_DIR"
+  local _v
+  for _v in ${_managed_vars}; do
+    unset "${_v}" 2>/dev/null || true
+  done
+  if [[ -n "${_prev_cluster}" && "${_prev_cluster}" != "${cluster}" ]]; then
+    printf 'note: cleared variables from previous cluster (%s)\n' "${_prev_cluster}" >&2
+  fi
 
   tmp="$(mktemp -d)"
   mkdir -p "${tmp}/vault" "${tmp}/resolved" "${tmp}/source" "${tmp}/skipped"
