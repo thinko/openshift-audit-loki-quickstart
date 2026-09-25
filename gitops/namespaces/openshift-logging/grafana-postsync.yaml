@@ -2,7 +2,7 @@
 #@ ls = data.values.secrets.loki_storage
 #@ np = data.values.node_placement
 #@ has_tolerations = len(np.tolerations) > 0
-#@ ose_cli_img = ls.ose_cli_image if ls.ose_cli_image != "" else "registry.redhat.io/openshift4/ose-cli:v4.20"
+#@ ose_cli_img = ls.ose_cli_image if ls.ose_cli_image != "" else "registry.redhat.io/openshift4/ose-cli-rhel9:v4.20"
 #! ArgoCD PostSync hook: injects bearer tokens into Grafana datasources
 #! and creates the admin credentials Secret.
 #!
