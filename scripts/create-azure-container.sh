@@ -107,12 +107,22 @@ if [[ -z "${RESOURCE_GROUP}" ]]; then
   log "Storage account resource group: ${RESOURCE_GROUP}"
 fi
 
-if [[ "${USE_LOGIN}" -eq 1 || -z "${AZURE_STORAGE_ACCOUNT_KEY:-}${AZURE_STORAGE_KEY:-}" ]]; then
+# Determine auth mode.  The dummy placeholder key that load-cluster-env
+# provides (double-base64 of "unused") is not a real key — treat it
+# the same as "no key set" and fall through to Entra login.
+_dummy_key="$(printf 'unused' | base64 | tr -d '\n' | base64 | tr -d '\n')"
+_effective_key="${AZURE_STORAGE_ACCOUNT_KEY:-}${AZURE_STORAGE_KEY:-}"
+if [[ "${_effective_key}" == "${_dummy_key}" || "${_effective_key}" == "unused" ]]; then
+  _effective_key=""
+fi
+
+if [[ "${USE_LOGIN}" -eq 1 || -z "${_effective_key}" ]]; then
   AUTH_MODE="login"
 else
   AUTH_MODE="key"
   export AZURE_STORAGE_KEY="${AZURE_STORAGE_KEY:-${AZURE_STORAGE_ACCOUNT_KEY}}"
 fi
+unset _dummy_key _effective_key
 
 if [[ "${DRY_RUN}" -eq 1 ]]; then
   log "Dry run: would create container ${CONTAINER_NAME} on ${ACCOUNT_NAME} (${RESOURCE_GROUP}) using ${AUTH_MODE} auth"
