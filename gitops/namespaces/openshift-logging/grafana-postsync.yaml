@@ -1,3 +1,6 @@
+#@ load("@ytt:data", "data")
+#@ np = data.values.node_placement
+#@ has_tolerations = len(np.tolerations) > 0
 #! ArgoCD PostSync hook: injects bearer tokens into Grafana datasources
 #! and creates the admin credentials Secret.
 #!
@@ -90,6 +93,9 @@ spec:
     spec:
       serviceAccountName: grafana-postsync
       restartPolicy: OnFailure
+      #@ if has_tolerations:
+      tolerations: #@ np.tolerations
+      #@ end
       containers:
         - name: postsync
           image: registry.redhat.io/openshift4/ose-cli:latest

@@ -1,6 +1,15 @@
+#@ load("@ytt:data", "data")
+#@ np = data.values.node_placement
+#@ has_tolerations = len(np.tolerations) > 0
 #! OpenShift Logging 6.x: observability.openshift.io/v1.
 #! Pipeline: kube/openshift/ovn audit -> edge filters -> in-cluster LokiStack.
 #! Bind collector RBAC (collector-rbac.yaml) before this object.
+#!
+#! Node placement: collector pods are a DaemonSet that MUST run on ALL nodes
+#! (workers + infra) to collect logs from every node. If infra nodes have a
+#! NoSchedule taint, the collector needs a matching toleration. Unlike
+#! LokiStack/Grafana pods, the collector only needs tolerations — NOT a
+#! nodeSelector (DaemonSets target all nodes by design).
 ---
 apiVersion: observability.openshift.io/v1
 kind: ClusterLogForwarder
@@ -17,6 +26,10 @@ spec:
   managementState: Managed
   serviceAccount:
     name: logging-collector
+  #@ if has_tolerations:
+  collector:
+    tolerations: #@ np.tolerations
+  #@ end
   inputs:
     - name: audit-logs
       type: audit

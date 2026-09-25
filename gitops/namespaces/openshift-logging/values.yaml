@@ -37,8 +37,10 @@
 #!       - key: node-role.kubernetes.io/infra
 #!         effect: NoSchedule
 #!
-#! Note: log collector pods (DaemonSet) always run on ALL nodes regardless
-#! of this setting — they must collect logs from every node in the cluster.
+#! Note: log collector pods (DaemonSet) always run on ALL nodes. They inherit
+#! tolerations (but NOT nodeSelector) from node_placement so they can also
+#! schedule on infra-tainted nodes. If tolerations are empty, collectors
+#! will only run on untainted workers.
 #! ── Vault-sourced secrets (injected at render time) ─────────────────
 #! All secrets for the Loki deployment, sourced from a single Vault path.
 #! Populate from Vault in the platform pipeline — never commit real values.
