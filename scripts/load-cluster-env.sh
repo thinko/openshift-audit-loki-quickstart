@@ -6,10 +6,10 @@
 # stay hidden unless --show-values is given.
 #
 #   source scripts/load-cluster-env.sh
-#   load_cluster_env --cluster arod08
-#   load_cluster_env --cluster arod08 --show-values
-#   load_cluster_env --cluster arod08 --set AZURE_ENVIRONMENT=AzureUSGovernment
-#   load_cluster_env --cluster arod08 --skip AZURE_STORAGE_ACCOUNT_KEY
+#   load_cluster_env --cluster mycluster
+#   load_cluster_env --cluster mycluster --show-values
+#   load_cluster_env --cluster mycluster --set AZURE_ENVIRONMENT=AzureUSGovernment
+#   load_cluster_env --cluster mycluster --skip AZURE_STORAGE_ACCOUNT_KEY
 #
 # Running the file prints `export` lines on stdout (for eval) and the same
 # report on stderr.
@@ -222,7 +222,7 @@ usage: load_cluster_env --cluster NAME [options]
   --root DIR             repository root (default: this repo)
 
 source scripts/load-cluster-env.sh
-load_cluster_env --cluster arod08
+load_cluster_env --cluster mycluster
 EOF
 }
 
