@@ -3,14 +3,15 @@
 # AllowSharedKeyAccess is disabled.
 #
 # The Loki Operator generates logging-loki-config with account_key references.
-# SP auth approach depends on the operator-generated config structure:
+# SP auth approach depends on the LokiStack size profile, which determines
+# the generated config structure:
 #
-#   Direct layout (operator ≤ v6.5.2):
+#   1x.extra-small / 1x.small  ("direct" layout):
 #     Config has common.storage.azure (BlobStorageConfig type) which accepts
 #     SP auth fields directly. The script patches the ConfigMap with literal
 #     SP values and removes account_key.
 #
-#   Object-store layout (operator ≥ v6.5.3, ALL sizes):
+#   1x.medium  ("object_store" layout):
 #     Config has common.storage.object_store.azure (azure.Config type) which
 #     does NOT support SP auth fields. Instead, the script:
 #       - Removes account_key from the ConfigMap
@@ -19,7 +20,8 @@
 #       - Removes AZURE_STORAGE_ACCOUNT_KEY env var from all workloads
 #     The Azure SDK DefaultAzureCredential picks up the env vars automatically.
 #
-#   The layout is auto-detected from the live ConfigMap regardless of size.
+#   The layout is auto-detected from the live ConfigMap (checks for the
+#   presence of common.storage.object_store). No size assumption is hard-coded.
 #
 # IMPORTANT: If ArgoCD manages the LokiStack on this cluster, you MUST set
 # management_state to Unmanaged in the gitops-secrets BEFORE running this
@@ -56,7 +58,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=common.sh
 source "${SCRIPT_DIR}/common.sh"
 
-# ── yq expressions for direct layout (ConfigMap patching) ──────────
+# ── yq expressions for direct layout — 1x.small / 1x.extra-small ──
 
 # Patch every azure block that carries storage credentials
 LOKI_AZURE_PATCH_EXPR='
@@ -92,7 +94,7 @@ LOKI_AZURE_COUNT_EXPR='
 )] | length
 '
 
-# ── yq expression for object-store layout (strip account_key only) ─
+# ── yq expression for object_store layout — 1x.medium ──────────────
 
 LOKI_STRIP_ACCOUNT_KEY_EXPR='
 (.. | select(
@@ -135,7 +137,7 @@ strip_account_key_from_config() {
   yq eval "${LOKI_STRIP_ACCOUNT_KEY_EXPR}" -
 }
 
-# Detect whether the config uses object_store wrapper (v6.5.3+) or direct azure (v6.5.2-)
+# Detect whether the config uses object_store wrapper (1x.medium) or direct azure (1x.small)
 detect_config_layout() {
   local cfg="$1"
   if printf '%s\n' "${cfg}" | yq eval '.common.storage | has("object_store")' - 2>/dev/null | grep -q 'true'; then
@@ -276,11 +278,11 @@ oc patch lokistack "${LOKISTACK_NAME}" -n "${NAMESPACE}" \
   --type merge -p '{"spec":{"managementState":"Unmanaged"}}'
 
 if [[ "${layout}" == "direct" ]]; then
-  # ── Direct layout (v6.5.2-): patch ConfigMap with literal SP values ──
+  # ── Direct layout (1x.small / 1x.extra-small): patch ConfigMap with literal SP values ──
   blocks="$(printf '%s\n' "${cfg}" | count_azure_blocks)"
   [[ "${blocks}" != "0" && "${blocks}" != "null" ]] || die "logging-loki-config has no azure storage block to patch."
 
-  log "Patching ${blocks} azure storage block(s) in logging-loki-config (direct layout, operator ≤v6.5.2)"
+  log "Patching ${blocks} azure storage block(s) in logging-loki-config (direct layout)"
   LOKI_PATCHED_CONFIG="$(printf '%s\n' "${cfg}" | patch_azure_blocks)"
   export LOKI_PATCHED_CONFIG
   yq eval -i '.data."config.yaml" = strenv(LOKI_PATCHED_CONFIG)' "${tmp}"
@@ -290,8 +292,8 @@ if [[ "${layout}" == "direct" ]]; then
   log "Applied logging-loki-config with literal service principal storage settings"
 
 else
-  # ── Object-store layout (v6.5.3+): strip account_key from ConfigMap + inject env vars ──
-  log "Stripping account_key from logging-loki-config (object_store layout, operator ≥v6.5.3)"
+  # ── Object-store layout (1x.medium): strip account_key from ConfigMap + inject env vars ──
+  log "Stripping account_key from logging-loki-config (object_store layout)"
   LOKI_PATCHED_CONFIG="$(printf '%s\n' "${cfg}" | strip_account_key_from_config)"
   export LOKI_PATCHED_CONFIG
   yq eval -i '.data."config.yaml" = strenv(LOKI_PATCHED_CONFIG)' "${tmp}"
