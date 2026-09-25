@@ -83,6 +83,7 @@ secrets:
     #! ── Grafana ──
     grafana_admin_password: ""    #! leave empty to auto-generate via PostSync hook
     grafana_image: ""             #! container image (empty → grafana/grafana:latest)
+    ose_cli_image: ""             #! ose-cli image for PostSync hook (empty → registry.redhat.io/openshift4/ose-cli:v4.17)
     #! ── LokiStack sizing and operator ──
     lokistack_size: "1x.small"    #! 1x.extra-small | 1x.small | 1x.medium
     management_state: "Managed"   #! Managed (default) | Unmanaged (required for SP auth)
